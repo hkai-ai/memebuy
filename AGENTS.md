@@ -5,6 +5,8 @@
 ## 基本规则
 
 * 默认使用中文回答。
+* 默认使用中文编写面向用户或协作者的内容，包括文档、教程、说明、注释性文字、SEO 文案、页面文案和 skill 相关文档。
+* 代码标识符、命令、配置字段、schema 字段、文件名、API 名称和第三方专有术语按原文保留；只有在有明确本地化价值时才翻译。
 * 优先使用 TypeScript。
 * 优先使用 `pnpm`。
 * 先理解项目结构，再进行修改。
@@ -133,3 +135,10 @@ C:\Users\<user>\.codex\skills\<skill-name>
 * 如果用户要求“修改 skill”“更新 skill”“提交 skill”，默认指仓库内 `skills/<skill-name>/`，除非用户明确说要改全局安装副本。
 * 修改 skill 后至少运行一次 skill 结构验证；例如可用 `quick_validate.py` 验证 `skills/<skill-name>`。
 * 如果需要证明当前约束生效，回复中应说明本次读取/修改的是仓库内路径还是全局路径，并列出验证命令。
+* 每个仓库内 skill 必须维护 `skill-manifest.json`，其中记录 `name`、`version`、`updated_at` 和 `tracked_files`。
+* 修改 skill 的行为、schema、命令、输出文件或用户可见规则时，必须同步更新 `skill-manifest.json` 的版本号和说明。
+* 需要让全局运行副本生效时，使用 `scripts\sync-skill.ps1 -SkillName <skill-name>` 从仓库副本同步到全局副本。
+* 提交前如涉及 skill 修改，运行 `scripts\check-skill-sync.ps1 -SkillName <skill-name>` 检查仓库副本和全局运行副本的版本号与文件 hash。
+* 如果同步校验失败，不要声称当前运行副本已对齐；应说明不一致文件或版本，并先修复同步问题。
+* skill 的 README、使用教程、面向用户的说明和示例说明默认使用中文；保留命令名、mode 名、JSON key、schema 字段和路径等技术标识原文。
+* 处理 skill 任务时，过程说明和最终汇总默认使用中文，并明确说明读取/修改的是仓库内副本还是全局运行副本。
