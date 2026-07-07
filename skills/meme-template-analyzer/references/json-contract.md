@@ -163,6 +163,18 @@
     "audience_assumption": "",
     "reuse_formula": ""
   },
+  "meme_formula": {
+    "abstract_formula": "【主体】因为像【对象】而处在【关系】中",
+    "core_variables": [
+      {
+        "id": "subject",
+        "role_in_formula": "",
+        "source_value": ""
+      }
+    ],
+    "default_rendering_details": [],
+    "why_this_is_the_joke": ""
+  },
   "reading_model": {
     "first_read": "",
     "second_read": "",
@@ -251,6 +263,12 @@
   "co_variation_constraints": [],
   "fusion_model": {},
   "remix_suitability": {},
+  "slot_minimization_review": {
+    "kept_as_core_slots": [],
+    "demoted_to_constraints_or_rendering": [],
+    "reasoning": "",
+    "business_slot_count": 0
+  },
   "variable_slots": [],
   "series_potential": {
     "can_expand": true,
@@ -367,6 +385,8 @@
 {
   "slot_id": "subject_primary",
   "category": "subject",
+  "business_exposure": "core | constraint_only | debug_only",
+  "formula_variable_ref": "subject",
   "role": "",
   "current_value": "",
   "lock_level": "locked | faithful_editable | creative_editable | fully_editable",
@@ -398,6 +418,10 @@
   }
 }
 ```
+
+`business_exposure` 区分该槽是否应该出现在业务侧 `prompt.slots[]`。只有 `core` 默认进入 Gallery Template Authoring JSON；`constraint_only` 和 `debug_only` 只能用于 prompt 约束、默认渲染、QA 或 debug。
+
+`formula_variable_ref` 指向 `meme_formula.core_variables[].id`。如果一个候选槽无法追溯到梗公式变量，通常不应作为业务槽位。
 
 `min_creative_level` 记录该槽位第一次可被修改的等级。`lock_level: "locked"` 的槽位在任何 creative level 都不得开放。
 

@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.9.8",
+  "version": "0.9.9",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-07",
-  "notes": "Add fusion_model to detect fused subject-object structures before judging remix suitability and subject replacement modes.",
+  "notes": "Add meme_formula and slot_minimization_review rules so authoring slots come from core meme variables instead of raw visual element lists.",
   "tracked_files": [
     "SKILL.md",
     "README.md",

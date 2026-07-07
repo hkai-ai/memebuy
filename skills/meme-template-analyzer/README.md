@@ -188,7 +188,9 @@ python skills\meme-template-analyzer\scripts\validate_stability_testset.py <path
 - `modes.hifi` 和 `modes.free`
 - `output`
 
-阅读模型、显著性模型、风格 profile 和槽位 lock level 只作为分析中间层，用于推导上述业务 JSON。只有用户要求 debug 时，才放进 `_analysis` 或拆成中间文件。
+生成业务槽位前，先把梗压缩成一句 `meme_formula`，再从公式里抽 2-4 个核心变量。`prompt.slots[]` 不是画面元素清单；容器、工具、姿势、镜头、表情、字体、风格和局部道具通常应放进锁定描述、默认渲染或生成约束，除非它们本身就是梗公式变量，或用户明确要编辑。
+
+阅读模型、显著性模型、风格 profile、关系不变量和槽位 lock level 只作为分析中间层，用于推导上述业务 JSON。只有用户要求 debug 时，才放进 `_analysis` 或拆成中间文件。
 
 示例请求：
 
@@ -238,13 +240,14 @@ python skills\meme-template-analyzer\scripts\validate_stability_testset.py <path
 
 1. 先生成 `vlm-recognition-mock.json`，记录用户上传内容经过 VLM 识别后的模拟结构化结果。
 2. 分析源 meme，并识别锁定的识别锚点、阅读模型、显著性模型、共同变化约束和画面风格 profile。
-3. 写入 `fusion_model`，判断主体是否与食物、物件、文字、UI、场景或身体结构融合，以及主体变化时是否必须重映射依赖槽。
-4. 基于 `fusion_model` 判断 `remix_suitability`，明确是否适合高保真主体替换、是否应改用 creative remap、哪些模式不推荐。
-5. 将目标内容和 VLM mock 结果标准化到 `normalized-input.json`。
-6. 在 `slot-bindings.json` 中把目标字段和 VLM 候选槽位绑定到可编辑变量槽。
-7. 创建 base、faithful 和 creative 提示词模板；如果 `high_fidelity_subject_replaceability` 为低，不要把 creative remap 的新食物或新场景写进 faithful。
-8. 渲染最终提示词，不能留下未解析的 `{{placeholder}}` 文本。
-9. 保存组合后的 `prompt-pack.json`。
+3. 写入 `meme_formula`，先把梗点压缩成核心变量关系，再通过 `slot_minimization_review` 排除只是渲染细节的候选槽。
+4. 写入 `fusion_model`，判断主体是否与食物、物件、文字、UI、场景或身体结构融合，以及主体变化时是否必须重映射依赖槽。
+5. 基于 `fusion_model` 判断 `remix_suitability`，明确是否适合高保真主体替换、是否应改用 creative remap、哪些模式不推荐。
+6. 将目标内容和 VLM mock 结果标准化到 `normalized-input.json`。
+7. 在 `slot-bindings.json` 中把目标字段和 VLM 候选槽位绑定到可编辑变量槽。
+8. 创建 base、faithful 和 creative 提示词模板；如果 `high_fidelity_subject_replaceability` 为低，不要把 creative remap 的新食物或新场景写进 faithful。
+9. 渲染最终提示词，不能留下未解析的 `{{placeholder}}` 文本。
+10. 保存组合后的 `prompt-pack.json`。
 
 当源图应指导构图或风格时，使用 `reference_strategy: image_reference`。只有用户明确要求直接编辑源图时，才使用 `edit_target`。
 

@@ -28,6 +28,9 @@ def main() -> None:
     require(skill, "fusion_model", "SKILL.md")
     require(skill, "fused_slots", "SKILL.md")
     require(skill, "replacement_sensitivity", "SKILL.md")
+    require(skill, "meme_formula", "SKILL.md")
+    require(skill, "slot_minimization_review", "SKILL.md")
+    require(skill, "业务槽位不是画面元素清单", "SKILL.md")
 
     require(json_contract, "co_variation_constraints", "json-contract.md")
     require(json_contract, "dependent_slot", "json-contract.md")
@@ -38,6 +41,14 @@ def main() -> None:
     require(json_contract, "fusion_model", "json-contract.md")
     require(json_contract, "has_fused_subject", "json-contract.md")
     require(json_contract, "requires_remap_if_subject_changes", "json-contract.md")
+    require(json_contract, "meme_formula", "json-contract.md")
+    require(json_contract, "slot_minimization_review", "json-contract.md")
+    require(json_contract, "business_exposure", "json-contract.md")
+
+    gallery_contract = read("references/gallery-authoring-contract.md")
+    require(gallery_contract, "meme_formula", "gallery-authoring-contract.md")
+    require(gallery_contract, "不是画面元素清单", "gallery-authoring-contract.md")
+    require(gallery_contract, "默认控制在 2-4 个业务槽位", "gallery-authoring-contract.md")
 
     require(stability_contract, "co_variation_adherence", "stability-testset-contract.md")
     require(stability_contract, "expected_co_variation_constraints", "stability-testset-contract.md")

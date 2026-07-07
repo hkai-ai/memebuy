@@ -142,9 +142,11 @@ index.md
 ## 从 meme 分析映射到业务 JSON
 
 - `reading_model`、`salience_model`、`template_alignment`、`prompt_style_profile` 是生成业务 JSON 的分析中间层，不默认暴露为主字段。
-- 将可替换元素转成 `prompt.master` 里的 `【槽位名：原文】`，再在 `prompt.slots[]` 里声明 `policy` 和 `from`。
+- 先写一句 `meme_formula`，把梗压缩成 2-4 个核心变量；再把这些核心变量转成 `prompt.master` 里的 `【槽位名：原文】`，并在 `prompt.slots[]` 里声明 `policy` 和 `from`。
+- `prompt.slots[]` 不是画面元素清单。容器、工具、姿势、镜头、表情、字体、风格、局部道具等默认属于锁定描述、默认渲染或生成约束；只有它们本身改变梗公式，或用户明确要编辑，才可以成为业务槽位。
+- 默认控制在 2-4 个业务槽位。超过 4 个时必须先合并到更高层变量，例如把“筷子/蒸笼/夹起姿势”压缩成“空间关系/误认关系”。
 - 必须由用户提供或选择的内容用 `required`，例如主体照片、人格选项、主标文本。
-- 模板原有但可在自由模式扩展的内容用 `extensible`，例如场景、道具、配色、文案。
+- 模板原有但可在自由模式扩展的核心变量用 `extensible`，例如误认对象、关系映射、场景家族、主文案。
 - 高保真模式只替换 `required` 槽，可扩展槽回落原文。
 - 自由创意模式保留 `mustKeep`，允许 `canChange` 范围内重构。
 
@@ -154,6 +156,7 @@ index.md
 
 - `master` 去掉槽位标记并代回原文后，能准确描述模板图或模板风格。
 - 每个 `【槽位名：原文】` 都在 `prompt.slots[]` 有对应 `id`。
+- 每个槽位都能追溯到 `meme_formula` 的核心变量；如果只是画面道具或渲染细节，应从 `prompt.slots[]` 移除。
 - 每个 `image` input 都有 `extract`。
 - `free.examples` 为空数组。
 - `hifi.useTemplateImage` 有明确判断依据。
