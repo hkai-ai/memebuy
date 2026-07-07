@@ -27,6 +27,7 @@ $CODEX_HOME/generated_artifacts/meme-template-analyzer/<template_id-or-timestamp
 预期文件：
 
 ```text
+vlm-recognition-mock.json
 normalized-input.json
 meme-template.json
 slot-bindings.json
@@ -62,6 +63,7 @@ index.md
 
 ```text
 用户输入
+-> vlm-recognition-mock.json
 -> normalized-input.json
 -> slot-bindings.json
 -> prompt-templates.json
@@ -72,8 +74,8 @@ index.md
 最终提示词包必须包含一个共享基础提示词和两个变体提示词范围：
 
 - `base`: 共享的 meme 公式、阅读模型、显著性模型和不变量约束。
-- `faithful`: 高保真 remix，保留识别锚点、构图、风格、视觉层级、幽默节奏、阅读顺序和显著性。
-- `creative`: 自由创意 remix，保留笑点公式、阅读模型、显著性模型和风格家族，同时允许更大范围的替换。
+- `faithful`: 高保真 remix，替换用户指定的主体或核心变量，同时保留识别锚点、构图、可渲染的画面风格 profile、视觉层级、幽默节奏、阅读顺序和显著性。
+- `creative`: 自由创意 remix，保留笑点公式、阅读模型、显著性模型和风格家族，并按运营可编辑的 `creative_freedom_controls` 放开主体、动作、场景、文字、情绪等维度。
 
 示例请求：
 
@@ -121,6 +123,7 @@ index.md
 - 相关文字分析和背景上下文。
 - 笑点公式和识别锚点。
 - 视觉设计特征。
+- 可渲染的画面风格 profile：媒介、渲染手法、线条/形状、色彩/光照、材质纹理、镜头/景深、字体风格、后期观感和负向风格漂移。
 - 带 lock level 的变量槽。
 - faithful 和 creative 变体规则。
 - 风险和约束说明。
@@ -171,12 +174,13 @@ index.md
 
 预期行为：
 
-1. 分析源 meme，并识别锁定的识别锚点、阅读模型和显著性模型。
-2. 将目标内容标准化到 `normalized-input.json`。
-3. 在 `slot-bindings.json` 中把目标字段绑定到可编辑变量槽。
-4. 创建 base、faithful 和 creative 提示词模板。
-5. 渲染最终提示词，不能留下未解析的 `{{placeholder}}` 文本。
-6. 保存组合后的 `prompt-pack.json`。
+1. 先生成 `vlm-recognition-mock.json`，记录用户上传内容经过 VLM 识别后的模拟结构化结果。
+2. 分析源 meme，并识别锁定的识别锚点、阅读模型、显著性模型和画面风格 profile。
+3. 将目标内容和 VLM mock 结果标准化到 `normalized-input.json`。
+4. 在 `slot-bindings.json` 中把目标字段和 VLM 候选槽位绑定到可编辑变量槽。
+5. 创建 base、faithful 和 creative 提示词模板。
+6. 渲染最终提示词，不能留下未解析的 `{{placeholder}}` 文本。
+7. 保存组合后的 `prompt-pack.json`。
 
 当源图应指导构图或风格时，使用 `reference_strategy: image_reference`。只有用户明确要求直接编辑源图时，才使用 `edit_target`。
 
@@ -234,8 +238,8 @@ index.md
 预期行为：
 
 1. 复用已有模板和变量槽规则。
-2. 创建 3-8 个 faithful cases，只做窄范围变量变化。
-3. 创建 3-8 个 creative cases，允许更大范围变化，但保留公式。
+2. 创建 3-8 个 faithful cases，替换目标主体或少量可编辑变量，但不把源主体身份误当成锁定项。
+3. 创建 3-8 个 creative cases，允许更大范围变化，但必须遵守 `creative_freedom_controls` 并保留公式。
 4. 创建 1-4 个 negative controls，故意破坏识别锚点。
 5. 添加评分标准和重复性协议。
 6. 保存 `stability-testset.json`。

@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-07",
-  "notes": "Simplifies the skill output contract while keeping Simplified Chinese requirements for business-readable artifact content.",
+  "notes": "Adds vlm-recognition-mock.json as the user-upload recognition layer before normalization, slot binding, and faithful/creative prompt rendering; retains prompt_style_profile, subject_replacement_policy, and creative_freedom_controls.",
   "tracked_files": [
     "SKILL.md",
     "README.md",

@@ -28,6 +28,7 @@ Do not use English example prose as filler in output artifacts. If a value is in
 {
   "result_directory": "artifacts/meme-template-analyzer/<template_id-or-timestamp>/",
   "files": {
+    "vlm_recognition_mock": "vlm-recognition-mock.json",
     "normalized_input": "normalized-input.json",
     "meme_template": "meme-template.json",
     "slot_bindings": "slot-bindings.json",
@@ -52,6 +53,7 @@ Do not use English example prose as filler in output artifacts. If a value is in
     "limitations": [],
     "analysis_confidence": 0.0
   },
+  "vlm_recognition": {},
   "meme_template": {},
   "generation_pipeline": null,
   "faithful_variant": {},
@@ -61,6 +63,66 @@ Do not use English example prose as filler in output artifacts. If a value is in
 ```
 
 For `batch`, replace `meme_template` with `template_library`. For `compare`, include `comparison`.
+
+## VLM Recognition Mock Object
+
+Use for `vlm-recognition-mock.json`. It represents the mocked structured output of a VLM pass over user-uploaded content before normalization and prompt rendering.
+
+```json
+{
+  "schema_version": "1.0",
+  "artifact_type": "vlm_recognition_mock",
+  "created_at": "ISO-8601 timestamp",
+  "source_upload": {
+    "type": "local_image | uploaded_image | image_url | screenshot | text_idea",
+    "path": "",
+    "url": "",
+    "mime_type": "",
+    "width": 0,
+    "height": 0,
+    "sha256": ""
+  },
+  "vlm_provider": {
+    "type": "mock",
+    "model": "human_observed_or_agent_visual_inspection",
+    "notes": "说明这是 mock 识别结果，不是线上 VLM API 返回。"
+  },
+  "recognized_content": {
+    "subjects": [],
+    "objects": [],
+    "scene": "",
+    "visible_text": [],
+    "composition": "",
+    "style_and_rendering": "",
+    "color_and_lighting": [],
+    "camera_and_crop": "",
+    "humor_signals": []
+  },
+  "reading_candidates": {
+    "first_read": "",
+    "second_read": "",
+    "attention_order": [],
+    "possible_misdirection": "",
+    "role_mapping_candidates": []
+  },
+  "uncertainties": [
+    {
+      "field": "",
+      "issue": "",
+      "confidence": 0.0
+    }
+  ],
+  "downstream_mapping": {
+    "candidate_meme_type": "image_driven | text_driven | hybrid",
+    "candidate_template_id": "short_snake_case_id",
+    "candidate_variable_slots": [],
+    "locked_anchor_candidates": [],
+    "editable_candidate_slots": []
+  }
+}
+```
+
+Business-readable values in this object must be Chinese by default. Technical IDs and enum values stay English.
 
 ## Template Object
 
@@ -102,6 +164,23 @@ For `batch`, replace `meme_template` with `template_library`. For `compare`, inc
     "color_palette": [],
     "texture_and_rendering": "",
     "style_family": "",
+    "prompt_style_profile": {
+      "art_medium": "",
+      "rendering_method": "",
+      "line_and_shape_language": "",
+      "color_and_lighting": "",
+      "texture_material_surface": "",
+      "camera_lens_and_depth": "",
+      "composition_rhythm": "",
+      "typography_style": "",
+      "postprocessing_look": "",
+      "style_prompt_fragments": {
+        "base": [],
+        "faithful": [],
+        "creative": []
+      },
+      "negative_style_constraints": []
+    },
     "visual_hierarchy": "",
     "recognition_anchors": []
   },
@@ -155,22 +234,39 @@ For `batch`, replace `meme_template` with `template_library`. For `compare`, inc
     "bind_expression": false,
     "bind_semantic_role": false,
     "notes": ""
+  },
+  "subject_replacement_policy": {
+    "default_for_faithful": "replace_when_user_provides_target | preserve_source_when_no_target | preserve_source_identity",
+    "default_for_creative": "operator_controlled | free_replace | preserve_role_only",
+    "replaceable_aspects": [],
+    "preserved_aspects": [],
+    "operator_notes": ""
   }
 }
 ```
+
+`subject_replacement_policy` is required for `category: "subject"` slots and optional for other slots. In high-fidelity prompt packs, a user-provided replacement subject should normally bind to an editable subject slot; the source subject's identity should not appear in `faithful_variant.locked_features` unless preserving that exact identity is essential to the joke and no replacement was requested.
 
 ## Faithful Variant Object
 
 ```json
 {
-  "goal": "Preserve recognizability while changing only core variables.",
+  "goal": "Preserve recognizability while replacing requested editable slots.",
   "locked_features": [],
   "locked_reading_model": [],
   "locked_salience_model": [],
+  "locked_style_profile": [],
   "editable_slots": [],
+  "subject_replacement_policy": {
+    "requested_subject_is_editable": true,
+    "lock_source_subject_identity": false,
+    "preserve_subject_role": true,
+    "preserve_pose_expression_or_scale_when_needed": true,
+    "notes": ""
+  },
   "max_change_budget": {
     "description": "在失去高保真识别度前，最多允许改变多少个维度。",
-    "recommended_changed_slots": 0,
+    "recommended_changed_slots": 1,
     "must_not_change": []
   },
   "generation_constraints": {
@@ -183,6 +279,8 @@ For `batch`, replace `meme_template` with `template_library`. For `compare`, inc
 }
 ```
 
+`locked_features` must list invariant anchors such as layout, crop, text placement, reading-order cues, role relationships, and style features. Do not list the source subject identity as locked when the user provides a replacement subject. Put that subject in `editable_slots` and describe the preserved role in `subject_replacement_policy`.
+
 ## Creative Variant Object
 
 ```json
@@ -191,7 +289,19 @@ For `batch`, replace `meme_template` with `template_library`. For `compare`, inc
   "preserved_principles": [],
   "preserved_reading_model": [],
   "preserved_salience_model": [],
+  "preserved_style_profile": [],
   "editable_dimensions": [],
+  "creative_freedom_controls": {
+    "operator_editable_dimensions": [
+      {
+        "dimension": "subject | action | scene | object | metaphor | caption | emotion | style_detail | camera | typography",
+        "freedom": "open | limited | locked",
+        "rule": ""
+      }
+    ],
+    "requires_operator_approval": [],
+    "must_preserve": []
+  },
   "series_style_rules": [],
   "generation_constraints": {
     "positive": [],
@@ -203,6 +313,8 @@ For `batch`, replace `meme_template` with `template_library`. For `compare`, inc
 }
 ```
 
+`creative_freedom_controls` lets an operator decide which dimensions are open for a template library or campaign. Free-creative output should not automatically rewrite every dimension; it should follow these controls while preserving formula, reading model, salience model, and style family.
+
 ## Prompt Contract Object
 
 Use when `mode` is `prompt-contract` or the user asks for image-generation-ready output.
@@ -213,6 +325,8 @@ Use when `mode` is `prompt-contract` or the user asks for image-generation-ready
     "prompt": "",
     "locked_elements": [],
     "editable_elements": [],
+    "subject_replacement_policy": {},
+    "prompt_style_profile": {},
     "negative_prompt": [],
     "text_instructions": [],
     "postprocessing_notes": []
@@ -220,6 +334,7 @@ Use when `mode` is `prompt-contract` or the user asks for image-generation-ready
   "creative_prompt_contract": {
     "prompt": "",
     "style_rules": [],
+    "creative_freedom_controls": {},
     "formula_rules": [],
     "negative_prompt": [],
     "text_instructions": [],
@@ -236,6 +351,7 @@ Use when `mode` is `render-prompts`, when the user provides target content to in
 {
   "source_template_id": "short_snake_case_id",
   "reference_strategy": "none | image_reference | edit_target",
+  "vlm_recognition_ref": "vlm-recognition-mock.json",
   "user_input_normalization": {
     "raw_user_input": "",
     "normalized_fields": {
@@ -305,6 +421,7 @@ Use for `prompt-pack.json`. It is the complete persistent artifact for user inpu
   "artifact_type": "meme_prompt_pack",
   "created_at": "ISO-8601 timestamp",
   "source_access": {},
+  "vlm_recognition": {},
   "normalized_input": {},
   "meme_template": {},
   "slot_bindings": [],
@@ -317,6 +434,7 @@ Use for `prompt-pack.json`. It is the complete persistent artifact for user inpu
     "base": {
       "label": "base_template",
       "prompt": "",
+      "prompt_style_profile": {},
       "locked_reading_model": [],
       "locked_salience_model": [],
       "failure_modes": []
@@ -328,6 +446,8 @@ Use for `prompt-pack.json`. It is the complete persistent artifact for user inpu
       "locked_features": [],
       "locked_reading_model": [],
       "locked_salience_model": [],
+      "locked_style_profile": [],
+      "subject_replacement_policy": {},
       "editable_slots": []
     },
     "creative": {
@@ -337,6 +457,8 @@ Use for `prompt-pack.json`. It is the complete persistent artifact for user inpu
       "preserved_formula": [],
       "preserved_reading_model": [],
       "preserved_salience_model": [],
+      "preserved_style_profile": [],
+      "creative_freedom_controls": {},
       "editable_dimensions": []
     }
   },

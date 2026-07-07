@@ -6,7 +6,7 @@ Use this file when the user requests `stability-testset`, stable remix tests, hi
 
 Write all business-readable test content in Simplified Chinese by default. Keep JSON keys, enum values, case IDs, JSONPath values, mode names, and other technical identifiers in English.
 
-Chinese fields include `test_goal`, `raw_user_input`, `expected_locked_features`, `expected_reading_model`, `expected_salience_model`, `allowed_changes`, `forbidden_drift`, `pass_criteria`, `compare_dimensions`, `stable_if`, and `unstable_if`.
+Chinese fields include `test_goal`, `raw_user_input`, `expected_locked_features`, `expected_editable_slots`, `expected_reading_model`, `expected_salience_model`, `expected_style_profile`, `expected_subject_replacement_policy`, `expected_creative_freedom_controls`, `allowed_changes`, `forbidden_drift`, `pass_criteria`, `compare_dimensions`, `stable_if`, and `unstable_if`.
 
 If the source meme contains English or another language, preserve the original visible text exactly and add Chinese explanation or localization notes where useful.
 
@@ -19,6 +19,7 @@ Create a persistent test set that checks whether a meme template can be rendered
 - salience model
 - humor formula
 - variable slot discipline
+- prompt style profile fidelity
 - high-fidelity vs free-creative separation
 - text and layout constraints
 
@@ -55,8 +56,12 @@ Write `stability-testset.json` into the result directory.
   "variant_scope": "faithful",
   "raw_user_input": "",
   "expected_locked_features": [],
+  "expected_editable_slots": [],
   "expected_reading_model": [],
   "expected_salience_model": [],
+  "expected_style_profile": [],
+  "expected_subject_replacement_policy": {},
+  "expected_creative_freedom_controls": {},
   "allowed_changes": [],
   "forbidden_drift": [],
   "expected_prompt_json_paths": [
@@ -73,10 +78,12 @@ Write `stability-testset.json` into the result directory.
 
 Faithful cases:
 
-- Change one or two editable slots only.
+- Change the requested replacement subject or one or two editable slots only.
 - Preserve camera, crop, composition, text rhythm, style family, and recognition anchors.
+- Preserve the prompt style profile unless the case explicitly tests an allowed style attribute.
 - Preserve the reading model, first-read/second-read relationship, and salience requirements.
 - Use close substitutes for subjects, objects, expressions, captions, or settings.
+- Do not expect the source subject identity to remain locked when the case provides a replacement subject; expect the source subject role, salience, pose/expression/scale relationship, and joke function to remain stable.
 
 Creative cases:
 
@@ -84,6 +91,7 @@ Creative cases:
 - Preserve the reading model and salience model even when setting, metaphor, or subject changes.
 - Allow larger changes to subject, object, setting, metaphor, and emotional angle.
 - Keep enough anchors for the output to belong to the same meme series.
+- Follow `creative_freedom_controls`; dimensions marked `locked` must not change, dimensions marked `limited` need a specific rule, and dimensions marked `open` may vary broadly.
 
 Negative controls:
 
@@ -102,6 +110,8 @@ Use 0-2 scoring per dimension:
 - `formula_preservation`: setup, turn, and payoff still work.
 - `style_fidelity`: rendering style, composition, and hierarchy match the intended scope.
 - `faithful_creative_separation`: faithful stays narrow; creative explores without breaking the series.
+- `replacement_policy`: faithful replaces the requested subject through editable slots without locking the source subject identity.
+- `creative_freedom_controls`: creative outputs only vary dimensions that the operator marked as open or limited.
 - `text_accuracy`: exact text appears only when requested and is spelled correctly.
 - `safety_and_rights`: risks are recorded without silent replacement unless policy requires it.
 

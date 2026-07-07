@@ -7,6 +7,7 @@
 - `skills/meme-template-analyzer`
   - 用于分析梗图、截图、本地图片、网络图片或用户输入的梗图创意。
   - 输出可后处理的 JSON 梗图模板。
+  - 支持把用户上传内容先整理成 `vlm-recognition-mock.json`，模拟 VLM 识别后的结构化结果。
   - 支持高保真变体和自由创作变体。
   - 支持把用户输入标准化为变量槽，并渲染成可直接用于文生图的 base / 高保真 / 自由创作提示词。
   - 支持分析梗图阅读机制和显著性规则，例如第一眼看到什么、第二眼发现什么、哪些元素必须显眼或隐藏。
@@ -92,6 +93,7 @@ scripts\check-skill-sync.ps1 -SkillName meme-template-analyzer
 - `reading_model`
 - `salience_model`
 - `text_analysis`
+- `vlm-recognition-mock.json`
 - `variable_slots`
 - `faithful_variant`
 - `creative_variant`
@@ -154,6 +156,7 @@ scripts\check-skill-sync.ps1 -SkillName meme-template-analyzer
 
 其中：
 
+- `vlm-recognition-mock.json`：模拟 VLM 对用户上传内容的识别结果，是后续标准化和变量绑定的上游输入。
 - `user_input_normalization`：把用户输入标准化成字段。
 - `slot_bindings`：把字段绑定到模板变量槽。
 - `prompt_templates`：保留 `{{placeholder}}` 的基础模板和变体模板提示词。
