@@ -122,6 +122,14 @@ index.md
 
 当已有模板或提示词包，或用户询问某个 meme 格式是否能经受多次生成时，使用这个命令。
 
+生成或收到 `stability-testset.json` 后，可以运行校验脚本检查参考图使用记录是否完整：
+
+```powershell
+python skills\meme-template-analyzer\scripts\validate_stability_testset.py <path-to-stability-testset.json>
+```
+
+该脚本会检查 `reference_test_matrix`、每个 case 的 `reference_usage`、三类 reference mode 是否齐全，以及 reference mode 与布尔字段是否一致。
+
 ### template-library-entry
 
 当用户想要一个可存储、可搜索、可复用的模板对象时，使用这个命令。
@@ -360,6 +368,14 @@ index.md
 8. 保存 `stability-testset.json`。
 
 这个测试关注输出是否仍可识别，而不是要求每次生成完全相同。
+
+生成测试集后运行：
+
+```powershell
+python skills\meme-template-analyzer\scripts\validate_stability_testset.py <path-to-stability-testset.json>
+```
+
+校验通过后，再进入真实生成或人工评估。
 
 ## 模式指南
 

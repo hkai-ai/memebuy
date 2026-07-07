@@ -1,16 +1,18 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-07",
-  "notes": "Adds stability-testset reference traceability with reference_test_matrix and per-case reference_usage for comparing text-only, user-subject-only, and user-plus-source-meme generation paths.",
+  "notes": "Adds a stability-testset validator script and tests to enforce reference_test_matrix and per-case reference_usage traceability.",
   "tracked_files": [
     "SKILL.md",
     "README.md",
     "skill-manifest.json",
     "agents/openai.yaml",
     "references/json-contract.md",
-    "references/stability-testset-contract.md"
+    "references/stability-testset-contract.md",
+    "scripts/validate_stability_testset.py",
+    "scripts/test_validate_stability_testset.py"
   ]
 }

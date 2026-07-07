@@ -321,6 +321,14 @@ For each case include:
 
 Read `references/stability-testset-contract.md` for the detailed schema.
 
+After writing or receiving a `stability-testset.json`, validate reference traceability with:
+
+```powershell
+python skills\meme-template-analyzer\scripts\validate_stability_testset.py <path-to-stability-testset.json>
+```
+
+Use this validator to catch missing `reference_test_matrix`, missing per-case `reference_usage`, missing required reference modes, and inconsistent reference-mode flags.
+
 ## Text Meme Handling
 
 For text-driven or hybrid memes, include:
