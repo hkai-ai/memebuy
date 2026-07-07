@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.9.6",
+  "version": "0.9.8",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-07",
-  "notes": "Add co_variation_constraints and relationship-invariant QA so creative variants preserve cross-slot visual rhyme such as subject-food color/material matching.",
+  "notes": "Add fusion_model to detect fused subject-object structures before judging remix suitability and subject replacement modes.",
   "tracked_files": [
     "SKILL.md",
     "README.md",

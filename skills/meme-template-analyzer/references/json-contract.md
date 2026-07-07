@@ -249,6 +249,8 @@
     "localization_notes": []
   },
   "co_variation_constraints": [],
+  "fusion_model": {},
+  "remix_suitability": {},
   "variable_slots": [],
   "series_potential": {
     "can_expand": true,
@@ -258,6 +260,85 @@
   }
 }
 ```
+
+## Fusion Model Object
+
+用于识别主体是否与食物、物件、文字、UI、场景或身体结构融合成一个不可独立替换的结构。该 object 是 `remix_suitability` 的前置依据；当主体和依赖槽已融合时，不应把主体当成普通可替换槽。
+
+```json
+{
+  "has_fused_subject": false,
+  "fusion_type": "none | adjacent_reference | body_object_fusion | semantic_role_fusion | scene_fusion",
+  "fused_slots": [
+    {
+      "slot_id": "subject_animal",
+      "role": "被融合的主体槽",
+      "current_value": "",
+      "fusion_role": "source | dependent | shared_structure"
+    }
+  ],
+  "fusion_dimensions": ["color", "brightness", "material", "shape", "silhouette", "cross_section", "texture", "position", "semantic_role", "action"],
+  "replacement_sensitivity": "low | medium | high",
+  "subject_replaceability": "independent | constrained | low | not_recommended",
+  "requires_remap_if_subject_changes": false,
+  "remap_targets_if_changed": [],
+  "why_it_matters": "",
+  "qa_check": ""
+}
+```
+
+字段语义：
+
+- `has_fused_subject`: 主体是否已经成为另一个物体、食物、文字、UI、场景或身体结构的一部分。
+- `fusion_type`: 融合关系类型；`body_object_fusion` 适用于身体像水果瓣、点心切面、工具轮廓等情况。
+- `fused_slots`: 参与融合的槽位，不能只列主体；依赖食物、物件、文字或场景槽也要列出。
+- `replacement_sensitivity`: 主体替换对笑点的破坏风险。
+- `subject_replaceability`: 主体能否作为普通槽独立替换。
+- `requires_remap_if_subject_changes`: 主体变化时是否必须同步重映射依赖槽。
+
+## Remix Suitability Object
+
+用于在生成变体前判断源模板是否适合目标替换，尤其是主体替换。该 object 必须基于源模板事实、`fusion_model` 和用户目标之间的兼容性；不要把 `creative_remap_recommended` 中的新隐喻写成源模板本身的事实。
+
+```json
+{
+  "assessment": "high_fidelity_subject_replaceable | creative_remap_recommended | not_recommended_for_subject_replacement",
+  "high_fidelity_subject_replaceability": {
+    "score": "high | medium | low | not_applicable",
+    "can_replace_subject_only": false,
+    "required_preserved_slots": [],
+    "breaking_risks": [],
+    "reasoning": ""
+  },
+  "creative_remap_recommended": {
+    "recommended": false,
+    "reason": "",
+    "remap_dimensions": ["subject", "food_or_object", "composition", "scene", "camera"],
+    "must_preserve": [],
+    "must_not_import_into_source_template": []
+  },
+  "target_compatibility": {
+    "target_subject": "",
+    "compatible_dimensions": [],
+    "incompatible_dimensions": [],
+    "reference_object_role": "required_anchor | weak_hint | scale_hint | optional | absent",
+    "first_read_survives": false,
+    "second_read_survives": false
+  },
+  "operator_recommendation": {
+    "recommended_modes": ["creative"],
+    "avoid_modes": ["high_fidelity"],
+    "user_facing_note": ""
+  },
+  "fusion_model_ref": "$.meme_template.fusion_model"
+}
+```
+
+`assessment` 语义：
+
+- `high_fidelity_subject_replaceable`: 可以只替换主体并保留源模板依赖槽、构图和阅读顺序。
+- `creative_remap_recommended`: 高保真主体替换不稳，但同一梗公式可以通过换食物、换物件、换构图或换场景延续。
+- `not_recommended_for_subject_replacement`: 主体替换会破坏核心误读或源主体强绑定，应明确提示用户不建议。
 
 ## Co-variation Constraint Object
 
@@ -530,7 +611,9 @@ Placeholder 规则：
   "normalized_input": {},
   "meme_template": {},
   "co_variation_constraints": [],
+  "fusion_model": {},
   "reference_requirements": {},
+  "remix_suitability": {},
   "slot_bindings": [],
   "prompt_templates": {
     "base": "",
