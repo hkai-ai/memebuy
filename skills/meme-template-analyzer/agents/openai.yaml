@@ -1,4 +1,4 @@
 interface:
   display_name: "梗图模板分析器"
-  short_description: "分析梗图并保存中文模板、提示词包和稳定性测试产物"
-  default_prompt: "使用 $meme-template-analyzer 分析这张梗图，并保存包含高保真和自由创意提示词的中文 prompt pack。"
+  short_description: "分析梗图并输出录入 JSON、测试集或调试产物"
+  default_prompt: "使用 $meme-template-analyzer 分析这张梗图，并输出可录入后台的 Gallery Template Authoring JSON。"

@@ -8,6 +8,18 @@
 
 artifact 中所有业务人员会阅读的内容也默认使用简体中文，包括摘要、笑点机制、阅读模型、显著性模型、风险说明、postprocessing 步骤、示例变体、测试 case、评分标准、`index.md` 和最终渲染提示词。只有以下内容保留原文或英文：稳定技术标识、路径、文件名、JSON key、enum、placeholder、hash、URL、可见源文字，以及用户明确要求保留原语言的文本。
 
+## 三种使用目的
+
+本 skill 只区分三种顶层目的：
+
+| 目的 | 用户意图 | 默认输出 |
+| --- | --- | --- |
+| 录入 / 批量生成 | 识别模板内容、批量生成模板、录入后台、生成 gallery template。 | `meme-template.json`，使用 Gallery Template Authoring JSON v1。 |
+| 测试 / 验证 | 测试规范是否高可用，验证 high-fidelity / free-creative / negative controls，或查看真实生成图。 | `stability-testset.json`、`prompt-pack.json`、`output/` 按请求组合。 |
+| 调试 skill | 查看 VLM mock、slot binding、prompt templates、rendered prompts 或完整 pipeline。 | 展开中间 JSON 和可选 `_analysis`。 |
+
+快速解释、预览或评审模板默认归入录入目的；如果不需要落盘，可以只给中文摘要。
+
 ## 主要输出
 
 默认情况下，本 skill 会把结果保存到产物目录，而不是在聊天中粘贴完整 JSON。
@@ -37,7 +49,7 @@ output/
 不一定每次都会生成以上全部文件。默认采用紧凑交付：
 
 - `index.md`: 每次产出的人类可读清单。
-- `meme-template.json`: 模板分析、模板库条目、batch 或 compare 输出时生成。
+- `meme-template.json`: 录入/批量生成时生成，默认是 Gallery Template Authoring JSON v1，而不是分析报告。
 - `prompt-pack.json`: prompt contract、render-prompts 或 render-prompt-pack 输出时生成，并内嵌 VLM recognition、normalized input、slot bindings、prompt templates 和 rendered prompts。
 - `stability-testset.json`: 仅用户要求稳定性测试时生成。
 - `output/`: 仅用户要求真实生成结果、mock 用户侧输出、测试输出图或结果图时创建。
@@ -78,7 +90,7 @@ JSON 报告、评分表和 `summary.md` 只能作为辅助文件。不要用 JSO
 | 用户想要 | 使用方式 |
 | --- | --- |
 | 从 meme 或 meme 创意生成可用于图像生成的提示词 | `render-prompt-pack` |
-| 生成可复用的 meme 模板库条目 | `template-library-entry` |
+| 生成可录入后台的业务收集 JSON | `template-library-entry` |
 | 为 faithful / creative 生成做可重复性测试 | `stability-testset` |
 | 只快速解释或阅读一个 meme | 不显式指定命令；推断 `analyze` |
 | 将多个 meme 分析成一个模板库 | 不显式指定命令；推断 `batch` |
@@ -158,18 +170,19 @@ python skills\meme-template-analyzer\scripts\validate_stability_testset.py <path
 
 ### template-library-entry
 
-当用户想要一个可存储、可搜索、可复用的模板对象时，使用这个命令。
+当用户想要识别模板内容、批量录入后台或生成可交给工程转换的业务收集 JSON 时，使用这个命令。
 
-输出应包含：
+默认输出 `meme-template.json`，格式为 Gallery Template Authoring JSON v1：
 
-- meme 分类：`image_driven`、`text_driven` 或 `hybrid`。
-- 相关文字分析和背景上下文。
-- 笑点公式和识别锚点。
-- 视觉设计特征。
-- 可渲染的画面风格 profile：媒介、渲染手法、线条/形状、色彩/光照、材质纹理、镜头/景深、字体风格、后期观感和负向风格漂移。
-- 带 lock level 的变量槽。
-- faithful 和 creative 变体规则。
-- 风险和约束说明。
+- `version/key/topic/title/description`
+- `assets.templateImage/cover/exampleWorks`
+- `inputs[]`
+- `prompt.master`，用 `【槽位名：原文】` 标记变量
+- `prompt.slots[]`，每个槽只保留 `id/policy/from`
+- `modes.hifi` 和 `modes.free`
+- `output`
+
+阅读模型、显著性模型、风格 profile 和槽位 lock level 只作为分析中间层，用于推导上述业务 JSON。只有用户要求 debug 时，才放进 `_analysis` 或拆成中间文件。
 
 示例请求：
 
@@ -201,7 +214,7 @@ python skills\meme-template-analyzer\scripts\validate_stability_testset.py <path
 2. 将 meme 分类为 image-driven、text-driven 或 hybrid。
 3. 提取可见文字，并保留不确定的 OCR 细节。
 4. 解释铺垫、转折、笑点、受众知识、设计特征、阅读模型和显著性模型。
-5. 如果产物有用，保存 `meme-template.json` 和 `index.md`。
+5. 默认给中文摘要；只有用户要录入、保存模板或批量处理时，才按 authoring 目的保存 `meme-template.json` 和 `index.md`。
 
 除非用户要求变体或图像生成输出，否则不要强制生成提示词。
 
@@ -430,11 +443,11 @@ agent 可以从请求中推断一个或多个模式：
 | 模式 | 最适合 | 典型输出 |
 | --- | --- | --- |
 | `analyze` | 理解一个 meme | 分析字段、OCR、上下文说明 |
-| `template` | 可复用模板库条目 | `meme-template.json` |
+| `template` | 可录入后台的业务收集 JSON | `meme-template.json` |
 | `variants` | faithful 和 creative remix 规则 | 模板内的变体范围 |
 | `prompt-contract` | 下游提示词约束 | prompt contract JSON 字段 |
 | `render-prompts` | 未显式指定命令时生成最终提示词 | rendered prompt 字段和 prompt pack 文件 |
-| `batch` | 多个独立 meme | template library array |
+| `batch` | 多个独立模板录入 | `{ "version": 1, "templates": [] }` |
 | `compare` | 多个相关 meme | 共享公式和差异 |
 
 可重复的完整工作流优先使用显式命令。自然语言请求未要求命名命令时，优先使用推断模式。

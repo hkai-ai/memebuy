@@ -1,15 +1,16 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-07",
-  "notes": "Use compact artifacts by default; prompt-pack embeds the pipeline, and intermediate JSON files are generated only for debug, full pipeline, or downstream split-file needs.",
+  "notes": "Add purpose routing for authoring, validation, and debug; authoring now uses Gallery Template Authoring JSON v1 as the default meme-template output.",
   "tracked_files": [
     "SKILL.md",
     "README.md",
     "skill-manifest.json",
     "agents/openai.yaml",
+    "references/gallery-authoring-contract.md",
     "references/json-contract.md",
     "references/stability-testset-contract.md",
     "scripts/validate_stability_testset.py",

@@ -1,6 +1,6 @@
 # JSON Contract
 
-在 `template`、`variants`、`prompt-contract`、`render-prompts`、`batch` 和 `compare` 模式中使用本 contract。返回 JSON 时优先保证机器可读，其次保证人类可读。
+在 `prompt-contract`、`render-prompts`、`render-prompt-pack`、`compare` 和 `debug` 场景中使用本 contract。非测试、非调试的模板识别和批量录入场景，应优先使用 `references/gallery-authoring-contract.md`，让 `meme-template.json` 输出 Gallery Template Authoring JSON v1。
 
 默认 skill 行为会把这些 object 写入紧凑主产物，而不是把每个中间 object 都拆成独立文件。只有用户明确要求 JSON，或文件系统不可用时，才输出内联 JSON。
 
@@ -40,7 +40,8 @@
 
 按 mode 选择主产物：
 
-- `analyze`、`template`、`variants`、`batch`、`compare` 默认写 `meme-template.json` 和 `index.md`。
+- `template`、`template-library-entry`、`batch` 默认写 `meme-template.json` 和 `index.md`，格式见 `references/gallery-authoring-contract.md`。
+- `compare` 默认写 `meme-template.json` 和 `index.md`，可以使用本文件的 `comparison` 结构。
 - `prompt-contract`、`render-prompts`、`render-prompt-pack` 默认写 `prompt-pack.json` 和 `index.md`。
 - `stability-testset` 额外写 `stability-testset.json`。
 - 用户要求真实图片结果时额外创建 `output/`。
@@ -59,7 +60,9 @@
 }
 ```
 
-## 顶层结构
+## 分析/调试顶层结构
+
+该结构用于 `debug`、内部分析、prompt pack 内嵌对象或 compare，不是 authoring 场景下 `meme-template.json` 的默认主格式。
 
 ```json
 {
@@ -80,7 +83,7 @@
 }
 ```
 
-对于 `batch`，用 `template_library` 替换 `meme_template`。对于 `compare`，包含 `comparison`。
+对于 `compare`，包含 `comparison`。对于批量 authoring，使用 `references/gallery-authoring-contract.md` 中的 `{ "version": 1, "templates": [] }`。
 
 ## VLM Recognition Mock Object
 
@@ -143,6 +146,8 @@
 该 object 中业务可读 value 默认必须是中文。技术 ID 和 enum value 保持英文。
 
 ## Template Object
+
+该 object 是分析中间层或 debug 输出，用于帮助生成 Gallery Template Authoring JSON。默认不要把它作为业务录入主格式。
 
 ```json
 {
