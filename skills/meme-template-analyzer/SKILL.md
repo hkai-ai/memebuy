@@ -99,7 +99,6 @@ Use these command aliases when the user asks for them:
    - `slot_bindings`: bind standardized values to meme template variable slots.
    - `prompt_templates`: define a shared `base` template plus faithful and creative prompt templates with `{{snake_case}}` placeholders.
    - `rendered_prompts`: replace every placeholder and output final base, high-fidelity, and free-creative prompts.
-   - `render_warnings`: record inferred or unresolved decisions.
 11. Produce both variant scopes:
    - `faithful_variant`: change only core requested slots or a small number of high-impact slots; preserve composition, style, visual hierarchy, humor rhythm, reading model, salience model, and most variables.
    - `creative_variant`: keep the meme formula, reading model, salience model, and style family, but allow broader changes to subject, scene, metaphor, setting, text, emotional angle, and context.
@@ -173,7 +172,7 @@ Use `generation_pipeline` when mode is `render-prompts`, when the user gives tar
 - `user_input_normalization`: convert raw user intent into canonical fields such as `subject`, `task`, `caption`, `setting`, `style_intensity`, `constraints`, and `negative_constraints`.
 - `slot_bindings`: map normalized values or inferred defaults to `variable_slots`. Use stable placeholders like `{{primary_subject}}`; every placeholder in a prompt template must have one binding.
 - `prompt_templates`: provide machine-renderable `base`, `faithful`, and `creative` templates before replacement. Keep placeholders in double braces and snake_case.
-- `rendered_prompts`: provide final prompts after replacement. Do not leave unresolved placeholders; if a value is missing, use a template default or inferred value and add `render_warnings`.
+- `rendered_prompts`: provide final prompts after replacement. Do not leave unresolved placeholders; if a value is missing, use a template default or inferred value and record the decision in `user_input_normalization.inferred_fields`.
 - `reference_strategy`: use `none` for no-reference text-to-image generation, `image_reference` when the source image should guide style/composition, and `edit_target` when editing the source image directly.
 
 For faithful rendering, bind fewer slots and preserve locked features, reading order, and salience. For creative rendering, bind broader editable dimensions while preserving the formula, style family, recognition anchors, and reading model.
@@ -220,7 +219,7 @@ When the user asks for prompts, output prompt data as JSON fields, not free pros
 
 - `faithful_prompt_contract`: constraints, editable slots, locked slots, negative constraints, text rendering notes.
 - `creative_prompt_contract`: series style, allowed explorations, preserved formula, optional directions.
-- `generation_pipeline`: normalized user input, slot bindings, placeholder templates, rendered prompts, reference strategy, and render warnings when downstream prompt replacement is needed.
+- `generation_pipeline`: normalized user input, slot bindings, placeholder templates, rendered prompts, and reference strategy when downstream prompt replacement is needed.
 - `postprocessing_required`: true when the image generator may need manual text layout, OCR correction, compositing, inpainting, or policy review.
 
 ## Common Mistakes

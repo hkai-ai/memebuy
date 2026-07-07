@@ -197,7 +197,7 @@ index.md
 3. 根据请求前提创建视觉锚点。
 4. 构建 faithful 和 creative 提示词范围。
 5. 使用 `reference_strategy: none`。
-6. 对源图中不存在、由 agent 假设的内容记录 `render_warnings`。
+6. 对源图中不存在、由 agent 假设的内容，在推断字段和置信度中说明。
 
 这条路径适合从一个前提出发生成新的 meme 系列，而不是 remix 已有图片。
 

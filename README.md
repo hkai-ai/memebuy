@@ -95,7 +95,6 @@ scripts\check-skill-sync.ps1 -SkillName meme-template-analyzer
 - `variable_slots`
 - `faithful_variant`
 - `creative_variant`
-- `risk_notes`
 
 ### 2. 生成高保真和自由创作两套变体规则
 
@@ -148,8 +147,7 @@ scripts\check-skill-sync.ps1 -SkillName meme-template-analyzer
       "base": "",
       "faithful": "",
       "creative": ""
-    },
-    "render_warnings": []
+    }
   }
 }
 ```
@@ -200,8 +198,7 @@ scripts\check-skill-sync.ps1 -SkillName meme-template-analyzer
   "generation_pipeline": null,
   "faithful_variant": {},
   "creative_variant": {},
-  "postprocessing": {},
-  "risk_notes": []
+  "postprocessing": {}
 }
 ```
 

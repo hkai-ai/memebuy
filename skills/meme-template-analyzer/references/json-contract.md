@@ -56,8 +56,7 @@ Do not use English example prose as filler in output artifacts. If a value is in
   "generation_pipeline": null,
   "faithful_variant": {},
   "creative_variant": {},
-  "postprocessing": {},
-  "risk_notes": []
+  "postprocessing": {}
 }
 ```
 
@@ -280,7 +279,6 @@ Use when `mode` is `render-prompts`, when the user provides target content to in
     "faithful": "",
     "creative": ""
   },
-  "render_warnings": [],
   "downstream_generation_notes": {
     "text_to_image_ready": true,
     "needs_reference_image": false,
@@ -294,7 +292,7 @@ Placeholder rules:
 - Use `{{snake_case}}` placeholders only.
 - Resolve every placeholder through `slot_bindings` before writing `rendered_prompts`.
 - Do not leave unresolved placeholders in `rendered_prompts`.
-- If the user omits content, use an inferred value or template default, then record the decision in `inferred_fields` and `render_warnings`.
+- If the user omits content, use an inferred value or template default, then record the decision in `user_input_normalization.inferred_fields`.
 - Use `reference_strategy: "none"` when the output is intended for text-to-image generation without a source image.
 
 ## Prompt Pack Object
@@ -342,9 +340,7 @@ Use for `prompt-pack.json`. It is the complete persistent artifact for user inpu
       "editable_dimensions": []
     }
   },
-  "render_warnings": [],
-  "postprocessing": {},
-  "risk_notes": []
+  "postprocessing": {}
 }
 ```
 
@@ -368,20 +364,6 @@ The `faithful.prompt` and `creative.prompt` fields must contain final Chinese te
     "$.generation_pipeline.prompt_templates",
     "$.generation_pipeline.rendered_prompts"
   ]
-}
-```
-
-## Risk Notes
-
-Use `risk_notes` to preserve issues without silently rewriting the user's target.
-
-```json
-{
-  "risk_type": "copyright | trademark | public_figure | private_person | platform_ui | readable_logo | watermark | cultural_context | text_rendering | unknown",
-  "description": "",
-  "impact_on_generation": "",
-  "suggested_user_decision": "",
-  "confidence": 0.0
 }
 ```
 
