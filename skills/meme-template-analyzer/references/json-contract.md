@@ -2,6 +2,26 @@
 
 Use this contract for `template`, `variants`, `prompt-contract`, `render-prompts`, `batch`, and `compare` modes. Return JSON that is machine-readable first and human-readable second.
 
+Default skill behavior writes these objects to files. Inline JSON is only for explicit JSON requests or unavailable filesystem output.
+
+## Artifact Directory Shape
+
+```json
+{
+  "result_directory": "artifacts/meme-template-analyzer/<template_id-or-timestamp>/",
+  "files": {
+    "normalized_input": "normalized-input.json",
+    "meme_template": "meme-template.json",
+    "slot_bindings": "slot-bindings.json",
+    "prompt_templates": "prompt-templates.json",
+    "rendered_prompts": "rendered-prompts.json",
+    "prompt_pack": "prompt-pack.json",
+    "stability_testset": "stability-testset.json",
+    "manifest": "index.md"
+  }
+}
+```
+
 ## Top-Level Shape
 
 ```json
@@ -223,6 +243,47 @@ Placeholder rules:
 - Do not leave unresolved placeholders in `rendered_prompts`.
 - If the user omits content, use an inferred value or template default, then record the decision in `inferred_fields` and `render_warnings`.
 - Use `reference_strategy: "none"` when the output is intended for text-to-image generation without a source image.
+
+## Prompt Pack Object
+
+Use for `prompt-pack.json`. It is the complete persistent artifact for user input -> normalized JSON -> slot binding -> prompt template replacement -> final faithful and creative prompts.
+
+```json
+{
+  "schema_version": "1.1",
+  "artifact_type": "meme_prompt_pack",
+  "created_at": "ISO-8601 timestamp",
+  "source_access": {},
+  "normalized_input": {},
+  "meme_template": {},
+  "slot_bindings": [],
+  "prompt_templates": {
+    "faithful": "",
+    "creative": ""
+  },
+  "rendered_prompts": {
+    "faithful": {
+      "label": "high_fidelity",
+      "prompt": "",
+      "negative_prompt": [],
+      "locked_features": [],
+      "editable_slots": []
+    },
+    "creative": {
+      "label": "free_creative",
+      "prompt": "",
+      "negative_prompt": [],
+      "preserved_formula": [],
+      "editable_dimensions": []
+    }
+  },
+  "render_warnings": [],
+  "postprocessing": {},
+  "risk_notes": []
+}
+```
+
+The `faithful.prompt` and `creative.prompt` fields must contain final text with no unresolved `{{placeholder}}` strings.
 
 ## Postprocessing Object
 

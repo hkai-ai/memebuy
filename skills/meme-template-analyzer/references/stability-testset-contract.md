@@ -1,0 +1,92 @@
+# Stability Test Set Contract
+
+Use this file when the user requests `stability-testset`, stable remix tests, high-fidelity/free-creative test cases, or reproducibility checks.
+
+## Purpose
+
+Create a persistent test set that checks whether a meme template can be rendered repeatedly without losing:
+
+- recognition anchors
+- humor formula
+- variable slot discipline
+- high-fidelity vs free-creative separation
+- text and layout constraints
+
+## Output File
+
+Write `stability-testset.json` into the result directory.
+
+## Schema
+
+```json
+{
+  "schema_version": "1.0",
+  "artifact_type": "meme_stability_testset",
+  "source_template_id": "short_snake_case_id",
+  "test_goal": "",
+  "faithful_cases": [],
+  "creative_cases": [],
+  "negative_controls": [],
+  "evaluation_rubric": [],
+  "repeatability_protocol": {
+    "generations_per_case": 3,
+    "compare_dimensions": [],
+    "stable_if": [],
+    "unstable_if": []
+  }
+}
+```
+
+## Test Case Object
+
+```json
+{
+  "case_id": "faithful_01",
+  "variant_scope": "faithful",
+  "raw_user_input": "",
+  "expected_locked_features": [],
+  "allowed_changes": [],
+  "forbidden_drift": [],
+  "expected_prompt_json_paths": [
+    "$.normalized_input",
+    "$.slot_bindings",
+    "$.prompt_templates.faithful",
+    "$.rendered_prompts.faithful.prompt"
+  ],
+  "pass_criteria": []
+}
+```
+
+## Case Design
+
+Faithful cases:
+
+- Change one or two editable slots only.
+- Preserve camera, crop, composition, text rhythm, style family, and recognition anchors.
+- Use close substitutes for subjects, objects, expressions, captions, or settings.
+
+Creative cases:
+
+- Preserve the joke formula and style family.
+- Allow larger changes to subject, object, setting, metaphor, and emotional angle.
+- Keep enough anchors for the output to belong to the same meme series.
+
+Negative controls:
+
+- Deliberately remove or mutate one essential anchor.
+- Use them to detect where the template stops being recognizable.
+- Label them as negative controls; do not present them as recommended prompts.
+
+## Evaluation Rubric
+
+Use 0-2 scoring per dimension:
+
+- `recognition_anchors`: locked visual or textual anchors remain visible.
+- `slot_adherence`: requested variables appear and forbidden drift is absent.
+- `formula_preservation`: setup, turn, and payoff still work.
+- `style_fidelity`: rendering style, composition, and hierarchy match the intended scope.
+- `faithful_creative_separation`: faithful stays narrow; creative explores without breaking the series.
+- `text_accuracy`: exact text appears only when requested and is spelled correctly.
+- `safety_and_rights`: risks are recorded without silent replacement unless policy requires it.
+
+Stable if most repeated generations score at least 10/14 and no critical locked anchor is missing.

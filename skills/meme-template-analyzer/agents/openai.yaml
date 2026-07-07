@@ -1,4 +1,4 @@
 interface:
   display_name: "Meme Template Analyzer"
-  short_description: "Analyze memes into JSON templates and render prompts"
-  default_prompt: "Use $meme-template-analyzer to analyze this meme into a reusable JSON template and prompt-generation contract."
+  short_description: "Analyze memes into persistent template, prompt pack, and stability-test artifacts"
+  default_prompt: "Use $meme-template-analyzer to analyze this meme and save a prompt pack with high-fidelity and free-creative generation prompts."

@@ -1,21 +1,40 @@
 ---
 name: meme-template-analyzer
-description: Use when analyzing meme images, screenshots, image URLs, or user-provided meme ideas to produce reusable JSON meme template entries, variant rules, prompt contracts, slot bindings, rendered no-reference image-generation prompts, text-joke analysis, meme background notes, high-fidelity meme remixes, free creative meme variations, or batch meme template libraries.
+description: Use when analyzing meme images, screenshots, image URLs, or user-provided meme ideas to produce reusable meme templates, prompt packs, slot bindings, high-fidelity and free-creative generation prompts, stability test sets, text-joke analysis, meme background notes, or batch meme template libraries.
 ---
 
 # Meme Template Analyzer
 
 ## Overview
 
-Analyze memes into reusable template-library JSON. Preserve the user's creative intent: do not silently sanitize, replace subjects, or rewrite protected-looking elements unless the user asks or active policy requires refusal.
+Analyze memes into reusable template artifacts and generation prompt packs. Preserve the user's creative intent: do not silently sanitize, replace subjects, or rewrite protected-looking elements unless the user asks or active policy requires refusal.
 
-## Output Rule
+## Artifact-First Output Rule
 
-Return valid JSON only unless the user explicitly asks for explanation. Do not wrap JSON in Markdown fences. Include uncertainty, missing evidence, and postprocessing needs as data fields instead of prose outside the JSON.
+Default to writing machine-readable artifacts into a result directory instead of dumping JSON in chat.
+
+Use this directory convention:
+
+1. If the current workspace is writable, create `artifacts/meme-template-analyzer/<template_id-or-timestamp>/`.
+2. Otherwise create `$CODEX_HOME/generated_artifacts/meme-template-analyzer/<template_id-or-timestamp>/`.
+3. Use stable filenames:
+   - `normalized-input.json`
+   - `meme-template.json`
+   - `slot-bindings.json`
+   - `prompt-templates.json`
+   - `rendered-prompts.json`
+   - `prompt-pack.json`
+   - `stability-testset.json` when the user requests test sets
+   - `index.md` as a short human-readable manifest
+
+At the end, tell the user the work is complete and list the saved file paths. Do not paste full JSON into the chat unless the user explicitly requests inline JSON, strict schema output, or the filesystem is unavailable.
+
+When inline JSON is explicitly requested, return valid JSON only. Do not wrap JSON in Markdown fences. Include uncertainty, missing evidence, and postprocessing needs as data fields instead of prose outside the JSON.
 
 For the full output contract, read `references/json-contract.md` when the user needs a template entry, prompt contract, batch output, downstream processing, or strict schema.
+For artifact file contents and stability test set schema, read `references/json-contract.md` and `references/stability-testset-contract.md`.
 
-## Modes
+## Modes And Commands
 
 Infer `mode` from the request, or use the user's explicit mode:
 
@@ -29,6 +48,14 @@ Infer `mode` from the request, or use the user's explicit mode:
 | `batch` | Analyze multiple memes into a `template_library` array. |
 | `compare` | Compare multiple memes and extract shared formulas, differences, and series direction. |
 
+Use these command aliases when the user asks for them:
+
+| Command | Output |
+| --- | --- |
+| `render-prompt-pack` | Full pipeline artifacts: user input normalization -> template variable slot bindings -> prompt template placeholder replacement -> final faithful and creative prompts. |
+| `stability-testset` | A high-fidelity and free-creative test set for checking whether the template can be reproduced consistently. |
+| `template-library-entry` | A reusable template JSON entry plus variant rules. |
+
 ## Workflow
 
 1. Load every provided artifact: uploaded image, local image path, URL, screenshot, or batch set. If a URL or cultural reference is unavailable, record it in `source_access.limitations`.
@@ -38,11 +65,42 @@ Infer `mode` from the request, or use the user's explicit mode:
 5. If the meme depends on language, slang, public events, platform context, or a known meme format, add `text_analysis.background_context`. Do not invent origin stories; use `unknown` plus confidence when evidence is weak.
 6. Extract design features: composition, crop, subject roles, expression, gesture, camera angle, color, texture, text placement, typography, visual hierarchy, artifacts, and style.
 7. Convert the meme into variable slots. Mark each slot as `locked`, `faithful_editable`, `creative_editable`, or `fully_editable`.
-8. When the user provides target content, asks for image-generation prompts, or wants no-reference generation, build `generation_pipeline`: normalize the raw request, bind normalized values to variable slots, define placeholder prompt templates, render final prompts, and list unresolved or inferred fields.
+8. When the user provides target content, asks for image-generation prompts, wants no-reference generation, or asks for `render-prompt-pack`, build the full prompt pipeline:
+   - `user_input_normalization`: convert raw user input into standardized JSON.
+   - `slot_bindings`: bind standardized values to meme template variable slots.
+   - `prompt_templates`: define faithful and creative prompt templates with `{{snake_case}}` placeholders.
+   - `rendered_prompts`: replace every placeholder and output final high-fidelity and free-creative prompts.
+   - `render_warnings`: record inferred or unresolved decisions.
 9. Produce both variant scopes:
    - `faithful_variant`: change only core requested slots or a small number of high-impact slots; preserve composition, style, visual hierarchy, humor rhythm, and most variables.
    - `creative_variant`: keep the meme formula and style family, but allow broader changes to subject, scene, metaphor, setting, text, emotional angle, and context.
-10. Record risk and constraint notes without changing the template by default. Do not replace a subject with a safer alternative unless the user asks for that policy or a safety rule blocks the requested output.
+10. When the user asks for `stability-testset`, create deterministic test cases that compare faithful and creative prompt stability. Include normal cases, boundary cases, and negative controls.
+11. Record risk and constraint notes without changing the template by default. Do not replace a subject with a safer alternative unless the user asks for that policy or a safety rule blocks the requested output.
+12. Write artifacts to the result directory and report paths to the user.
+
+## Prompt Pack Pipeline
+
+Use this exact pipeline for `render-prompt-pack`, `render-prompts`, and prompt-generation requests:
+
+1. `normalized-input.json`: store the raw user request and standardized fields such as `subject`, `object`, `setting`, `caption`, `style_intensity`, `constraints`, and `negative_constraints`.
+2. `meme-template.json`: store the analyzed meme template, joke formula, visual anchors, text formula, and variable slots.
+3. `slot-bindings.json`: map each normalized field to a `variable_slots[*].slot_id` and a prompt placeholder such as `{{primary_subject}}`.
+4. `prompt-templates.json`: store two prompt templates:
+   - `faithful`: high-fidelity remix; preserve recognition anchors, layout, style, humor rhythm, and most locked slots.
+   - `creative`: free-creative remix; preserve the joke formula and style family while allowing broader subject, object, scene, and metaphor changes.
+5. `rendered-prompts.json`: store final prompts after placeholder replacement. Never leave unresolved `{{placeholder}}` text.
+6. `prompt-pack.json`: store the complete combined object for downstream systems.
+7. `index.md`: summarize what was generated and list the artifact files.
+
+Report in chat:
+
+- result directory path
+- prompt pack path
+- faithful prompt path or JSON path
+- creative prompt path or JSON path
+- stability test set path when generated
+
+Do not paste the full JSON or full prompts unless the user asks for inline content.
 
 ## Variable Slot Discipline
 
@@ -69,6 +127,31 @@ Use `generation_pipeline` when mode is `render-prompts`, when the user gives tar
 - `reference_strategy`: use `none` for no-reference text-to-image generation, `image_reference` when the source image should guide style/composition, and `edit_target` when editing the source image directly.
 
 For faithful rendering, bind fewer slots and preserve locked features. For creative rendering, bind broader editable dimensions while preserving the formula, style family, and recognition anchors.
+
+## Stability Test Set Command
+
+Use `stability-testset` when the user asks to test whether high-fidelity and free-creative outputs are stable, reproducible, or consistently remix the meme.
+
+Create `stability-testset.json` with:
+
+- `faithful_cases`: 3-8 cases that change only one or two editable slots while preserving locked anchors.
+- `creative_cases`: 3-8 cases that preserve the meme formula while changing animal/subject, object/food, scene, metaphor, or emotional angle.
+- `negative_controls`: 1-4 cases that intentionally violate one key anchor, used to reveal when the template stops being recognizable.
+- `evaluation_rubric`: scored criteria for recognition anchors, slot adherence, humor formula, style fidelity, text accuracy, and safety/rights constraints.
+- `repeatability_protocol`: how many generations per case to run, what to compare, and what counts as stable.
+
+For each case include:
+
+- `case_id`
+- `variant_scope`: `faithful | creative | negative_control`
+- `raw_user_input`
+- `expected_locked_features`
+- `allowed_changes`
+- `forbidden_drift`
+- `expected_prompt_json_paths`
+- `pass_criteria`
+
+Read `references/stability-testset-contract.md` for the detailed schema.
 
 ## Text Meme Handling
 
