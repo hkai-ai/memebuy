@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.9.2",
+  "version": "0.9.4",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-07",
-  "notes": "将 SKILL.md、reference contract 和 validator 用户可见文案整体翻译为中文，保留 JSON key、enum、路径、命令和其他稳定技术标识不变。",
+  "notes": "Use compact artifacts by default; prompt-pack embeds the pipeline, and intermediate JSON files are generated only for debug, full pipeline, or downstream split-file needs.",
   "tracked_files": [
     "SKILL.md",
     "README.md",

@@ -2,7 +2,7 @@
 
 在 `template`、`variants`、`prompt-contract`、`render-prompts`、`batch` 和 `compare` 模式中使用本 contract。返回 JSON 时优先保证机器可读，其次保证人类可读。
 
-默认 skill 行为会把这些 object 写入文件。只有用户明确要求 JSON，或文件系统不可用时，才输出内联 JSON。
+默认 skill 行为会把这些 object 写入紧凑主产物，而不是把每个中间 object 都拆成独立文件。只有用户明确要求 JSON，或文件系统不可用时，才输出内联 JSON。
 
 ## 语言约定
 
@@ -24,19 +24,37 @@
 
 ## Artifact 目录结构
 
+默认只写最少必要文件：
+
 ```json
 {
   "result_directory": "artifacts/meme-template-analyzer/<template_id-or-timestamp>/",
   "files": {
-    "vlm_recognition_mock": "vlm-recognition-mock.json",
-    "normalized_input": "normalized-input.json",
     "meme_template": "meme-template.json",
-    "slot_bindings": "slot-bindings.json",
-    "prompt_templates": "prompt-templates.json",
-    "rendered_prompts": "rendered-prompts.json",
     "prompt_pack": "prompt-pack.json",
     "stability_testset": "stability-testset.json",
     "manifest": "index.md"
+  }
+}
+```
+
+按 mode 选择主产物：
+
+- `analyze`、`template`、`variants`、`batch`、`compare` 默认写 `meme-template.json` 和 `index.md`。
+- `prompt-contract`、`render-prompts`、`render-prompt-pack` 默认写 `prompt-pack.json` 和 `index.md`。
+- `stability-testset` 额外写 `stability-testset.json`。
+- 用户要求真实图片结果时额外创建 `output/`。
+
+只有用户要求完整 pipeline、debug、严格分步产物、下游系统按分文件读取，或需要排查中间步骤时，才额外写：
+
+```json
+{
+  "expanded_pipeline_files": {
+    "vlm_recognition_mock": "vlm-recognition-mock.json",
+    "normalized_input": "normalized-input.json",
+    "slot_bindings": "slot-bindings.json",
+    "prompt_templates": "prompt-templates.json",
+    "rendered_prompts": "rendered-prompts.json"
   }
 }
 ```
@@ -66,7 +84,7 @@
 
 ## VLM Recognition Mock Object
 
-用于 `vlm-recognition-mock.json`。它表示在标准化和 prompt 渲染前，对用户上传内容进行一次 VLM pass 后的 mock 结构化输出。
+用于 `prompt-pack.json.vlm_recognition`，或在展开 pipeline 时用于 `vlm-recognition-mock.json`。它表示在标准化和 prompt 渲染前，对用户上传内容进行一次 VLM pass 后的 mock 结构化输出。
 
 ```json
 {
@@ -473,7 +491,7 @@ Placeholder 规则：
 
 ## Prompt Pack Object
 
-用于 `prompt-pack.json`。这是从用户输入 -> normalized JSON -> slot binding -> prompt template replacement -> 最终 faithful 和 creative prompts 的完整持久化 artifact。
+用于 `prompt-pack.json`。这是默认的紧凑主产物，内嵌从用户输入 -> normalized JSON -> slot binding -> prompt template replacement -> 最终 faithful 和 creative prompts 的完整 pipeline。除非用户要求 debug 或分步读取，不要把这些中间对象默认拆成多个 JSON 文件。
 
 ```json
 {

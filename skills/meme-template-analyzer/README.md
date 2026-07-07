@@ -24,19 +24,32 @@ artifacts/meme-template-analyzer/<template_id-or-timestamp>/
 $CODEX_HOME/generated_artifacts/meme-template-analyzer/<template_id-or-timestamp>/
 ```
 
-预期文件：
+默认预期文件：
 
 ```text
-vlm-recognition-mock.json
-normalized-input.json
 meme-template.json
-slot-bindings.json
-prompt-templates.json
-rendered-prompts.json
 prompt-pack.json
 stability-testset.json
 index.md
 output/
+```
+
+不一定每次都会生成以上全部文件。默认采用紧凑交付：
+
+- `index.md`: 每次产出的人类可读清单。
+- `meme-template.json`: 模板分析、模板库条目、batch 或 compare 输出时生成。
+- `prompt-pack.json`: prompt contract、render-prompts 或 render-prompt-pack 输出时生成，并内嵌 VLM recognition、normalized input、slot bindings、prompt templates 和 rendered prompts。
+- `stability-testset.json`: 仅用户要求稳定性测试时生成。
+- `output/`: 仅用户要求真实生成结果、mock 用户侧输出、测试输出图或结果图时创建。
+
+只有用户明确要求完整 pipeline、debug、严格分步产物，或下游系统需要按分文件读取时，才额外写：
+
+```text
+vlm-recognition-mock.json
+normalized-input.json
+slot-bindings.json
+prompt-templates.json
+rendered-prompts.json
 ```
 
 当用户要求“开始测试”“mock 用户实际生成效果”“输出结果”“我要图片”或类似真实生成结果时，`output/` 必须位于对应解析目录内部，例如：
@@ -75,17 +88,14 @@ JSON 报告、评分表和 `summary.md` 只能作为辅助文件。不要用 JSO
 
 当用户想从 meme 模板获得可用于图像生成的提示词时，使用这个命令。
 
-流程：
+默认流程：
 
 ```text
 用户输入
--> vlm-recognition-mock.json
--> normalized-input.json
--> slot-bindings.json
--> prompt-templates.json
--> rendered-prompts.json
 -> prompt-pack.json
 ```
+
+`prompt-pack.json` 内部保留完整 pipeline 数据。只有用户要求 debug 或分步产物时，才把 VLM recognition、normalized input、slot bindings、prompt templates 和 rendered prompts 拆成独立 JSON 文件。
 
 最终提示词包必须包含一个共享基础提示词和两个变体提示词范围：
 
