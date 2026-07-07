@@ -46,6 +46,7 @@ Use this directory convention:
    - `prompt-pack.json`
    - `stability-testset.json` when the user requests test sets
    - `index.md` as a short human-readable manifest
+   - `output/` when the user asks to run generation, test actual generation results, mock user-facing output, or produce result images. This directory lives inside the analyzed template directory, not at the artifact root.
 
 At the end, tell the user the work is complete and list the saved file paths. Do not paste full JSON into the chat unless the user explicitly requests inline JSON, strict schema output, or the filesystem is unavailable.
 
@@ -113,9 +114,16 @@ Use these command aliases when the user asks for them:
    - `faithful_variant`: change the requested replacement slots, especially the target subject when provided, while preserving composition, prompt style profile, visual hierarchy, humor rhythm, reading model, salience model, and recognition anchors.
    - `creative_variant`: keep the meme formula, reading model, salience model, and style family, but allow broader changes to subject, action, scene, metaphor, setting, text, emotional angle, and context according to operator-editable creative freedom controls.
 15. When the user asks for `stability-testset`, create deterministic test cases that compare faithful and creative prompt stability. Include normal cases, boundary cases, and negative controls.
-16. Record risk and constraint notes without changing the template by default. Do not replace a subject with a safer alternative unless the user asks for that policy or a safety rule blocks the requested output.
-17. Write artifacts to the result directory and report paths to the user.
-18. Before finishing, check that business-readable artifact content is Chinese. Technical keys and IDs may remain English, but summaries, warnings, prompts, examples, criteria, and Markdown prose should not be English by default.
+16. When the user asks to test actual generation output, mock user-facing generation, run high-fidelity/free-creative scenarios, or asks for "output/results/images", create real image outputs first:
+   - Use the available image-generation tool for raster outputs whenever possible.
+   - Save or copy generated PNG/JPEG files into `<result_directory>/output/`.
+   - Use stable names such as `high-fidelity-result.png`, `free-creative-result.png`, and numbered variants when multiple runs are produced.
+   - Keep JSON reports, test summaries, and scorecards in the same `output/` directory as supporting evidence, not as the primary result.
+   - Do not create SVG, vector-looking placeholder art, Pillow sketches, diagrams, or programmatic mock drawings as a substitute for generated result images.
+   - If image generation is unavailable or fails, say that no real image output was produced; do not silently replace it with JSON or a synthetic placeholder.
+17. Record risk and constraint notes without changing the template by default. Do not replace a subject with a safer alternative unless the user asks for that policy or a safety rule blocks the requested output.
+18. Write artifacts to the result directory and report paths to the user.
+19. Before finishing, check that business-readable artifact content is Chinese. Technical keys and IDs may remain English, but summaries, warnings, prompts, examples, criteria, and Markdown prose should not be English by default.
 
 ## Template Alignment And Creative Levels
 
@@ -329,6 +337,22 @@ python skills\meme-template-analyzer\scripts\validate_stability_testset.py <path
 
 Use this validator to catch missing `reference_test_matrix`, missing per-case `reference_usage`, missing required reference modes, and inconsistent reference-mode flags.
 
+## Image Output Test Runs
+
+Use real raster image outputs when the user asks to "start testing", "mock actual user generation", "show output", "give me results", "I want images", or similar generation-result language.
+
+For these requests:
+
+1. Create or reuse the analyzed template directory.
+2. Create `<result_directory>/output/`.
+3. Generate at least one `high-fidelity-result.png` and one `free-creative-result.png` when the user specifically wants high-fidelity and high-free/creative scenarios.
+4. If the image-generation tool saves files in its own generated-images folder, copy the resulting images into `<result_directory>/output/` and leave the originals in place.
+5. Put reports such as `mock-generation-results.json`, `high-fidelity-test-report.json`, `free-creative-test-report.json`, and `summary.md` under the same `output/` folder only as secondary files.
+6. Show or link the image files in the chat response. Do not present JSON as the final output when the user asked for images.
+7. Verify that each output image exists and is a non-empty PNG/JPEG with plausible dimensions before claiming the run is complete.
+
+Never use generated JSON, an evaluation rubric, an SVG, a hand-coded vector drawing, a Pillow sketch, or another synthetic placeholder as the final "result image". If you can only produce prompts or reports, state that limitation explicitly.
+
 ## Text Meme Handling
 
 For text-driven or hybrid memes, include:
@@ -365,3 +389,5 @@ When the user asks for prompts, output prompt data as JSON fields, not free pros
 - Do not auto-replace characters, brands, public figures, UI, logos, or screenshots. Record risks and constraints; preserve the user's requested target unless instructed otherwise or blocked.
 - Do not fabricate meme origins or cultural background. Use confidence scores and `unknown`.
 - Do not emit Markdown around JSON when downstream processing is expected.
+- Do not treat JSON reports, stability cases, or mock descriptions as the final output when the user asks for generated image results.
+- Do not overwrite real generated images with programmatic placeholder PNGs. Copy real generated image files into `output/` instead.

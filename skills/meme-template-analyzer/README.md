@@ -36,7 +36,23 @@ rendered-prompts.json
 prompt-pack.json
 stability-testset.json
 index.md
+output/
 ```
+
+当用户要求“开始测试”“mock 用户实际生成效果”“输出结果”“我要图片”或类似真实生成结果时，`output/` 必须位于对应解析目录内部，例如：
+
+```text
+artifacts/meme-template-analyzer/<template_id-or-timestamp>/output/
+```
+
+此时 `output/` 的主产物必须是 PNG/JPEG 图片，例如：
+
+```text
+high-fidelity-result.png
+free-creative-result.png
+```
+
+JSON 报告、评分表和 `summary.md` 只能作为辅助文件。不要用 JSON、SVG、Pillow 手绘图、程序化占位图或图表来冒充用户要看的生成结果。如果图像生成工具把图片先保存到自己的 generated-images 目录，应复制真实生成图到 `output/`，并保留原始生成文件。
 
 ## 命令
 
@@ -377,6 +393,26 @@ python skills\meme-template-analyzer\scripts\validate_stability_testset.py <path
 
 校验通过后，再进入真实生成或人工评估。
 
+### 真实图片输出测试
+
+当用户说“开始测试”“mock 一下用户实际生成效果”“高保真和高自由两个场景”“我要图片”“输出结果图片”等，测试不应停留在 schema、JSON 或文字描述。
+
+预期行为：
+
+1. 复用当前解析目录。
+2. 创建或使用该目录下的 `output/`。
+3. 真实生成图片结果：至少包含 `high-fidelity-result.png` 和 `free-creative-result.png`。
+4. 如果图片生成工具输出在外部 generated-images 目录，把真实生成 PNG/JPEG 复制进 `output/`，不要删除原始生成图。
+5. 将 `mock-generation-results.json`、`high-fidelity-test-report.json`、`free-creative-test-report.json` 和 `summary.md` 作为辅助报告放进同一个 `output/`。
+6. 回复用户时优先展示或链接图片文件，然后再简述测试报告。
+
+禁止行为：
+
+- 不要把 JSON 当成最终 output。
+- 不要用 SVG、Pillow 手绘图、程序化 vector 占位图或图表冒充生成结果。
+- 不要先生成了真实图片，又用本地程序图覆盖真实图片。
+- 如果无法生成图片，应明确说明无法生成，不要静默降级成文本报告。
+
 ## 模式指南
 
 agent 可以从请求中推断一个或多个模式：
@@ -440,6 +476,8 @@ agent 可以从请求中推断一个或多个模式：
 生成产物后，回复应简洁说明已完成，并列出保存路径。
 
 除非用户明确要求内联 JSON、内联提示词或严格 schema 输出，否则不要在聊天中粘贴完整 JSON 或完整提示词。
+
+如果用户要求图片结果，聊天回复应优先展示或链接 `output/` 中的 PNG/JPEG。JSON 路径只作为补充说明。
 
 ## 版本与运行时同步
 

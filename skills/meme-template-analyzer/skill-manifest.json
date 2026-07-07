@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-07",
-  "notes": "Adds a stability-testset validator script and tests to enforce reference_test_matrix and per-case reference_usage traceability.",
+  "notes": "Clarifies that actual generation tests must produce real image files under the analyzed template output directory and must not substitute JSON, SVG, or programmatic placeholder art for image results.",
   "tracked_files": [
     "SKILL.md",
     "README.md",
