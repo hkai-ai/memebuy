@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-07",
-  "notes": "Adds low-quality user subject reference handling with VLM identity summaries, quality scoring, identity confidence, and fallback policies for downstream meme generation.",
+  "notes": "Adds stability-testset reference traceability with reference_test_matrix and per-case reference_usage for comparing text-only, user-subject-only, and user-plus-source-meme generation paths.",
   "tracked_files": [
     "SKILL.md",
     "README.md",

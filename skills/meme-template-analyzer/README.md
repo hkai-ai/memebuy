@@ -100,6 +100,15 @@ index.md
 - `negative_controls`: 故意破坏关键锚点，用来判断模板何时失效。
 - `evaluation_rubric`: 用于评估可重复性和保真度的评分维度。
 - `repeatability_protocol`: 每个 case 运行多少次，以及什么结果算稳定。
+- `reference_test_matrix`: 记录本次测试会比较哪些参考图使用方式。
+
+当测试涉及用户上传主体图或源 meme 图时，必须显式比较或说明这些模式：
+
+- `text_only_baseline`: 不传用户主体参考图，也不传源 meme 图，只用文字 prompt。
+- `user_subject_reference_only`: 传用户上传图或 mock 用户上传图作为主体参考图；源 meme 图不传，只转成文本锁定锚点。
+- `user_subject_plus_source_meme_reference`: 同时传用户主体参考图和源 meme 图，用来观察构图/风格是否更稳，以及是否出现源主体泄漏、复制文字/Logo/UI 或 artifact。
+
+每个 case 都要写 `reference_usage`，明确说明是否使用了用户参考图、是否使用了源模板图、使用的是 mock 还是真实上传，以及测试目的。
 
 示例请求：
 
@@ -345,8 +354,10 @@ index.md
 2. 创建 3-8 个 faithful cases，替换目标主体或少量可编辑变量，但不把源主体身份误当成锁定项。
 3. 创建 3-8 个 creative cases，允许更大范围变化，但必须遵守 `creative_freedom_controls` 并保留公式。
 4. 创建 1-4 个 negative controls，故意破坏识别锚点。
-5. 添加评分标准和重复性协议。
-6. 保存 `stability-testset.json`。
+5. 添加 `reference_test_matrix`，至少区分纯文字 baseline、只用用户主体参考图、用户主体图加源模板图这三类测试路径。
+6. 每个 case 写入 `reference_usage`，明确记录实际参考图使用方式和风险观察点。
+7. 添加评分标准和重复性协议。
+8. 保存 `stability-testset.json`。
 
 这个测试关注输出是否仍可识别，而不是要求每次生成完全相同。
 

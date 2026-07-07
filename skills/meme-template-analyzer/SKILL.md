@@ -298,11 +298,20 @@ Create `stability-testset.json` with:
 - `negative_controls`: 1-4 cases that intentionally violate one key anchor, used to reveal when the template stops being recognizable.
 - `evaluation_rubric`: scored criteria for recognition anchors, slot adherence, humor formula, style fidelity, text accuracy, and safety/rights constraints.
 - `repeatability_protocol`: how many generations per case to run, what to compare, and what counts as stable.
+- `reference_test_matrix`: reference modes that must be compared when image-generation quality depends on user subject images or source meme images.
+
+For reference-sensitive image generation tests, include these reference modes unless the user's source material makes a mode impossible:
+
+- `text_only_baseline`: use no user subject reference image and no source meme reference image; rely only on rendered prompt text.
+- `user_subject_reference_only`: use the uploaded or mock user subject image as the generation reference; do not pass the source meme image; encode source meme style/composition/layout as textual locked anchors.
+- `user_subject_plus_source_meme_reference`: use both the user subject reference and the source meme reference to test whether the source image improves layout/style or causes source-subject leakage, copied text, logos, UI, or artifacts.
 
 For each case include:
 
 - `case_id`
 - `variant_scope`: `faithful | creative | negative_control`
+- `reference_mode`
+- `reference_usage`: explicit booleans and source labels for user subject reference and source meme reference
 - `raw_user_input`
 - `expected_locked_features`
 - `allowed_changes`
