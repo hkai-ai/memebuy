@@ -156,6 +156,33 @@ Business-readable values in this object must be Chinese by default. Technical ID
     "must_remain_obvious": [],
     "forbidden_emphasis": []
   },
+  "template_alignment": {
+    "locked_meta_properties": [
+      {
+        "property": "visual_style | subject_form_logic | humanization_degree | composition | text_structure | reading_order | salience | joke_formula | user_subject_identity",
+        "rule": "",
+        "evidence": "",
+        "failure_if_changed": ""
+      }
+    ],
+    "editable_dimensions": [
+      {
+        "dimension": "subject | action | scene | object | prop | clothing | background | metaphor | caption | emotion | style_detail | camera | typography",
+        "min_creative_level": 1,
+        "max_scope": "",
+        "must_align_to": "",
+        "forbidden_drift": []
+      }
+    ],
+    "creative_level_policy": {
+      "level_1": "",
+      "level_2": "",
+      "level_3": "",
+      "level_4": "",
+      "level_5": "",
+      "global_limits": []
+    }
+  },
   "visual_analysis": {
     "composition": "",
     "subjects": [],
@@ -219,6 +246,7 @@ Business-readable values in this object must be Chinese by default. Technical ID
   "lock_level": "locked | faithful_editable | creative_editable | fully_editable",
   "faithful_change_rule": "",
   "creative_change_rule": "",
+  "min_creative_level": 1,
   "examples": {
     "faithful": [],
     "creative": []
@@ -244,6 +272,8 @@ Business-readable values in this object must be Chinese by default. Technical ID
   }
 }
 ```
+
+`min_creative_level` records the first level where this slot can change. A slot with `lock_level: "locked"` must not open at any creative level.
 
 `subject_replacement_policy` is required for `category: "subject"` slots and optional for other slots. In high-fidelity prompt packs, a user-provided replacement subject should normally bind to an editable subject slot; the source subject's identity should not appear in `faithful_variant.locked_features` unless preserving that exact identity is essential to the joke and no replacement was requested.
 
@@ -351,6 +381,28 @@ Use when `mode` is `render-prompts`, when the user provides target content to in
 {
   "source_template_id": "short_snake_case_id",
   "reference_strategy": "none | image_reference | edit_target",
+  "reference_requirements": {
+    "needs_user_subject_reference": false,
+    "user_subject_reference_role": "none | identity_reference | style_reference | edit_target",
+    "user_subject_reference_quality": {
+      "quality_score": "unknown | low | medium | high",
+      "usable_for_identity": false,
+      "issues": [],
+      "identity_cues_detected": [],
+      "identity_confidence": "unknown | low | medium | high",
+      "vlm_identity_summary": "",
+      "generation_policy": "none | use_reference_only | use_reference_plus_vlm_identity_summary | semantic_replacement_only",
+      "fallback_if_too_poor": "none | ask_for_better_reference | lower_identity_confidence | semantic_replacement_only"
+    },
+    "needs_source_meme_reference": false,
+    "source_meme_reference_role": "none | composition_reference | style_reference | layout_reference | typography_reference | edit_target",
+    "reference_priority": "user_subject_first | source_meme_first | balanced | none",
+    "use_source_meme_as_generation_reference": false,
+    "source_meme_reference_risk": [],
+    "identity_preservation_targets": [],
+    "template_alignment_targets": [],
+    "decision_notes": []
+  },
   "vlm_recognition_ref": "vlm-recognition-mock.json",
   "user_input_normalization": {
     "raw_user_input": "",
@@ -398,6 +450,10 @@ Use when `mode` is `render-prompts`, when the user provides target content to in
   "downstream_generation_notes": {
     "text_to_image_ready": true,
     "needs_reference_image": false,
+    "needs_user_subject_reference_image": false,
+    "needs_source_meme_reference_image": false,
+    "uses_vlm_identity_summary": false,
+    "identity_preservation_confidence": "not_applicable | low | medium | high",
     "manual_steps": []
   }
 }
@@ -410,6 +466,10 @@ Placeholder rules:
 - Do not leave unresolved placeholders in `rendered_prompts`.
 - If the user omits content, use an inferred value or template default, then record the decision in `user_input_normalization.inferred_fields`.
 - Use `reference_strategy: "none"` when the output is intended for text-to-image generation without a source image.
+- Set `needs_user_subject_reference: true` when a specific uploaded subject must remain recognizable. Do not claim identity preservation is verified from a text-only prompt.
+- When the user subject reference is low-quality but recognizable, keep `needs_user_subject_reference: true`, fill `user_subject_reference_quality`, set `generation_policy: "use_reference_plus_vlm_identity_summary"`, and lower `identity_preservation_confidence` instead of dropping the image.
+- If the user subject cannot be identified from the upload, set `usable_for_identity: false` and choose either `fallback_if_too_poor: "ask_for_better_reference"` or `generation_policy: "semantic_replacement_only"`.
+- Set `use_source_meme_as_generation_reference: false` when the original meme image would compete with the user subject reference, leak source-subject identity, or encourage copying source text, logos, UI, or protected-looking artifacts.
 
 ## Prompt Pack Object
 
@@ -417,13 +477,14 @@ Use for `prompt-pack.json`. It is the complete persistent artifact for user inpu
 
 ```json
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "artifact_type": "meme_prompt_pack",
   "created_at": "ISO-8601 timestamp",
   "source_access": {},
   "vlm_recognition": {},
   "normalized_input": {},
   "meme_template": {},
+  "reference_requirements": {},
   "slot_bindings": [],
   "prompt_templates": {
     "base": "",

@@ -95,27 +95,98 @@ Use these command aliases when the user asks for them:
 7. If the meme depends on language, slang, public events, platform context, or a known meme format, add `text_analysis.background_context`. Do not invent origin stories; use `unknown` plus confidence when evidence is weak.
 8. Extract design features from `vlm-recognition-mock.json`: composition, crop, subject roles, expression, gesture, camera angle, color, texture, text placement, typography, visual hierarchy, artifacts, and style. Style must be prompt-usable, not a vague label: describe art medium, rendering method, line/shape language, color and lighting, texture/material, camera/lens/depth, postprocessing look, and negative style drift.
 9. Convert the meme into variable slots. Mark each slot as `locked`, `faithful_editable`, `creative_editable`, or `fully_editable`.
-10. Normalize user-provided replacement content through the reading model and VLM recognition mock. Do not let a strong subject identity override the original meme mechanism. In high-fidelity generation, the requested target subject is normally an editable slot; do not place the source subject's identity in `locked_features` unless the source identity itself is the non-replaceable joke anchor and the user did not ask to replace it. If the target is a recognizable character, product, public figure, or object, decide whether the template needs the full appearance, silhouette cues, label text, pose, expression, color, scale, motion, texture, or only semantic role. Bind only the needed cues.
-11. When the user provides target content, asks for image-generation prompts, wants no-reference generation, or asks for `render-prompt-pack`, build the full prompt pipeline:
+10. Extract template alignment rules before creative variants: locked meme meta-properties, editable expression dimensions, subject-form logic, humanization degree, text presence, visual style, composition relationship, reading order, salience, and failure modes. `creative_level` can only open editable dimensions; it must never override locked template meta-properties.
+11. Decide reference image requirements before rendering prompts. Distinguish analysis references from generation references:
+   - Source meme images are always analysis inputs when available, but should only be passed to downstream image generation when they are needed to preserve fragile composition, style, typography, or layout.
+   - User-uploaded subject images should be required as generation references when identity consistency matters, such as a specific pet, person, product, object, character, or branded item. Text-only descriptions are not enough to verify identity preservation.
+   - User-uploaded subject images may be low-resolution, compressed, blurry, cropped, or poorly lit. Still treat them as the preferred user subject reference when the subject is recognizable; run or mock a VLM pass first, extract identity cues and quality issues, and pass both the image reference and the VLM-derived identity summary downstream.
+   - Do not reject a low-quality user subject reference just because it is imperfect. Degrade the identity promise instead: preserve robust cues such as species/category, main colors, face markings, body shape, proportions, distinctive accessories, and temperament; avoid claiming exact identity preservation when evidence is weak.
+   - The original meme reference can be inaccurate for generation when it competes with the replacement subject, causes source-subject leakage, copies text/logos/UI, or overfits the source image. Prefer textual locked anchors over passing the original image in those cases.
+   - Use `edit_target` only when the task is to directly edit the source image. Use `image_reference` when one or more images should guide identity, style, composition, or layout. Use `none` only when no visual identity or source layout needs image-grounded preservation.
+12. Normalize user-provided replacement content through the reading model and VLM recognition mock. Do not let a strong subject identity override the original meme mechanism. In high-fidelity generation, the requested target subject is normally an editable slot; do not place the source subject's identity in `locked_features` unless the source identity itself is the non-replaceable joke anchor and the user did not ask to replace it. If the target is a recognizable character, product, public figure, pet, or object, decide whether the template needs the full appearance, silhouette cues, label text, pose, expression, color, scale, motion, texture, or only semantic role. Bind only the needed cues and record whether a user reference image is required for those cues.
+13. When the user provides target content, asks for image-generation prompts, wants no-reference generation, or asks for `render-prompt-pack`, build the full prompt pipeline:
    - `user_input_normalization`: convert raw user input and VLM recognition mock into standardized JSON.
    - `slot_bindings`: bind standardized values and VLM-derived candidates to meme template variable slots.
    - `prompt_templates`: define a shared `base` template plus faithful and creative prompt templates with `{{snake_case}}` placeholders.
    - `rendered_prompts`: replace every placeholder and output final base, high-fidelity, and free-creative prompts.
-12. Produce both variant scopes:
+14. Produce both variant scopes:
    - `faithful_variant`: change the requested replacement slots, especially the target subject when provided, while preserving composition, prompt style profile, visual hierarchy, humor rhythm, reading model, salience model, and recognition anchors.
    - `creative_variant`: keep the meme formula, reading model, salience model, and style family, but allow broader changes to subject, action, scene, metaphor, setting, text, emotional angle, and context according to operator-editable creative freedom controls.
-13. When the user asks for `stability-testset`, create deterministic test cases that compare faithful and creative prompt stability. Include normal cases, boundary cases, and negative controls.
-14. Record risk and constraint notes without changing the template by default. Do not replace a subject with a safer alternative unless the user asks for that policy or a safety rule blocks the requested output.
-15. Write artifacts to the result directory and report paths to the user.
-16. Before finishing, check that business-readable artifact content is Chinese. Technical keys and IDs may remain English, but summaries, warnings, prompts, examples, criteria, and Markdown prose should not be English by default.
+15. When the user asks for `stability-testset`, create deterministic test cases that compare faithful and creative prompt stability. Include normal cases, boundary cases, and negative controls.
+16. Record risk and constraint notes without changing the template by default. Do not replace a subject with a safer alternative unless the user asks for that policy or a safety rule blocks the requested output.
+17. Write artifacts to the result directory and report paths to the user.
+18. Before finishing, check that business-readable artifact content is Chinese. Technical keys and IDs may remain English, but summaries, warnings, prompts, examples, criteria, and Markdown prose should not be English by default.
+
+## Template Alignment And Creative Levels
+
+Treat `creative_level` as a slot-opening budget, not permission to redesign the meme. First extract template-specific locked meta-properties, then decide which dimensions each level may open.
+
+Always preserve locked template meta-properties:
+
+- visual style and medium, such as low-resolution photo, screenshot, comic, 3D render, or illustration
+- subject form logic and humanization degree, such as realistic pet, human, object, UI element, mascot, or fully anthropomorphic character
+- composition relationship, crop pressure, panel structure, camera angle, and foreground/background roles
+- text presence, text placement, typography treatment, and rhetorical structure
+- reading order, salience model, role mapping, joke formula, and failure modes
+- user-uploaded subject identity when the user asks to insert a specific subject
+
+Use this generic `creative_level` interpretation:
+
+| Level | Meaning |
+| --- | --- |
+| `1` | Replace only the user-requested subject or smallest viable variable. Preserve nearly all anchors. |
+| `2` | Open small local variables such as minor props, labels, colors, accessories, or wording while preserving structure. |
+| `3` | Open template-internal expression variables such as action, gesture, reaction, or localized object changes. |
+| `4` | Open larger template-approved variables such as scene family, background condition, relationship mapping, or metaphor when the original template supports that kind of change. |
+| `5` | Recombine all editable dimensions while preserving every locked meta-property and failure-mode constraint. |
+
+Do not introduce outside context just because a high level was requested. For example, if a template has no office, worker identity, system-error joke, or caption, do not add those elements unless the user explicitly supplied that context or the template's own variable slots include it.
+
+When a template has no text, do not add captions by default. When a template has text, preserve equivalent text structure and placement, then bind user-provided or inferred text slots.
+
+## Reference Image Decision Rules
+
+Write a `reference_requirements` object whenever output may be sent to an image model.
+
+Ask these questions:
+
+1. Does the user-provided replacement subject need visual identity preservation? If yes, require a user subject reference image and bind it to the subject slot.
+2. Does the source meme image need to guide composition, style, layout, text placement, or pose beyond what text can reliably specify? If yes, allow source meme as an image reference.
+3. Would passing the source meme image conflict with the user subject reference or cause the generator to copy the source subject, text, logo, UI, or protected-looking elements? If yes, do not use it as a generation reference; convert the needed aspects into locked textual anchors.
+4. Is the request to directly edit the uploaded/source image? If yes, use `edit_target`; otherwise use `image_reference` only for identity/style/composition guidance.
+5. Is the user subject reference low-quality but recognizable? If yes, keep it as the generation reference, add `user_subject_reference_quality`, and include a VLM-derived identity summary in the prompt contract.
+6. If no image-grounded identity, source layout, or style preservation is needed, use `none` and explain that the output is text-to-image ready.
+
+For low-quality user subject references, record:
+
+- `quality_score`: `low`, `medium`, or `high`
+- `usable_for_identity`: whether the image can support any identity preservation
+- `issues`: low resolution, compression, motion blur, bad lighting, partial crop, occlusion, tiny subject, or unusual angle
+- `identity_cues_detected`: visual cues the VLM can still recognize
+- `identity_confidence`: `low`, `medium`, or `high`
+- `generation_policy`: usually `use_reference_plus_vlm_identity_summary`
+- `fallback_if_too_poor`: ask for another image, lower identity confidence, or perform only semantic/category replacement
+
+Common decisions:
+
+| Situation | Downstream reference decision |
+| --- | --- |
+| User uploads a pet/product/person to insert into a meme | require user subject reference for generation |
+| User uploads a low-resolution but recognizable pet/product/person | require user subject reference, add VLM identity summary, and lower identity confidence |
+| User uploads an unusable reference where the subject cannot be identified | ask for a better reference or mark generation as semantic/category replacement only |
+| User only asks to analyze a meme | no generation reference decision is needed |
+| User asks for a prompt pack from a known meme image | use source meme for analysis; pass source meme to generation only if layout/style cannot be described reliably |
+| Source meme and user subject references conflict | prioritize user subject identity; encode source meme style/layout as textual locked anchors |
+| User asks to edit the original image directly | use `edit_target` and preserve unchanged regions |
 
 ## Prompt Pack Pipeline
 
 Use this exact pipeline for `render-prompt-pack`, `render-prompts`, and prompt-generation requests:
 
 1. `vlm-recognition-mock.json`: store the mocked VLM recognition result for the uploaded image, screenshot, URL capture, or text-only creative input. This is the source observation layer for downstream normalization.
+   - When the upload is a user subject reference, include quality issues, identity cues, and identity confidence. This VLM pass should help the generator use poor images more reliably; it does not replace passing the user subject reference when identity matters.
 2. `normalized-input.json`: store the raw user request, link to `vlm-recognition-mock.json`, and standardized fields such as `subject`, `object`, `setting`, `caption`, `style_intensity`, `constraints`, and `negative_constraints`.
-3. `meme-template.json`: store the analyzed meme template, reading model, salience model, joke formula, visual anchors, text formula, and variable slots derived from the VLM recognition mock.
+3. `meme-template.json`: store the analyzed meme template, locked meta-properties, editable dimensions, reading model, salience model, joke formula, visual anchors, text formula, and variable slots derived from the VLM recognition mock.
 4. `slot-bindings.json`: map each normalized field and VLM-derived candidate to a `variable_slots[*].slot_id` and a prompt placeholder such as `{{primary_subject}}`.
 5. `prompt-templates.json`: store one shared base template and two variant templates:
    - `base`: shared meme formula, reading model, salience model, prompt style profile, and invariant constraints.
@@ -212,6 +283,7 @@ Use `generation_pipeline` when mode is `render-prompts`, when the user gives tar
 - `prompt_templates`: provide machine-renderable `base`, `faithful`, and `creative` templates before replacement. Keep placeholders in double braces and snake_case.
 - `rendered_prompts`: provide final prompts after replacement. Do not leave unresolved placeholders; if a value is missing, use a template default or inferred value and record the decision in `user_input_normalization.inferred_fields`.
 - `reference_strategy`: use `none` for no-reference text-to-image generation, `image_reference` when the source image should guide style/composition, and `edit_target` when editing the source image directly.
+- `reference_requirements`: record whether downstream generation needs user subject reference images, source meme reference images, both, or neither, and explain why.
 
 For faithful rendering, bind the requested replacement slots and preserve invariant anchors, reading order, salience, and prompt style profile. For creative rendering, bind broader editable dimensions while preserving the formula, style family, recognition anchors, and reading model.
 
@@ -269,6 +341,10 @@ When the user asks for prompts, output prompt data as JSON fields, not free pros
 - Do not describe style only as a genre label. Add concrete medium, rendering, line, color, lighting, texture, camera, typography, and negative drift constraints.
 - Do not make high-fidelity and creative prompts two unrelated prompts. They should derive from the same base template; faithful changes fewer slots, creative changes more slots.
 - Do not merge high-fidelity and free creative versions. They must be separately controllable.
+- Do not treat `creative_level: 5` as permission to change visual medium, subject form logic, text structure, or composition anchors that the source template locked.
+- Do not rely on text-only prompts when the user expects a specific uploaded pet, product, person, or object to remain recognizable; require a user reference image and record it in `reference_requirements`.
+- Do not discard low-quality user uploads when the subject is still recognizable. Use the image plus VLM-derived identity cues, and state lower identity confidence instead of pretending the output can preserve exact details.
+- Do not automatically pass the source meme image as a generation reference when it will pull the model back toward the source subject or copied source artifacts. Use textual locked anchors instead.
 - Do not auto-replace characters, brands, public figures, UI, logos, or screenshots. Record risks and constraints; preserve the user's requested target unless instructed otherwise or blocked.
 - Do not fabricate meme origins or cultural background. Use confidence scores and `unknown`.
 - Do not emit Markdown around JSON when downstream processing is expected.

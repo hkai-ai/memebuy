@@ -184,6 +184,110 @@ index.md
 
 当源图应指导构图或风格时，使用 `reference_strategy: image_reference`。只有用户明确要求直接编辑源图时，才使用 `edit_target`。
 
+### 教程 2A：判断生成时需要哪些参考图
+
+当用户上传替换主体，例如宠物、商品、人物或具体物件，并希望生成结果保持它的身份一致性时，不能只靠文字描述。应在 `generation_pipeline.reference_requirements` 中明确记录参考图需求。
+
+通用规则：
+
+1. 源 meme 图始终可以作为分析输入，用来提取模板元属性、构图、阅读顺序和变量槽。
+2. 用户上传主体图在需要身份保持时，应作为下游生成参考图；只写“白色博美”“红色杯子”无法证明身份一致。
+3. 用户上传主体图可能低清、压缩、模糊、裁切不完整或光线差。只要主体仍可识别，就继续作为下游生成参考图，同时把 VLM 识别出的身份线索写入提示词和 `reference_requirements`。
+4. 源 meme 图不一定要作为生成参考图。它可能让模型回到源主体、复制源文字/Logo/UI，或和用户主体参考图冲突。
+5. 当源图只需要提供构图、风格或文字位置时，优先把这些内容转成文本锁定锚点；只有文本难以稳定表达时才把源 meme 图作为 `image_reference`。
+6. 只有用户明确要求直接改原图时，才使用 `edit_target`。
+
+示例：
+
+```json
+{
+  "reference_strategy": "image_reference",
+  "reference_requirements": {
+    "needs_user_subject_reference": true,
+    "user_subject_reference_role": "identity_reference",
+    "user_subject_reference_quality": {
+      "quality_score": "low",
+      "usable_for_identity": true,
+      "issues": ["low_resolution", "compression_artifacts"],
+      "identity_cues_detected": [
+        "白色绒毛",
+        "圆脸",
+        "三角耳朵",
+        "小型犬体型",
+        "偏淡定的表情"
+      ],
+      "identity_confidence": "medium",
+      "vlm_identity_summary": "低清图中仍可识别为白色小型犬，圆脸、三角耳朵和淡定表情是主要身份线索。",
+      "generation_policy": "use_reference_plus_vlm_identity_summary",
+      "fallback_if_too_poor": "lower_identity_confidence"
+    },
+    "needs_source_meme_reference": false,
+    "source_meme_reference_role": "none",
+    "reference_priority": "user_subject_first",
+    "use_source_meme_as_generation_reference": false,
+    "source_meme_reference_risk": [
+      "源 meme 图可能把生成结果拉回源主体",
+      "源图中的文字或水印可能被复制"
+    ],
+    "identity_preservation_targets": [
+      "保留用户上传宠物的毛色、脸型、耳朵、体型和主要花纹"
+    ],
+    "template_alignment_targets": [
+      "保留源 meme 的构图关系、低清照片风格和笑点阅读顺序"
+    ],
+    "decision_notes": [
+      "使用用户宠物图作为身份参考；源 meme 仅作为分析来源，不直接传给生成模型。"
+    ]
+  }
+}
+```
+
+### 教程 2A-1：低清用户参考图的处理
+
+很多真实用户上传的宠物、商品或人物图并不清晰，但这不等于不能用于生成。处理逻辑应分三层：
+
+1. 先用 VLM 识别上传图，记录主体类别、可见身份线索、质量问题和置信度。
+2. 如果主体可识别，仍将原图作为 `user subject reference` 传给下游生成，同时把 VLM 摘要写进 prompt，帮助模型抓住稳健特征。
+3. 如果主体不可识别，再降级为“语义替换”或请求更好的参考图。
+
+可接受的低清问题包括：分辨率低、压缩痕迹、轻微运动模糊、光线差、局部裁切、主体角度不标准。此时不要承诺像素级一致，只保留稳健身份线索，例如宠物的物种、毛色/羽色、脸部标记、体型、比例、主要配饰和气质。
+
+如果主体太小、严重遮挡、糊成色块、只露背影或 VLM 无法判断主体类别，应设置：
+
+```json
+{
+  "usable_for_identity": false,
+  "identity_confidence": "low",
+  "generation_policy": "semantic_replacement_only",
+  "fallback_if_too_poor": "ask_for_better_reference"
+}
+```
+
+### 教程 2B：使用 creative_level 时先锁定模板元属性
+
+`creative_level` 是变量开放强度，不是改写模板的许可。每个 meme 都要先从源模板中提取 `template_alignment.locked_meta_properties`，再决定哪些 `editable_dimensions` 可以在哪个等级开放。
+
+通用层面必须对齐：
+
+- 视觉媒介和风格，例如低清照片、截图、漫画、3D 或插画。
+- 主体形态逻辑和拟人化程度，例如真实宠物、普通人、物件、UI 元素、吉祥物或人形动物。
+- 构图关系、裁切压力、前景/背景角色和面板结构。
+- 文字有无、文字位置、字体处理和修辞结构。
+- 笑点公式、阅读顺序、显著性模型、角色映射和失效条件。
+- 用户上传主体的身份一致性。
+
+等级语义：
+
+| 等级 | 含义 |
+| --- | --- |
+| `1` | 只替换用户指定主体或最小变量，最大限度保留原模板。 |
+| `2` | 开放小道具、颜色、配饰、标签或局部文字等小变量。 |
+| `3` | 开放模板内部的动作、姿态、反应、局部物件或表达变化。 |
+| `4` | 在模板允许时开放场景族、背景条件、关系映射或隐喻变化。 |
+| `5` | 重组所有可编辑维度，但仍不能突破锁定元属性。 |
+
+例如宠物末日梗图的 `level 5` 可以更换休闲场景和背景灾难，但不能把复古低清照片改成 3D 插画，不能把真实宠物改成完整人形角色，也不能自动加入办公室、系统报错或职业身份叙事，除非用户明确提供这些语境。
+
 ### 教程 3：从纯文字 meme 创意到提示词
 
 当没有源图片时，使用这条路径。

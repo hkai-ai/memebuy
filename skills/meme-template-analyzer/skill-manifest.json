@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.5.0",
+  "version": "0.7.0",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-07",
-  "notes": "Adds vlm-recognition-mock.json as the user-upload recognition layer before normalization, slot binding, and faithful/creative prompt rendering; retains prompt_style_profile, subject_replacement_policy, and creative_freedom_controls.",
+  "notes": "Adds low-quality user subject reference handling with VLM identity summaries, quality scoring, identity confidence, and fallback policies for downstream meme generation.",
   "tracked_files": [
     "SKILL.md",
     "README.md",
