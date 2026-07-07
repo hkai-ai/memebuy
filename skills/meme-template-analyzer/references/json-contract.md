@@ -4,6 +4,24 @@ Use this contract for `template`, `variants`, `prompt-contract`, `render-prompts
 
 Default skill behavior writes these objects to files. Inline JSON is only for explicit JSON requests or unavailable filesystem output.
 
+## Language Contract
+
+All business-readable content must be Simplified Chinese by default.
+
+Keep technical identifiers unchanged:
+
+- JSON keys, schema names, file names, paths, JSONPath, placeholders, mode names, enum values, labels, IDs, hashes, URLs, and code-like values.
+- source text that is visibly present in the meme; preserve it verbatim and add Chinese explanation or translation fields when helpful.
+- user-provided strings that must remain in their original language.
+
+Use Chinese for:
+
+- every prose string value in JSON, including summaries, limitations, notes, prompts, warnings, examples, pass criteria, postprocessing steps, risk descriptions, and explanation fields.
+- all Markdown prose in `index.md`.
+- rendered prompt text in `rendered_prompts` and `prompt-pack.json`, unless the user explicitly requests English prompts for a downstream model.
+
+Do not use English example prose as filler in output artifacts. If a value is inferred, explain the inference in Chinese and include a confidence score.
+
 ## Artifact Directory Shape
 
 ```json
@@ -152,7 +170,7 @@ For `batch`, replace `meme_template` with `template_library`. For `compare`, inc
   "locked_salience_model": [],
   "editable_slots": [],
   "max_change_budget": {
-    "description": "How many dimensions may change before the meme stops being high-fidelity.",
+    "description": "在失去高保真识别度前，最多允许改变多少个维度。",
     "recommended_changed_slots": 0,
     "must_not_change": []
   },
@@ -330,7 +348,7 @@ Use for `prompt-pack.json`. It is the complete persistent artifact for user inpu
 }
 ```
 
-The `faithful.prompt` and `creative.prompt` fields must contain final text with no unresolved `{{placeholder}}` strings.
+The `faithful.prompt` and `creative.prompt` fields must contain final Chinese text with no unresolved `{{placeholder}}` strings, unless the user explicitly requested English prompts.
 
 ## Postprocessing Object
 

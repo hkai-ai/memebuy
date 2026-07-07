@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-07",
-  "notes": "Adds meme reading model, salience model, and base/faithful/creative prompt pack structure.",
+  "notes": "Requires Simplified Chinese for business-readable artifact content, chat summaries, rendered prompts, and stability test descriptions while preserving technical schema identifiers.",
   "tracked_files": [
     "SKILL.md",
     "README.md",

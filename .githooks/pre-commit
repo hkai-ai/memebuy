@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+if command -v pwsh >/dev/null 2>&1; then
+  ps_cmd="pwsh"
+elif command -v powershell.exe >/dev/null 2>&1; then
+  ps_cmd="powershell.exe"
+elif command -v powershell >/dev/null 2>&1; then
+  ps_cmd="powershell"
+else
+  echo "pre-commit: PowerShell was not found; cannot sync Codex skills." >&2
+  exit 1
+fi
+
+echo "pre-commit: syncing repository skills to Codex runtime copy..."
+"$ps_cmd" -NoProfile -ExecutionPolicy Bypass -File "scripts/sync-skill.ps1" -SkillName "meme-template-analyzer"
+
+echo "pre-commit: verifying Codex skill sync..."
+"$ps_cmd" -NoProfile -ExecutionPolicy Bypass -File "scripts/check-skill-sync.ps1" -SkillName "meme-template-analyzer"

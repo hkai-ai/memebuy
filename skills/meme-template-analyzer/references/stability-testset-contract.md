@@ -2,6 +2,14 @@
 
 Use this file when the user requests `stability-testset`, stable remix tests, high-fidelity/free-creative test cases, or reproducibility checks.
 
+## Language Contract
+
+Write all business-readable test content in Simplified Chinese by default. Keep JSON keys, enum values, case IDs, JSONPath values, mode names, and other technical identifiers in English.
+
+Chinese fields include `test_goal`, `raw_user_input`, `expected_locked_features`, `expected_reading_model`, `expected_salience_model`, `allowed_changes`, `forbidden_drift`, `pass_criteria`, `compare_dimensions`, `stable_if`, and `unstable_if`.
+
+If the source meme contains English or another language, preserve the original visible text exactly and add Chinese explanation or localization notes where useful.
+
 ## Purpose
 
 Create a persistent test set that checks whether a meme template can be rendered repeatedly without losing:

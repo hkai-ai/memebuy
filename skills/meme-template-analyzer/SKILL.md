@@ -9,6 +9,25 @@ description: Use when analyzing meme images, screenshots, image URLs, or user-pr
 
 Analyze memes into reusable template artifacts and generation prompt packs. Preserve the user's creative intent: do not silently sanitize, replace subjects, or rewrite protected-looking elements unless the user asks or active policy requires refusal.
 
+## Chinese Output Contract
+
+Default all user-visible and business-readable output to Simplified Chinese.
+
+Use English only for stable technical identifiers:
+
+- file names, directory names, paths, JSON keys, JSONPath, mode names, enum values, placeholders, command names, model/tool names, hashes, URLs, and code-like identifiers.
+- source text detected in the meme. Preserve the original text exactly, then add Chinese explanation, translation, or localization notes when useful.
+- user-provided replacement text that must remain in its original language.
+
+Write these fields and files in Chinese by default:
+
+- every free-text JSON value such as summaries, limitations, notes, warnings, prompts, risk descriptions, case goals, pass criteria, examples, and postprocessing steps.
+- `index.md` and any other human-readable Markdown artifact.
+- chat summaries and progress reports.
+- final rendered prompt text, unless the user explicitly asks for English prompts for a specific downstream image model.
+
+When a downstream field uses an English technical label such as `high_fidelity`, keep the label stable but make the adjacent `prompt`, `notes`, `criteria`, and explanation strings Chinese. If a field mixes technical IDs and prose, keep IDs as-is and write the prose around them in Chinese.
+
 ## Artifact-First Output Rule
 
 Default to writing machine-readable artifacts into a result directory instead of dumping JSON in chat.
@@ -87,6 +106,7 @@ Use these command aliases when the user asks for them:
 12. When the user asks for `stability-testset`, create deterministic test cases that compare faithful and creative prompt stability. Include normal cases, boundary cases, and negative controls.
 13. Record risk and constraint notes without changing the template by default. Do not replace a subject with a safer alternative unless the user asks for that policy or a safety rule blocks the requested output.
 14. Write artifacts to the result directory and report paths to the user.
+15. Before finishing, check that business-readable artifact content is Chinese. Technical keys and IDs may remain English, but summaries, warnings, prompts, examples, criteria, and Markdown prose should not be English by default.
 
 ## Prompt Pack Pipeline
 
@@ -101,7 +121,7 @@ Use this exact pipeline for `render-prompt-pack`, `render-prompts`, and prompt-g
    - `creative`: free-creative remix; preserve the joke formula and style family while allowing broader subject, object, scene, and metaphor changes.
 5. `rendered-prompts.json`: store final base, faithful, and creative prompts after placeholder replacement. Never leave unresolved `{{placeholder}}` text.
 6. `prompt-pack.json`: store the complete combined object for downstream systems.
-7. `index.md`: summarize what was generated and list the artifact files.
+7. `index.md`: summarize what was generated and list the artifact files in Chinese.
 
 Report in chat:
 
@@ -112,6 +132,8 @@ Report in chat:
 - stability test set path when generated
 
 Do not paste the full JSON or full prompts unless the user asks for inline content.
+
+The chat report should be Chinese by default and should list only the saved paths plus a short verification summary.
 
 ## Variable Slot Discipline
 

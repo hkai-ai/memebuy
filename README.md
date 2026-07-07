@@ -19,19 +19,36 @@
 git clone https://github.com/techidsk/memebuy.git C:\Code\memebuy
 ```
 
-把需要的 Skill 复制到本地 Codex skills 目录：
+把需要的 Skill 同步到本地 Codex skills 目录：
 
 ```powershell
-Copy-Item -Recurse C:\Code\memebuy\skills\meme-template-analyzer C:\Users\<username>\.codex\skills\
+scripts\sync-skill.ps1 -SkillName meme-template-analyzer
 ```
 
-如果本地已经安装过这个 Skill，用 `-Force` 覆盖更新：
+检查仓库副本和全局运行副本是否一致：
 
 ```powershell
-Copy-Item -Recurse -Force C:\Code\memebuy\skills\meme-template-analyzer C:\Users\<username>\.codex\skills\
+scripts\check-skill-sync.ps1 -SkillName meme-template-analyzer
 ```
 
 安装后可以在 Codex 中通过 `$meme-template-analyzer` 调用。
+
+### 自动同步 Git hook
+
+为了避免修改仓库内 Skill 后忘记同步到全局运行副本，可以启用本仓库的 Git hook：
+
+```powershell
+scripts\install-git-hooks.ps1 -Verify
+```
+
+启用后，每次 `git commit` 前会自动执行：
+
+```powershell
+scripts\sync-skill.ps1 -SkillName meme-template-analyzer
+scripts\check-skill-sync.ps1 -SkillName meme-template-analyzer
+```
+
+如果同步或校验失败，commit 会被阻止。
 
 ## meme-template-analyzer 使用场景
 
