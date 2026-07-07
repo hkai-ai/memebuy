@@ -29,22 +29,22 @@ def valid_case(case_id, scope, reference_mode):
             "source_meme_reference_source": "uploaded_source_meme" if uses_source else "none",
             "source_meme_usage": source_usage,
             "reference_priority": "user_subject_first" if uses_user else "none",
-            "expected_benefit": "trace reference impact",
+            "expected_benefit": "追踪参考图影响",
             "risk_to_watch": [],
-            "test_purpose": "compare reference usage",
+            "test_purpose": "比较参考图使用方式",
         },
-        "raw_user_input": "insert a penguin",
-        "expected_locked_features": ["retro meme photo style"],
+        "raw_user_input": "插入一只企鹅",
+        "expected_locked_features": ["复古 meme 照片风格"],
         "expected_editable_slots": ["subject_primary"],
-        "expected_reading_model": ["calm foreground subject versus disaster background"],
-        "expected_salience_model": ["subject dominant, disaster background secondary"],
-        "expected_style_profile": ["low resolution photo"],
+        "expected_reading_model": ["前景主体冷静，背景灾难形成反差"],
+        "expected_salience_model": ["主体为主导注意力，灾难背景为次要注意力"],
+        "expected_style_profile": ["低分辨率照片"],
         "expected_subject_replacement_policy": {},
         "expected_creative_freedom_controls": {},
-        "allowed_changes": ["subject replacement"],
-        "forbidden_drift": ["missing reference usage"],
+        "allowed_changes": ["主体替换"],
+        "forbidden_drift": ["缺少参考图使用记录"],
         "expected_prompt_json_paths": ["$.rendered_prompts.faithful.prompt"],
-        "pass_criteria": ["reference usage is explicit"],
+        "pass_criteria": ["参考图使用方式明确"],
     }
 
 
@@ -53,7 +53,7 @@ def valid_testset():
         "schema_version": "1.1",
         "artifact_type": "meme_stability_testset",
         "source_template_id": "calm_pet_disaster",
-        "test_goal": "validate reference usage traceability",
+        "test_goal": "验证参考图使用可追踪性",
         "reference_test_matrix": [
             {
                 "reference_mode": "text_only_baseline",
@@ -61,7 +61,7 @@ def valid_testset():
                 "uses_source_meme_reference": False,
                 "source_meme_usage": "none",
                 "reference_priority": "none",
-                "test_purpose": "baseline drift check",
+                "test_purpose": "检查基线漂移",
             },
             {
                 "reference_mode": "user_subject_reference_only",
@@ -69,7 +69,7 @@ def valid_testset():
                 "uses_source_meme_reference": False,
                 "source_meme_usage": "textual_locked_anchors_only",
                 "reference_priority": "user_subject_first",
-                "test_purpose": "identity reference check",
+                "test_purpose": "检查身份参考图效果",
             },
             {
                 "reference_mode": "user_subject_plus_source_meme_reference",
@@ -77,7 +77,7 @@ def valid_testset():
                 "uses_source_meme_reference": True,
                 "source_meme_usage": "image_reference",
                 "reference_priority": "user_subject_first",
-                "test_purpose": "source meme reference risk check",
+                "test_purpose": "检查源 meme 参考图风险",
             },
         ],
         "faithful_cases": [
@@ -99,9 +99,9 @@ def valid_testset():
                 "user_subject_reference_only",
                 "user_subject_plus_source_meme_reference",
             ],
-            "compare_dimensions": ["identity", "composition", "source leakage"],
-            "stable_if": ["reference usage remains traceable"],
-            "unstable_if": ["reference mode is omitted"],
+            "compare_dimensions": ["身份", "构图", "源主体泄漏"],
+            "stable_if": ["参考图使用方式保持可追踪"],
+            "unstable_if": ["reference mode 被遗漏"],
         },
     }
 

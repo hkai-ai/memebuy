@@ -1,28 +1,28 @@
 # JSON Contract
 
-Use this contract for `template`, `variants`, `prompt-contract`, `render-prompts`, `batch`, and `compare` modes. Return JSON that is machine-readable first and human-readable second.
+在 `template`、`variants`、`prompt-contract`、`render-prompts`、`batch` 和 `compare` 模式中使用本 contract。返回 JSON 时优先保证机器可读，其次保证人类可读。
 
-Default skill behavior writes these objects to files. Inline JSON is only for explicit JSON requests or unavailable filesystem output.
+默认 skill 行为会把这些 object 写入文件。只有用户明确要求 JSON，或文件系统不可用时，才输出内联 JSON。
 
-## Language Contract
+## 语言约定
 
-All business-readable content must be Simplified Chinese by default.
+所有业务可读内容默认必须使用简体中文。
 
-Keep technical identifiers unchanged:
+保持技术标识不变：
 
-- JSON keys, schema names, file names, paths, JSONPath, placeholders, mode names, enum values, labels, IDs, hashes, URLs, and code-like values.
-- source text that is visibly present in the meme; preserve it verbatim and add Chinese explanation or translation fields when helpful.
-- user-provided strings that must remain in their original language.
+- JSON key、schema 名、文件名、路径、JSONPath、placeholder、mode 名、enum 值、label、ID、hash、URL 和类似代码的值。
+- meme 中可见的源文字；逐字保留，并在有帮助时添加中文解释或翻译字段。
+- 用户提供且必须保留原语言的字符串。
 
-Use Chinese for:
+以下内容使用中文：
 
-- every prose string value in JSON, including summaries, limitations, notes, prompts, warnings, examples, pass criteria, postprocessing steps, risk descriptions, and explanation fields.
-- all Markdown prose in `index.md`.
-- rendered prompt text in `rendered_prompts` and `prompt-pack.json`, unless the user explicitly requests English prompts for a downstream model.
+- JSON 中的每个 prose string value，包括摘要、限制、说明、prompt、警告、示例、通过标准、后处理步骤、风险描述和解释字段。
+- `index.md` 中的所有 Markdown prose。
+- `rendered_prompts` 和 `prompt-pack.json` 中渲染后的 prompt text，除非用户明确要求给下游模型使用英文 prompt。
 
-Do not use English example prose as filler in output artifacts. If a value is inferred, explain the inference in Chinese and include a confidence score.
+不要用英文示例 prose 填充输出 artifact。如果某个 value 是推断出来的，用中文解释推断依据并包含置信度。
 
-## Artifact Directory Shape
+## Artifact 目录结构
 
 ```json
 {
@@ -41,7 +41,7 @@ Do not use English example prose as filler in output artifacts. If a value is in
 }
 ```
 
-## Top-Level Shape
+## 顶层结构
 
 ```json
 {
@@ -62,11 +62,11 @@ Do not use English example prose as filler in output artifacts. If a value is in
 }
 ```
 
-For `batch`, replace `meme_template` with `template_library`. For `compare`, include `comparison`.
+对于 `batch`，用 `template_library` 替换 `meme_template`。对于 `compare`，包含 `comparison`。
 
 ## VLM Recognition Mock Object
 
-Use for `vlm-recognition-mock.json`. It represents the mocked structured output of a VLM pass over user-uploaded content before normalization and prompt rendering.
+用于 `vlm-recognition-mock.json`。它表示在标准化和 prompt 渲染前，对用户上传内容进行一次 VLM pass 后的 mock 结构化输出。
 
 ```json
 {
@@ -122,7 +122,7 @@ Use for `vlm-recognition-mock.json`. It represents the mocked structured output 
 }
 ```
 
-Business-readable values in this object must be Chinese by default. Technical IDs and enum values stay English.
+该 object 中业务可读 value 默认必须是中文。技术 ID 和 enum value 保持英文。
 
 ## Template Object
 
@@ -273,15 +273,15 @@ Business-readable values in this object must be Chinese by default. Technical ID
 }
 ```
 
-`min_creative_level` records the first level where this slot can change. A slot with `lock_level: "locked"` must not open at any creative level.
+`min_creative_level` 记录该槽位第一次可被修改的等级。`lock_level: "locked"` 的槽位在任何 creative level 都不得开放。
 
-`subject_replacement_policy` is required for `category: "subject"` slots and optional for other slots. In high-fidelity prompt packs, a user-provided replacement subject should normally bind to an editable subject slot; the source subject's identity should not appear in `faithful_variant.locked_features` unless preserving that exact identity is essential to the joke and no replacement was requested.
+`subject_replacement_policy` 对 `category: "subject"` 的槽位是必需的，对其他槽位可选。在 high-fidelity prompt pack 中，用户提供的替换主体通常应绑定到可编辑主体槽；除非保留精确源主体身份对笑点必不可少且用户没有要求替换，否则源主体身份不应出现在 `faithful_variant.locked_features` 中。
 
 ## Faithful Variant Object
 
 ```json
 {
-  "goal": "Preserve recognizability while replacing requested editable slots.",
+  "goal": "在替换请求的可编辑槽位时保留可识别性。",
   "locked_features": [],
   "locked_reading_model": [],
   "locked_salience_model": [],
@@ -309,13 +309,13 @@ Business-readable values in this object must be Chinese by default. Technical ID
 }
 ```
 
-`locked_features` must list invariant anchors such as layout, crop, text placement, reading-order cues, role relationships, and style features. Do not list the source subject identity as locked when the user provides a replacement subject. Put that subject in `editable_slots` and describe the preserved role in `subject_replacement_policy`.
+`locked_features` 必须列出布局、裁切、文字位置、阅读顺序线索、角色关系和风格特征等不变量锚点。当用户提供替换主体时，不要把源主体身份列为 locked。将该主体放入 `editable_slots`，并在 `subject_replacement_policy` 中描述保留的角色。
 
 ## Creative Variant Object
 
 ```json
 {
-  "goal": "Preserve formula and style family while expanding the meme series.",
+  "goal": "在扩展 meme 系列时保留公式和风格家族。",
   "preserved_principles": [],
   "preserved_reading_model": [],
   "preserved_salience_model": [],
@@ -343,11 +343,11 @@ Business-readable values in this object must be Chinese by default. Technical ID
 }
 ```
 
-`creative_freedom_controls` lets an operator decide which dimensions are open for a template library or campaign. Free-creative output should not automatically rewrite every dimension; it should follow these controls while preserving formula, reading model, salience model, and style family.
+`creative_freedom_controls` 让运营者决定模板库或 campaign 中哪些维度开放。Free-creative output 不应自动重写每个维度；它应遵循这些控制，同时保留公式、阅读模型、显著性模型和风格家族。
 
 ## Prompt Contract Object
 
-Use when `mode` is `prompt-contract` or the user asks for image-generation-ready output.
+当 `mode` 为 `prompt-contract`，或用户要求 image-generation-ready output 时使用。
 
 ```json
 {
@@ -375,7 +375,7 @@ Use when `mode` is `prompt-contract` or the user asks for image-generation-ready
 
 ## Generation Pipeline Object
 
-Use when `mode` is `render-prompts`, when the user provides target content to insert into a meme template, or when downstream generation should run without a reference image.
+当 `mode` 为 `render-prompts`、用户提供要插入 meme 模板的目标内容，或下游生成应在无参考图情况下运行时使用。
 
 ```json
 {
@@ -459,21 +459,21 @@ Use when `mode` is `render-prompts`, when the user provides target content to in
 }
 ```
 
-Placeholder rules:
+Placeholder 规则：
 
-- Use `{{snake_case}}` placeholders only.
-- Resolve every placeholder through `slot_bindings` before writing `rendered_prompts`.
-- Do not leave unresolved placeholders in `rendered_prompts`.
-- If the user omits content, use an inferred value or template default, then record the decision in `user_input_normalization.inferred_fields`.
-- Use `reference_strategy: "none"` when the output is intended for text-to-image generation without a source image.
-- Set `needs_user_subject_reference: true` when a specific uploaded subject must remain recognizable. Do not claim identity preservation is verified from a text-only prompt.
-- When the user subject reference is low-quality but recognizable, keep `needs_user_subject_reference: true`, fill `user_subject_reference_quality`, set `generation_policy: "use_reference_plus_vlm_identity_summary"`, and lower `identity_preservation_confidence` instead of dropping the image.
-- If the user subject cannot be identified from the upload, set `usable_for_identity: false` and choose either `fallback_if_too_poor: "ask_for_better_reference"` or `generation_policy: "semantic_replacement_only"`.
-- Set `use_source_meme_as_generation_reference: false` when the original meme image would compete with the user subject reference, leak source-subject identity, or encourage copying source text, logos, UI, or protected-looking artifacts.
+- 只使用 `{{snake_case}}` placeholder。
+- 写入 `rendered_prompts` 前，通过 `slot_bindings` 解析每个 placeholder。
+- 不要在 `rendered_prompts` 中留下未解析 placeholder。
+- 如果用户遗漏内容，使用推断值或模板默认值，并在 `user_input_normalization.inferred_fields` 记录该决策。
+- 当输出面向无源图 text-to-image generation 时，使用 `reference_strategy: "none"`。
+- 当特定上传主体必须保持可识别时，设置 `needs_user_subject_reference: true`。不要声称纯文本 prompt 已验证身份保留。
+- 当用户主体参考图低质但可识别时，保持 `needs_user_subject_reference: true`，填充 `user_subject_reference_quality`，设置 `generation_policy: "use_reference_plus_vlm_identity_summary"`，并降低 `identity_preservation_confidence`，不要丢弃图片。
+- 如果无法从上传图识别用户主体，设置 `usable_for_identity: false`，并选择 `fallback_if_too_poor: "ask_for_better_reference"` 或 `generation_policy: "semantic_replacement_only"`。
+- 当原 meme 图会与用户主体参考图竞争、泄漏源主体身份，或鼓励复制源文字、Logo、UI 或看起来受保护的 artifact 时，设置 `use_source_meme_as_generation_reference: false`。
 
 ## Prompt Pack Object
 
-Use for `prompt-pack.json`. It is the complete persistent artifact for user input -> normalized JSON -> slot binding -> prompt template replacement -> final faithful and creative prompts.
+用于 `prompt-pack.json`。这是从用户输入 -> normalized JSON -> slot binding -> prompt template replacement -> 最终 faithful 和 creative prompts 的完整持久化 artifact。
 
 ```json
 {
@@ -527,7 +527,7 @@ Use for `prompt-pack.json`. It is the complete persistent artifact for user inpu
 }
 ```
 
-The `faithful.prompt` and `creative.prompt` fields must contain final Chinese text with no unresolved `{{placeholder}}` strings, unless the user explicitly requested English prompts.
+`faithful.prompt` 和 `creative.prompt` 字段必须包含最终中文文本，且不包含未解析的 `{{placeholder}}` 字符串，除非用户明确要求英文 prompt。
 
 ## Postprocessing Object
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate meme stability-testset reference traceability."""
+"""校验 meme stability-testset 的参考图可追踪性。"""
 
 from __future__ import annotations
 
@@ -39,15 +39,15 @@ def _mode_errors(prefix: str, mode: str, usage: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     expected = REQUIRED_REFERENCE_MODES.get(mode)
     if expected is None:
-        errors.append(f"{prefix}: unknown reference_mode '{mode}'")
+        errors.append(f"{prefix}: 未知 reference_mode '{mode}'")
         return errors
 
     for key, expected_value in expected.items():
         actual_value = usage.get(key)
         if actual_value != expected_value:
             errors.append(
-                f"{prefix}: reference_usage.{key} must be "
-                f"{expected_value!r} for {mode}, got {actual_value!r}"
+                f"{prefix}: reference_usage.{key} 对于 {mode} 必须是 "
+                f"{expected_value!r}，实际为 {actual_value!r}"
             )
     return errors
 
@@ -56,26 +56,26 @@ def _validate_reference_matrix(data: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     matrix = data.get("reference_test_matrix")
     if not isinstance(matrix, list) or not matrix:
-        return ["reference_test_matrix is required and must be a non-empty list"]
+        return ["reference_test_matrix 为必填项，且必须是非空 list"]
 
     seen_modes = set()
     for index, entry in enumerate(matrix):
         prefix = f"reference_test_matrix[{index}]"
         if not isinstance(entry, dict):
-            errors.append(f"{prefix}: must be an object")
+            errors.append(f"{prefix}: 必须是 object")
             continue
         mode = entry.get("reference_mode")
         if not isinstance(mode, str):
-            errors.append(f"{prefix}.reference_mode is required")
+            errors.append(f"{prefix}.reference_mode 为必填项")
             continue
         seen_modes.add(mode)
         errors.extend(_mode_errors(prefix, mode, entry))
         if not entry.get("test_purpose"):
-            errors.append(f"{prefix}.test_purpose is required")
+            errors.append(f"{prefix}.test_purpose 为必填项")
 
     missing = sorted(set(REQUIRED_REFERENCE_MODES) - seen_modes)
     for mode in missing:
-        errors.append(f"reference_test_matrix missing required mode: {mode}")
+        errors.append(f"reference_test_matrix 缺少必需 mode: {mode}")
     return errors
 
 
@@ -92,21 +92,21 @@ def _validate_cases(data: dict[str, Any]) -> list[str]:
         case_count += 1
         prefix = f"{group}[{index}]"
         if not isinstance(case, dict):
-            errors.append(f"{prefix}: must be an object")
+            errors.append(f"{prefix}: 必须是 object")
             continue
 
         case_id = case.get("case_id")
         if not case_id:
-            errors.append(f"{prefix}.case_id is required")
+            errors.append(f"{prefix}.case_id 为必填项")
 
         mode = case.get("reference_mode")
         if not isinstance(mode, str):
-            errors.append(f"{prefix}.reference_mode is required")
+            errors.append(f"{prefix}.reference_mode 为必填项")
             continue
 
         usage = case.get("reference_usage")
         if not isinstance(usage, dict):
-            errors.append(f"{prefix}.reference_usage is required")
+            errors.append(f"{prefix}.reference_usage 为必填项")
             continue
 
         errors.extend(_mode_errors(prefix, mode, usage))
@@ -121,33 +121,33 @@ def _validate_cases(data: dict[str, Any]) -> list[str]:
         )
         for field in required_usage_fields:
             if field not in usage:
-                errors.append(f"{prefix}.reference_usage.{field} is required")
+                errors.append(f"{prefix}.reference_usage.{field} 为必填项")
 
     if case_count == 0:
-        errors.append("at least one stability test case is required")
+        errors.append("至少需要一个 stability test case")
     return errors
 
 
 def _validate_repeatability_protocol(data: dict[str, Any]) -> list[str]:
     protocol = data.get("repeatability_protocol")
     if not isinstance(protocol, dict):
-        return ["repeatability_protocol is required"]
+        return ["repeatability_protocol 为必填项"]
 
     errors: list[str] = []
     modes = set(_as_list(protocol.get("reference_modes_per_case")))
     missing = sorted(set(REQUIRED_REFERENCE_MODES) - modes)
     for mode in missing:
-        errors.append(f"repeatability_protocol.reference_modes_per_case missing mode: {mode}")
+        errors.append(f"repeatability_protocol.reference_modes_per_case 缺少 mode: {mode}")
     return errors
 
 
 def validate(data: Any) -> list[str]:
     if not isinstance(data, dict):
-        return ["root must be a JSON object"]
+        return ["root 必须是 JSON object"]
 
     errors: list[str] = []
     if data.get("artifact_type") != "meme_stability_testset":
-        errors.append("artifact_type must be 'meme_stability_testset'")
+        errors.append("artifact_type 必须是 'meme_stability_testset'")
 
     errors.extend(_validate_reference_matrix(data))
     errors.extend(_validate_cases(data))
@@ -162,26 +162,26 @@ def load_json(path: Path) -> Any:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Validate stability-testset.json reference traceability."
+        description="校验 stability-testset.json 的参考图可追踪性。"
     )
-    parser.add_argument("path", help="Path to stability-testset.json")
+    parser.add_argument("path", help="stability-testset.json 路径")
     args = parser.parse_args(argv)
 
     path = Path(args.path)
     try:
         data = load_json(path)
     except Exception as exc:  # pragma: no cover - CLI guard
-        print(f"Failed to read JSON: {exc}", file=sys.stderr)
+        print(f"读取 JSON 失败: {exc}", file=sys.stderr)
         return 1
 
     errors = validate(data)
     if errors:
-        print("stability-testset validation failed:")
+        print("stability-testset 校验失败:")
         for error in errors:
             print(f"- {error}")
         return 1
 
-    print("stability-testset validation passed")
+    print("stability-testset 校验通过")
     return 0
 
 

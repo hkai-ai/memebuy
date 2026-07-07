@@ -1,32 +1,32 @@
 # Stability Test Set Contract
 
-Use this file when the user requests `stability-testset`, stable remix tests, high-fidelity/free-creative test cases, or reproducibility checks.
+当用户要求 `stability-testset`、stable remix tests、high-fidelity/free-creative test cases 或 reproducibility checks 时，使用本文件。
 
-## Language Contract
+## 语言约定
 
-Write all business-readable test content in Simplified Chinese by default. Keep JSON keys, enum values, case IDs, JSONPath values, mode names, and other technical identifiers in English.
+默认将所有业务可读测试内容写成简体中文。JSON key、enum value、case ID、JSONPath value、mode 名和其他技术标识保持英文。
 
-Chinese fields include `test_goal`, `raw_user_input`, `expected_locked_features`, `expected_editable_slots`, `expected_reading_model`, `expected_salience_model`, `expected_style_profile`, `expected_subject_replacement_policy`, `expected_creative_freedom_controls`, `allowed_changes`, `forbidden_drift`, `pass_criteria`, `compare_dimensions`, `stable_if`, `unstable_if`, `expected_benefit`, `risk_to_watch`, and `test_purpose`.
+中文字段包括 `test_goal`、`raw_user_input`、`expected_locked_features`、`expected_editable_slots`、`expected_reading_model`、`expected_salience_model`、`expected_style_profile`、`expected_subject_replacement_policy`、`expected_creative_freedom_controls`、`allowed_changes`、`forbidden_drift`、`pass_criteria`、`compare_dimensions`、`stable_if`、`unstable_if`、`expected_benefit`、`risk_to_watch` 和 `test_purpose`。
 
-If the source meme contains English or another language, preserve the original visible text exactly and add Chinese explanation or localization notes where useful.
+如果源 meme 包含英文或其他语言，精确保留原始可见文字，并在有用时添加中文解释或本地化说明。
 
-## Purpose
+## 目的
 
-Create a persistent test set that checks whether a meme template can be rendered repeatedly without losing:
+创建持久化测试集，检查 meme 模板在重复渲染时是否不会丢失：
 
-- recognition anchors
-- reading model and attention order
-- salience model
-- humor formula
-- variable slot discipline
-- prompt style profile fidelity
-- high-fidelity vs free-creative separation
-- text and layout constraints
-- reference image usage effects, especially whether user subject reference images or source meme reference images were passed to generation
+- 识别锚点
+- 阅读模型和注意力顺序
+- 显著性模型
+- 幽默公式
+- 变量槽纪律
+- prompt style profile 保真度
+- high-fidelity 与 free-creative 的区分
+- 文字和布局约束
+- 参考图使用效果，尤其是用户主体参考图或源 meme 参考图是否被传给生成
 
-## Output File
+## 输出文件
 
-Write `stability-testset.json` into the result directory.
+将 `stability-testset.json` 写入结果目录。
 
 ## Schema
 
@@ -99,59 +99,59 @@ Write `stability-testset.json` into the result directory.
 }
 ```
 
-## Case Design
+## Case 设计
 
 Reference mode cases:
 
-- Include `reference_test_matrix` whenever the test set is meant to inform downstream image generation quality.
-- For identity-sensitive templates, create comparable cases across these modes:
-  - `text_only_baseline`: no user subject image and no source meme image; use only rendered prompt text. Use this to measure baseline drift.
-  - `user_subject_reference_only`: pass the user-uploaded or mock user-uploaded subject image; do not pass the source meme image; encode source meme style, layout, composition, and text rules as textual locked anchors.
-  - `user_subject_plus_source_meme_reference`: pass both the user subject reference and the source meme reference; use this to test whether the source meme improves layout/style or causes source-subject leakage, copied text, logos, UI, or artifacts.
-- Each test case must state `reference_mode` and fill `reference_usage`; do not leave reference usage implicit.
-- If a test uses a mock user-upload image, mark `user_subject_reference_source: "mock_user_upload"` or provide the artifact path. Do not describe it as a real uploaded user image.
-- If the source meme is not passed to generation, set `uses_source_meme_reference: false` and `source_meme_usage: "textual_locked_anchors_only"`.
-- Compare outputs within the same prompt case across reference modes before making quality claims.
+- 当测试集用于判断下游图像生成质量时，包含 `reference_test_matrix`。
+- 对身份敏感模板，在这些模式之间创建可比较 case：
+  - `text_only_baseline`: 不使用用户主体图片，也不使用源 meme 图片；只使用 rendered prompt text。用它衡量 baseline drift。
+  - `user_subject_reference_only`: 传入用户上传或 mock 用户上传的主体图；不传源 meme 图；将源 meme 风格、布局、构图和文字规则编码为文本锁定锚点。
+  - `user_subject_plus_source_meme_reference`: 同时传入用户主体参考图和源 meme 参考图；用它测试源 meme 是否改善布局/风格，或导致源主体泄漏、复制文字、Logo、UI 或 artifact。
+- 每个 test case 都必须声明 `reference_mode` 并填写 `reference_usage`；不要让 reference usage 隐式存在。
+- 如果测试使用 mock 用户上传图片，设置 `user_subject_reference_source: "mock_user_upload"` 或提供 artifact path。不要描述成真实用户上传图片。
+- 如果源 meme 不传给生成，设置 `uses_source_meme_reference: false` 和 `source_meme_usage: "textual_locked_anchors_only"`。
+- 进行质量判断前，先在同一个 prompt case 内跨 reference modes 比较输出。
 
 Faithful cases:
 
-- Change the requested replacement subject or one or two editable slots only.
-- Preserve camera, crop, composition, text rhythm, style family, and recognition anchors.
-- Preserve the prompt style profile unless the case explicitly tests an allowed style attribute.
-- Preserve the reading model, first-read/second-read relationship, and salience requirements.
-- Use close substitutes for subjects, objects, expressions, captions, or settings.
-- Do not expect the source subject identity to remain locked when the case provides a replacement subject; expect the source subject role, salience, pose/expression/scale relationship, and joke function to remain stable.
+- 只改变请求的替换主体，或一两个可编辑槽。
+- 保留镜头、裁切、构图、文字节奏、风格家族和识别锚点。
+- 除非 case 明确测试允许的风格属性，否则保留 prompt style profile。
+- 保留阅读模型、first-read/second-read 关系和显著性要求。
+- 使用主体、物体、表情、caption 或场景的相近替代。
+- 当 case 提供替换主体时，不要期望源主体身份仍被锁定；应期望源主体角色、显著性、姿势/表情/比例关系和笑点功能保持稳定。
 
 Creative cases:
 
-- Preserve the joke formula and style family.
-- Preserve the reading model and salience model even when setting, metaphor, or subject changes.
-- Allow larger changes to subject, object, setting, metaphor, and emotional angle.
-- Keep enough anchors for the output to belong to the same meme series.
-- Follow `creative_freedom_controls`; dimensions marked `locked` must not change, dimensions marked `limited` need a specific rule, and dimensions marked `open` may vary broadly.
+- 保留笑点公式和风格家族。
+- 即使设定、隐喻或主体变化，也保留阅读模型和显著性模型。
+- 允许对主体、物体、场景、隐喻和情绪角度做更大变化。
+- 保留足够锚点，让输出仍属于同一 meme 系列。
+- 遵守 `creative_freedom_controls`；标记为 `locked` 的维度不得变化，标记为 `limited` 的维度需要具体规则，标记为 `open` 的维度可以广泛变化。
 
 Negative controls:
 
-- Deliberately remove or mutate one essential anchor.
-- Use them to detect where the template stops being recognizable.
-- Label them as negative controls; do not present them as recommended prompts.
+- 故意移除或改变一个必要锚点。
+- 用它们检测模板何时不再可识别。
+- 将它们标记为 negative controls；不要把它们当成推荐 prompt 展示。
 
 ## Evaluation Rubric
 
-Use 0-2 scoring per dimension:
+每个维度使用 0-2 分：
 
-- `recognition_anchors`: locked visual or textual anchors remain visible.
-- `reading_model`: first read, second read, reveal, and attention order still match the template.
-- `salience_model`: dominant, subtle, hidden, misleading, and backgrounded elements keep their intended emphasis.
-- `slot_adherence`: requested variables appear and forbidden drift is absent.
-- `formula_preservation`: setup, turn, and payoff still work.
-- `style_fidelity`: rendering style, composition, and hierarchy match the intended scope.
-- `faithful_creative_separation`: faithful stays narrow; creative explores without breaking the series.
-- `replacement_policy`: faithful replaces the requested subject through editable slots without locking the source subject identity.
-- `reference_usage_traceability`: each result can be traced to whether user subject reference, source meme reference, both, or neither were used.
-- `reference_mode_effect`: comparing reference modes explains whether identity preservation, composition fidelity, or source-artifact leakage changed.
-- `creative_freedom_controls`: creative outputs only vary dimensions that the operator marked as open or limited.
-- `text_accuracy`: exact text appears only when requested and is spelled correctly.
-- `safety_and_rights`: risks are recorded without silent replacement unless policy requires it.
+- `recognition_anchors`: 锁定的视觉或文字锚点仍可见。
+- `reading_model`: first read、second read、reveal 和 attention order 仍匹配模板。
+- `salience_model`: dominant、subtle、hidden、misleading 和 backgrounded 元素保持预期强调程度。
+- `slot_adherence`: 请求变量出现，且 forbidden drift 不存在。
+- `formula_preservation`: setup、turn 和 payoff 仍成立。
+- `style_fidelity`: 渲染风格、构图和层级匹配预期范围。
+- `faithful_creative_separation`: faithful 保持窄范围；creative 在不破坏系列的情况下探索。
+- `replacement_policy`: faithful 通过可编辑槽替换请求主体，而不是锁定源主体身份。
+- `reference_usage_traceability`: 每个结果都可追踪到使用了用户主体参考图、源 meme 参考图、二者、或都未使用。
+- `reference_mode_effect`: reference mode 对比能说明身份保留、构图保真或源 artifact 泄漏是否发生变化。
+- `creative_freedom_controls`: creative output 只变化运营者标记为 open 或 limited 的维度。
+- `text_accuracy`: 只有在请求时才出现精确文字，且拼写正确。
+- `safety_and_rights`: 记录风险；除非策略要求，否则不静默替换。
 
-Stable if most repeated generations score at least 10/14 and no critical locked anchor is missing.
+如果大多数重复生成得分至少为 10/14，且没有关键锁定锚点缺失，则视为稳定。
