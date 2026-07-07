@@ -8,7 +8,8 @@
   - 用于分析梗图、截图、本地图片、网络图片或用户输入的梗图创意。
   - 输出可后处理的 JSON 梗图模板。
   - 支持高保真变体和自由创作变体。
-  - 支持把用户输入标准化为变量槽，并渲染成可直接用于文生图的提示词。
+  - 支持把用户输入标准化为变量槽，并渲染成可直接用于文生图的 base / 高保真 / 自由创作提示词。
+  - 支持分析梗图阅读机制和显著性规则，例如第一眼看到什么、第二眼发现什么、哪些元素必须显眼或隐藏。
 
 ## 安装
 
@@ -37,6 +38,7 @@ Copy-Item -Recurse -Force C:\Code\memebuy\skills\meme-template-analyzer C:\Users
 适合这些任务：
 
 - 分析一张梗图的视觉结构、设计要点和笑点机制。
+- 分析梗图的阅读模型：第一眼、第二眼、视线顺序、误导/重解释、显著性规则和失败模式。
 - 把梗图整理成可复用模板库 JSON。
 - 从模板中提取可替换变量，例如主体、场景、文字、动作、表情、构图、风格等。
 - 同时生成两套变体规则：
@@ -70,6 +72,8 @@ Copy-Item -Recurse -Force C:\Code\memebuy\skills\meme-template-analyzer C:\Users
 
 - `meme_template`
 - `visual_analysis`
+- `reading_model`
+- `salience_model`
 - `text_analysis`
 - `variable_slots`
 - `faithful_variant`
@@ -88,11 +92,14 @@ Copy-Item -Recurse -Force C:\Code\memebuy\skills\meme-template-analyzer C:\Users
 - 原视觉层级
 - 原画风
 - 原笑点节奏
+- 原阅读顺序和显著性规则
 - 主要识别锚点
 
 自由创作版本会保留：
 
 - 核心梗图公式
+- 第一眼/第二眼的阅读机制
+- 显著性规则
 - 风格系列感
 - 情绪机制
 - 可扩展的创意方向
@@ -104,7 +111,7 @@ Copy-Item -Recurse -Force C:\Code\memebuy\skills\meme-template-analyzer C:\Users
 ```text
 使用 $meme-template-analyzer 的 render-prompts 模式。
 模板使用这张梗图，目标主体你帮我自动选择一个匹配的内容。
-输出 faithful 和 creative 两套 rendered_prompts。
+输出 base、faithful 和 creative 三层 rendered_prompts。
 ```
 
 输出会包含 `generation_pipeline`：
@@ -116,10 +123,12 @@ Copy-Item -Recurse -Force C:\Code\memebuy\skills\meme-template-analyzer C:\Users
     "user_input_normalization": {},
     "slot_bindings": [],
     "prompt_templates": {
+      "base": "",
       "faithful": "",
       "creative": ""
     },
     "rendered_prompts": {
+      "base": "",
       "faithful": "",
       "creative": ""
     },
@@ -132,7 +141,7 @@ Copy-Item -Recurse -Force C:\Code\memebuy\skills\meme-template-analyzer C:\Users
 
 - `user_input_normalization`：把用户输入标准化成字段。
 - `slot_bindings`：把字段绑定到模板变量槽。
-- `prompt_templates`：保留 `{{placeholder}}` 的模板提示词。
+- `prompt_templates`：保留 `{{placeholder}}` 的基础模板和变体模板提示词。
 - `rendered_prompts`：替换完成后的最终提示词。
 - `reference_strategy: "none"`：表示下游可以按纯文生图处理。
 

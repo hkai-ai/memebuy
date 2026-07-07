@@ -1,0 +1,16 @@
+{
+  "name": "meme-template-analyzer",
+  "version": "0.3.0",
+  "source": "repo",
+  "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
+  "updated_at": "2026-07-07",
+  "notes": "Adds meme reading model, salience model, and base/faithful/creative prompt pack structure.",
+  "tracked_files": [
+    "SKILL.md",
+    "README.md",
+    "skill-manifest.json",
+    "agents/openai.yaml",
+    "references/json-contract.md",
+    "references/stability-testset-contract.md"
+  ]
+}

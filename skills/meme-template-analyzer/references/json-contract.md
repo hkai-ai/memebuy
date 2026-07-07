@@ -61,6 +61,22 @@ For `batch`, replace `meme_template` with `template_library`. For `compare`, inc
     "audience_assumption": "",
     "reuse_formula": ""
   },
+  "reading_model": {
+    "first_read": "",
+    "second_read": "",
+    "reading_order": [],
+    "misdirection_or_reinterpretation": "",
+    "role_mapping": [],
+    "failure_modes": []
+  },
+  "salience_model": {
+    "primary_attention": [],
+    "secondary_attention": [],
+    "hidden_or_delayed_elements": [],
+    "must_remain_subtle": [],
+    "must_remain_obvious": [],
+    "forbidden_emphasis": []
+  },
   "visual_analysis": {
     "composition": "",
     "subjects": [],
@@ -111,7 +127,18 @@ For `batch`, replace `meme_template` with `template_library`. For `compare`, inc
     "faithful": [],
     "creative": []
   },
-  "downstream_hint": ""
+  "downstream_hint": "",
+  "salience_requirement": "dominant | secondary | subtle | hidden | delayed | misleading | backgrounded | not_applicable",
+  "identity_binding": {
+    "bind_full_appearance": false,
+    "bind_silhouette": false,
+    "bind_label": false,
+    "bind_color": false,
+    "bind_pose": false,
+    "bind_expression": false,
+    "bind_semantic_role": false,
+    "notes": ""
+  }
 }
 ```
 
@@ -121,6 +148,8 @@ For `batch`, replace `meme_template` with `template_library`. For `compare`, inc
 {
   "goal": "Preserve recognizability while changing only core variables.",
   "locked_features": [],
+  "locked_reading_model": [],
+  "locked_salience_model": [],
   "editable_slots": [],
   "max_change_budget": {
     "description": "How many dimensions may change before the meme stops being high-fidelity.",
@@ -143,6 +172,8 @@ For `batch`, replace `meme_template` with `template_library`. For `compare`, inc
 {
   "goal": "Preserve formula and style family while expanding the meme series.",
   "preserved_principles": [],
+  "preserved_reading_model": [],
+  "preserved_salience_model": [],
   "editable_dimensions": [],
   "series_style_rules": [],
   "generation_constraints": {
@@ -216,14 +247,18 @@ Use when `mode` is `render-prompts`, when the user provides target content to in
       "value": "",
       "source": "user_input | inferred | template_default",
       "applies_to": "faithful | creative | both",
-      "confidence": 0.0
+      "confidence": 0.0,
+      "binding_mode": "full_appearance | silhouette_cues | label_only | color_trace | pose_only | expression_only | semantic_role | texture_or_artifact",
+      "salience_requirement": "dominant | secondary | subtle | hidden | delayed | misleading | backgrounded | not_applicable"
     }
   ],
   "prompt_templates": {
+    "base": "",
     "faithful": "",
     "creative": ""
   },
   "rendered_prompts": {
+    "base": "",
     "faithful": "",
     "creative": ""
   },
@@ -258,15 +293,25 @@ Use for `prompt-pack.json`. It is the complete persistent artifact for user inpu
   "meme_template": {},
   "slot_bindings": [],
   "prompt_templates": {
+    "base": "",
     "faithful": "",
     "creative": ""
   },
   "rendered_prompts": {
+    "base": {
+      "label": "base_template",
+      "prompt": "",
+      "locked_reading_model": [],
+      "locked_salience_model": [],
+      "failure_modes": []
+    },
     "faithful": {
       "label": "high_fidelity",
       "prompt": "",
       "negative_prompt": [],
       "locked_features": [],
+      "locked_reading_model": [],
+      "locked_salience_model": [],
       "editable_slots": []
     },
     "creative": {
@@ -274,6 +319,8 @@ Use for `prompt-pack.json`. It is the complete persistent artifact for user inpu
       "prompt": "",
       "negative_prompt": [],
       "preserved_formula": [],
+      "preserved_reading_model": [],
+      "preserved_salience_model": [],
       "editable_dimensions": []
     }
   },

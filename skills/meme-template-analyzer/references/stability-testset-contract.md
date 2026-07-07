@@ -7,6 +7,8 @@ Use this file when the user requests `stability-testset`, stable remix tests, hi
 Create a persistent test set that checks whether a meme template can be rendered repeatedly without losing:
 
 - recognition anchors
+- reading model and attention order
+- salience model
 - humor formula
 - variable slot discipline
 - high-fidelity vs free-creative separation
@@ -45,6 +47,8 @@ Write `stability-testset.json` into the result directory.
   "variant_scope": "faithful",
   "raw_user_input": "",
   "expected_locked_features": [],
+  "expected_reading_model": [],
+  "expected_salience_model": [],
   "allowed_changes": [],
   "forbidden_drift": [],
   "expected_prompt_json_paths": [
@@ -63,11 +67,13 @@ Faithful cases:
 
 - Change one or two editable slots only.
 - Preserve camera, crop, composition, text rhythm, style family, and recognition anchors.
+- Preserve the reading model, first-read/second-read relationship, and salience requirements.
 - Use close substitutes for subjects, objects, expressions, captions, or settings.
 
 Creative cases:
 
 - Preserve the joke formula and style family.
+- Preserve the reading model and salience model even when setting, metaphor, or subject changes.
 - Allow larger changes to subject, object, setting, metaphor, and emotional angle.
 - Keep enough anchors for the output to belong to the same meme series.
 
@@ -82,6 +88,8 @@ Negative controls:
 Use 0-2 scoring per dimension:
 
 - `recognition_anchors`: locked visual or textual anchors remain visible.
+- `reading_model`: first read, second read, reveal, and attention order still match the template.
+- `salience_model`: dominant, subtle, hidden, misleading, and backgrounded elements keep their intended emphasis.
 - `slot_adherence`: requested variables appear and forbidden drift is absent.
 - `formula_preservation`: setup, turn, and payoff still work.
 - `style_fidelity`: rendering style, composition, and hierarchy match the intended scope.
