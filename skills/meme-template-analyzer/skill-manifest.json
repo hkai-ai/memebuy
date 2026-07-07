@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-07",
-  "notes": "Add purpose routing for authoring, validation, and debug; authoring now uses Gallery Template Authoring JSON v1 as the default meme-template output.",
+  "notes": "Add co_variation_constraints and relationship-invariant QA so creative variants preserve cross-slot visual rhyme such as subject-food color/material matching.",
   "tracked_files": [
     "SKILL.md",
     "README.md",
@@ -13,6 +13,7 @@
     "references/gallery-authoring-contract.md",
     "references/json-contract.md",
     "references/stability-testset-contract.md",
+    "scripts/test_skill_content_contract.py",
     "scripts/validate_stability_testset.py",
     "scripts/test_validate_stability_testset.py"
   ]

@@ -248,6 +248,7 @@
     "text_formula": "",
     "localization_notes": []
   },
+  "co_variation_constraints": [],
   "variable_slots": [],
   "series_potential": {
     "can_expand": true,
@@ -257,6 +258,27 @@
   }
 }
 ```
+
+## Co-variation Constraint Object
+
+用于记录 meme 成立所需的跨槽关系。它不是普通风格偏好，而是 creative mode 也必须保留的关系不变量。
+
+```json
+{
+  "constraint_id": "pet_food_color_match",
+  "type": "co_variation | visual_rhyme | semantic_binding | spatial_binding | text_binding | action_binding",
+  "source_slot": "subject_pet",
+  "dependent_slot": "food_steamer_detail",
+  "dimensions": ["color", "brightness", "material", "shape"],
+  "sync_rule": "点心颜色、明度和材质必须跟随宠物毛色，使宠物能被误读为同类点心。",
+  "applies_to": "faithful | creative | both",
+  "creative_policy": "locked | limited | open_with_sync",
+  "failure_if_unsynced": "只替换宠物但不调整点心颜色时，宠物不再像点心，第二读失败。",
+  "qa_check": "生成图中主体和依赖槽在指定维度上足够相近；如果主体是深色，依赖点心不得仍是纯白。"
+}
+```
+
+常见 `dimensions` 包括 `color`、`brightness`、`material`、`shape`、`scale`、`position`、`direction`、`label`、`text_reference`、`semantic_role` 和 `motion`。
 
 ## Variable Slot Object
 
@@ -507,6 +529,7 @@ Placeholder 规则：
   "vlm_recognition": {},
   "normalized_input": {},
   "meme_template": {},
+  "co_variation_constraints": [],
   "reference_requirements": {},
   "slot_bindings": [],
   "prompt_templates": {

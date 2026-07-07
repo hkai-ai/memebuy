@@ -85,6 +85,7 @@
   "expected_reading_model": [],
   "expected_salience_model": [],
   "expected_style_profile": [],
+  "expected_co_variation_constraints": [],
   "expected_subject_replacement_policy": {},
   "expected_creative_freedom_controls": {},
   "allowed_changes": [],
@@ -126,6 +127,7 @@ Creative cases:
 
 - 保留笑点公式和风格家族。
 - 即使设定、隐喻或主体变化，也保留阅读模型和显著性模型。
+- 保留 `expected_co_variation_constraints`。如果主体、场景或物体变化，依赖槽必须同步变化；例如宠物毛色变化时，点心颜色、明度、材质也要跟随。
 - 允许对主体、物体、场景、隐喻和情绪角度做更大变化。
 - 保留足够锚点，让输出仍属于同一 meme 系列。
 - 遵守 `creative_freedom_controls`；标记为 `locked` 的维度不得变化，标记为 `limited` 的维度需要具体规则，标记为 `open` 的维度可以广泛变化。
@@ -151,6 +153,7 @@ Negative controls:
 - `reference_usage_traceability`: 每个结果都可追踪到使用了用户主体参考图、源 meme 参考图、二者、或都未使用。
 - `reference_mode_effect`: reference mode 对比能说明身份保留、构图保真或源 artifact 泄漏是否发生变化。
 - `creative_freedom_controls`: creative output 只变化运营者标记为 open 或 limited 的维度。
+- `co_variation_adherence`: 跨槽共同变化规则成立；主体变化后，依赖槽在颜色、明度、材质、形状、位置、文字指代或动作方向等维度上同步变化。
 - `text_accuracy`: 只有在请求时才出现精确文字，且拼写正确。
 - `safety_and_rights`: 记录风险；除非策略要求，否则不静默替换。
 

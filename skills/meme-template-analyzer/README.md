@@ -8,6 +8,8 @@
 
 artifact 中所有业务人员会阅读的内容也默认使用简体中文，包括摘要、笑点机制、阅读模型、显著性模型、风险说明、postprocessing 步骤、示例变体、测试 case、评分标准、`index.md` 和最终渲染提示词。只有以下内容保留原文或英文：稳定技术标识、路径、文件名、JSON key、enum、placeholder、hash、URL、可见源文字，以及用户明确要求保留原语言的文本。
 
+模板分析必须识别跨槽关系和共同变化约束。不要只记录“有哪些元素”，还要记录元素之间为什么互相解释，例如宠物和点心的颜色/明度/材质相近、文字指代和表情互相绑定、UI 截图的位置和文案绑定。自由创意模式可以开放更多槽，但必须保留这些关系不变量。
+
 ## 三种使用目的
 
 本 skill 只区分三种顶层目的：
@@ -113,7 +115,7 @@ JSON 报告、评分表和 `summary.md` 只能作为辅助文件。不要用 JSO
 
 - `base`: 共享的 meme 公式、阅读模型、显著性模型和不变量约束。
 - `faithful`: 高保真 remix，替换用户指定的主体或核心变量，同时保留识别锚点、构图、可渲染的画面风格 profile、视觉层级、幽默节奏、阅读顺序和显著性。
-- `creative`: 自由创意 remix，保留笑点公式、阅读模型、显著性模型和风格家族，并按运营可编辑的 `creative_freedom_controls` 放开主体、动作、场景、文字、情绪等维度。
+- `creative`: 自由创意 remix，保留笑点公式、阅读模型、显著性模型、跨槽共同变化约束和风格家族，并按运营可编辑的 `creative_freedom_controls` 放开主体、动作、场景、文字、情绪等维度。主体变化后，依赖槽必须同步变化，例如深色宠物应搭配深色点心，而不是继续使用纯白包子。
 
 示例请求：
 
@@ -231,7 +233,7 @@ python skills\meme-template-analyzer\scripts\validate_stability_testset.py <path
 预期行为：
 
 1. 先生成 `vlm-recognition-mock.json`，记录用户上传内容经过 VLM 识别后的模拟结构化结果。
-2. 分析源 meme，并识别锁定的识别锚点、阅读模型、显著性模型和画面风格 profile。
+2. 分析源 meme，并识别锁定的识别锚点、阅读模型、显著性模型、共同变化约束和画面风格 profile。
 3. 将目标内容和 VLM mock 结果标准化到 `normalized-input.json`。
 4. 在 `slot-bindings.json` 中把目标字段和 VLM 候选槽位绑定到可编辑变量槽。
 5. 创建 base、faithful 和 creative 提示词模板。
