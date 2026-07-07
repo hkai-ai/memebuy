@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "key": "panic-cat-laptop-fire",
+  "topic": "崩溃反应",
+  "title": "电脑前崩溃的火焰猫",
+  "description": "一只惊恐小黑猫坐在电脑前，被满屏火焰包围，用夸张表情表达看到报错、账单、通知或任务爆炸时的灾难化反应。",
+  "assets": {
+    "templateImage": "C:\\Code\\memebuy\\artifacts\\meme-template-analyzer\\panic_cat_laptop_fire_20260707_150230\\output\\high-fidelity-result.png",
+    "cover": "C:\\Code\\memebuy\\artifacts\\meme-template-analyzer\\panic_cat_laptop_fire_20260707_150230\\output\\high-fidelity-result.png",
+    "exampleWorks": []
+  },
+  "inputs": [
+    {
+      "type": "prompt",
+      "id": "trigger_event",
+      "label": "让角色崩溃的屏幕内容",
+      "required": true,
+      "hint": "例如：生产环境报错、云账单飙升、CI 全红、考试范围、老板深夜消息、广告花费异常。",
+      "suggestions": [
+        "生产环境突然全站 500",
+        "云服务账单比上月多了一个零",
+        "CI 流水线全部变红",
+        "明早考试但刚看到范围",
+        "活动投放花费异常飙升"
+      ]
+    },
+    {
+      "type": "image",
+      "id": "subject_reference",
+      "label": "可选主体参考图",
+      "required": false,
+      "hint": "上传宠物、角色或品牌吉祥物参考图，用于替换画面中的惊恐黑猫；不上传则默认使用黑色卡通猫。",
+      "private": true,
+      "maxCount": 1,
+      "extract": "提取主体的稳定外观特征、轮廓、主要颜色、标志性配件和可爱程度；忽略照片背景、拍摄光线、无关持有物、Logo、水印和隐私信息。生成时必须保留夸张惊恐表情，而不是复制参考图姿势。"
+    }
+  ],
+  "prompt": {
+    "master": "方形近景手绘梗图：一只【subject：黑色惊恐猫】在右下前景的【object：笔记本电脑】前突然崩溃，电脑屏幕里隐含【trigger_event：未知的灾难性屏幕内容】。主体有巨大圆眼、小瞳孔、张开的橙红色大嘴、竖起耳朵和僵住的身体，被【setting：满屏红黄橙火焰】包围。构图保持主体占左中大面积，电脑占右下前景，背景火焰用斜向粗笔刷、飞溅点和黑色刮痕形成强烈失控感。整体是粗糙手绘卡通插画，厚重黑线、干刷纹理、高饱和红黄橙紫配色，无文字覆盖主体表情。",
+    "slots": [
+      {
+        "id": "subject",
+        "policy": "extensible",
+        "from": "subject_reference"
+      },
+      {
+        "id": "object",
+        "policy": "extensible",
+        "from": "template_default_or_prompt_context"
+      },
+      {
+        "id": "trigger_event",
+        "policy": "required",
+        "from": "trigger_event"
+      },
+      {
+        "id": "setting",
+        "policy": "extensible",
+        "from": "template_default_or_free_mode"
+      }
+    ]
+  },
+  "modes": {
+    "hifi": {
+      "enabled": true,
+      "useTemplateImage": true,
+      "note": "高保真变体应使用源图作为构图和风格参考，保留方形近景、左中惊恐主体、右下电脑、满屏火焰、高饱和粗糙手绘质感和无文字主体区域。只替换用户提供的 trigger_event；如提供 subject_reference，可替换主体身份，但必须保留巨大眼睛、张嘴、僵住和被火焰压迫的反应。"
+    },
+    "free": {
+      "enabled": true,
+      "mustKeep": [
+        "主体必须是可爱但无助的反应者，表情极度惊恐，眼睛和张嘴是第一视觉焦点。",
+        "前景必须有电脑、手机、终端、后台面板或类似屏幕对象，承担灾难触发入口。",
+        "背景或环境必须把内心崩溃外化为火焰、爆炸、红色警报或等价高压视觉能量。",
+        "构图必须让主体和触发对象同框，先读到崩溃表情，再读到屏幕事故来源。",
+        "整体仍是高对比、粗糙手绘卡通梗图，不应转为写实摄影、干净矢量、3D 渲染或平静插画。"
+      ],
+      "canChange": "自由创意变体可以更换主体物种或角色、屏幕设备、事故类型、局部场景和情绪环境表现；可以把火焰改成爆炸、警报灯、错误弹窗洪水、红色数据风暴等同等强度的崩溃隐喻。但不能弱化惊恐表情、移除屏幕触发器、让背景变平静、让文字遮住主体表情，或把梗改成真实灾难新闻语境。",
+      "baseDescription": "把原图的黑猫电脑火焰公式扩展为“弱小角色在屏幕前看到某个糟糕消息，整个世界瞬间以火焰/爆炸/警报方式崩溃”的模板。自由版本仍共享同一阅读顺序：环境失控 -> 主体惊恐脸 -> 屏幕对象 -> 理解触发事件。",
+      "examples": []
+    }
+  },
+  "output": {
+    "size": "1024x1024",
+    "n": 1
+  }
+}

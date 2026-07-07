@@ -1,0 +1,1354 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>梗图模板人审预览 - 电脑前崩溃的火焰猫</title>
+  <meta name="description" content="用于快速审核 meme-template.json 中的梗核理解、变量槽和 high-fidelity/free-creative 变体边界。">
+  <style>
+    :root {
+      --bg: #f6f3ee;
+      --panel: #fffaf2;
+      --panel-strong: #ffffff;
+      --ink: #211b17;
+      --muted: #6f645b;
+      --line: #dfd3c2;
+      --accent: #c64124;
+      --accent-dark: #7f2418;
+      --gold: #e2a629;
+      --good: #1d6f54;
+      --warn: #a45715;
+      --radius: 8px;
+      --shadow: 0 16px 40px rgba(71, 43, 24, 0.12);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(120deg, rgba(198, 65, 36, 0.08), transparent 36%),
+        linear-gradient(240deg, rgba(226, 166, 41, 0.12), transparent 34%),
+        var(--bg);
+      font-family: var(--sans);
+      line-height: 1.55;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .shell {
+      width: 100%;
+      margin: 0;
+      padding: 16px 16px 32px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .brand {
+      min-width: 0;
+    }
+
+    .eyebrow {
+      margin: 0 0 4px;
+      color: var(--accent-dark);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(22px, 2.6vw, 32px);
+      line-height: 1.12;
+      letter-spacing: 0;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.66);
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      min-height: 36px;
+      border: 1px solid var(--accent-dark);
+      border-radius: 6px;
+      background: var(--accent-dark);
+      color: #fff;
+      padding: 7px 12px;
+      cursor: pointer;
+    }
+
+    .btn.secondary {
+      border-color: var(--line);
+      background: var(--panel-strong);
+      color: var(--ink);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 72px 256px minmax(640px, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .setbar {
+      position: sticky;
+      top: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .setbar-title {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    #setButtons {
+      display: grid;
+      gap: 6px;
+    }
+
+    .set-btn,
+    .gallery-btn {
+      width: 54px;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--panel-strong);
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .set-btn[aria-current="true"] {
+      border-color: var(--accent-dark);
+      background: var(--accent-dark);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .set-nav {
+      display: grid;
+      gap: 6px;
+      padding-top: 4px;
+      border-top: 1px solid var(--line);
+    }
+
+    .gallery-btn {
+      background: #fff2dd;
+      color: var(--accent-dark);
+      font-weight: 700;
+    }
+
+    .sticky {
+      position: sticky;
+      top: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .image-panel {
+      width: 256px;
+      max-width: 100%;
+      margin: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #1c1715;
+      box-shadow: var(--shadow);
+      cursor: zoom-in;
+    }
+
+    .image-panel img {
+      width: 256px;
+      max-width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+    }
+
+    .image-panel.no-image {
+      display: grid;
+      place-items: center;
+      width: 256px;
+      min-height: 256px;
+      padding: 14px;
+      color: #fff4dc;
+      text-align: center;
+      cursor: default;
+    }
+
+    .image-panel.no-image img {
+      display: none;
+    }
+
+    .image-panel figcaption {
+      padding: 7px 9px;
+      color: #fff4dc;
+      font-size: 12px;
+      background: rgba(0, 0, 0, 0.34);
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 250, 242, 0.92);
+      box-shadow: var(--shadow);
+    }
+
+    .card-body {
+      padding: 12px;
+    }
+
+    .section {
+      margin-bottom: 12px;
+    }
+
+    .section:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0 0 8px;
+      font-size: 16px;
+      line-height: 1.25;
+    }
+
+    .section-title small {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .summary {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .review-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .review-item {
+      min-height: 96px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--panel-strong);
+      display: grid;
+      gap: 8px;
+    }
+
+    .review-item[data-status="agree"] {
+      border-color: rgba(29, 111, 84, 0.42);
+      background: #f1fbf5;
+    }
+
+    .review-item[data-status="issue"] {
+      border-color: rgba(198, 65, 36, 0.5);
+      background: #fff3ee;
+    }
+
+    .review-item strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--accent-dark);
+      font-size: 12px;
+    }
+
+    .review-item p {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .check-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      align-self: end;
+    }
+
+    .check-btn {
+      min-height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fffaf2;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .check-btn[aria-pressed="true"] {
+      border-color: var(--accent-dark);
+      background: var(--accent-dark);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .mode-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .mode {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--panel-strong);
+      overflow: hidden;
+    }
+
+    .mode header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 38px;
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      background: #fff2dd;
+    }
+
+    .mode h3 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .status {
+      color: var(--good);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .mode-content {
+      padding: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .mode-content ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .mode-content li {
+      margin: 4px 0;
+    }
+
+    .slots {
+      display: grid;
+      gap: 6px;
+    }
+
+    .slot-row {
+      display: grid;
+      grid-template-columns: 132px 1fr 130px;
+      gap: 10px;
+      align-items: start;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--panel-strong);
+    }
+
+    .slot-row code,
+    .path,
+    pre {
+      font-family: var(--mono);
+    }
+
+    .slot-row code {
+      color: var(--accent-dark);
+      font-size: 13px;
+    }
+
+    .slot-row span {
+      color: var(--muted);
+      font-size: 13px;
+      word-break: break-word;
+    }
+
+    .policy {
+      justify-self: start;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #f7ead6;
+      color: var(--warn);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .prompt-box {
+      margin: 0;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #211b17;
+      color: #fff4dc;
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    .file-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .file {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel-strong);
+      color: var(--ink);
+      font-size: 13px;
+      text-decoration: none;
+    }
+
+    .file:hover {
+      border-color: var(--accent-dark);
+      color: var(--accent-dark);
+    }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--panel-strong);
+    }
+
+    summary {
+      padding: 12px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    pre {
+      max-height: 520px;
+      margin: 0;
+      padding: 12px;
+      overflow: auto;
+      border-top: 1px solid var(--line);
+      background: #171310;
+      color: #ffe8be;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .notice {
+      border-left: 4px solid var(--accent);
+      padding: 10px 12px;
+      background: #fff4e8;
+      color: var(--muted);
+      border-radius: 0 7px 7px 0;
+      font-size: 14px;
+    }
+
+    .notice strong {
+      color: var(--ink);
+    }
+
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(20, 14, 10, 0.82);
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 10px;
+      padding: 12px;
+      border-top: 1px solid var(--line);
+      background: #fffaf2;
+    }
+
+    .gallery-title {
+      margin: 0;
+      padding: 12px;
+      color: #fff4dc;
+      font-size: 18px;
+      background: #171310;
+    }
+
+    .gallery-card {
+      display: grid;
+      gap: 8px;
+      min-height: 150px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .gallery-card:hover,
+    .gallery-card[aria-current="true"] {
+      border-color: var(--accent-dark);
+    }
+
+    .gallery-card strong {
+      font-size: 14px;
+    }
+
+    .gallery-card span,
+    .gallery-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .lightbox[hidden] {
+      display: none;
+    }
+
+    .lightbox-inner {
+      position: relative;
+      width: min(900px, 94vw);
+      max-height: 94vh;
+      border: 1px solid rgba(255, 244, 220, 0.38);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #171310;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+    }
+
+    .lightbox-inner img {
+      width: 100%;
+      max-height: calc(94vh - 48px);
+      object-fit: contain;
+      background: #171310;
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 36px;
+      height: 36px;
+      border: 1px solid rgba(255, 255, 255, 0.38);
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.62);
+      color: #fff;
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .setbar,
+      .sticky {
+        position: static;
+      }
+
+      .setbar {
+        grid-template-columns: repeat(auto-fit, minmax(54px, max-content));
+        align-items: center;
+      }
+
+      .review-grid,
+      .mode-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .image-panel {
+        width: 256px;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .shell {
+        padding: 14px 10px 28px;
+      }
+
+      .topbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .actions {
+        justify-content: flex-start;
+      }
+
+      .slot-row {
+        grid-template-columns: 1fr;
+      }
+
+      .review-grid,
+      .mode-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <p class="eyebrow">Meme Template Review</p>
+        <h1 id="pageTitle">模板人审预览</h1>
+        <div class="meta" id="meta"></div>
+      </div>
+      <div class="actions">
+        <button class="btn secondary" type="button" id="openGalleryTop">Gallery</button>
+        <button class="btn" type="button" id="copyReview">复制核对卡</button>
+        <button class="btn secondary" type="button" id="toggleRaw">查看 Raw JSON</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="setbar" aria-label="模板切换">
+        <div class="setbar-title">Set</div>
+        <div id="setButtons"></div>
+        <div class="set-nav">
+          <button class="set-btn" type="button" id="prevTemplate" aria-label="上一个模板">↑</button>
+          <button class="set-btn" type="button" id="nextTemplate" aria-label="下一个模板">↓</button>
+          <button class="gallery-btn" type="button" id="openGallerySide">All</button>
+        </div>
+      </nav>
+
+      <aside class="sticky">
+        <figure class="image-panel" id="imageOpen" role="button" tabindex="0" aria-label="点击放大查看原图">
+          <img id="thumbImage" src="../panic_cat_laptop_fire_20260707_150230/output/high-fidelity-result.png" alt="黑色惊恐猫在电脑前被火焰包围的梗图">
+          <figcaption id="imageCaption">256 x 256 缩略图，点击放大</figcaption>
+        </figure>
+
+        <section class="card">
+          <div class="card-body">
+            <h2 class="section-title">快速结论 <small>先看这里</small></h2>
+            <p class="summary" id="quickSummary"></p>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-body">
+            <h2 class="section-title">相关文件</h2>
+            <div class="file-list" id="files"></div>
+          </div>
+        </section>
+      </aside>
+
+      <section>
+        <article class="card section">
+          <div class="card-body">
+            <h2 class="section-title">理解核对卡 <small>勾出是这样或不是这样</small></h2>
+            <div class="review-grid" id="reviewGrid"></div>
+          </div>
+        </article>
+
+        <article class="card section">
+          <div class="card-body">
+            <h2 class="section-title">两种变体边界 <small>来自 modes.hifi / modes.free</small></h2>
+            <div class="mode-grid" id="modeGrid"></div>
+          </div>
+        </article>
+
+        <article class="card section">
+          <div class="card-body">
+            <h2 class="section-title">槽位与输入 <small>检查哪些会被替换</small></h2>
+            <div class="slots" id="slots"></div>
+          </div>
+        </article>
+
+        <article class="card section">
+          <div class="card-body">
+            <h2 class="section-title">Prompt Master <small>槽位标记版</small></h2>
+            <p class="prompt-box" id="masterPrompt"></p>
+          </div>
+        </article>
+
+        <article class="card section">
+          <div class="card-body">
+            <h2 class="section-title">可能的不一致点 <small>优先人工确认</small></h2>
+            <div class="notice">
+              <strong>重点看第 1、2、4、6 条理解核对卡。</strong>
+              如果你认为这张图的核心不是“屏幕坏消息导致崩溃”，或者 free 模式不应该替换主体、设备、火焰隐喻，那么当前 JSON 的理解就需要改。
+            </div>
+          </div>
+        </article>
+
+        <article class="section" id="rawSection">
+          <details id="rawDetails">
+            <summary>Raw JSON</summary>
+            <pre id="rawJson"></pre>
+          </details>
+        </article>
+      </section>
+    </div>
+  </main>
+
+  <div class="lightbox" id="imageLightbox" hidden>
+    <div class="lightbox-inner" role="dialog" aria-modal="true" aria-label="原图预览">
+      <button class="lightbox-close" type="button" id="imageClose" aria-label="关闭预览">×</button>
+      <img id="lightboxImage" src="../panic_cat_laptop_fire_20260707_150230/output/high-fidelity-result.png" alt="放大的梗图">
+    </div>
+  </div>
+
+  <div class="lightbox" id="galleryLightbox" hidden>
+    <div class="lightbox-inner" role="dialog" aria-modal="true" aria-label="模板 Gallery">
+      <button class="lightbox-close" type="button" id="galleryClose" aria-label="关闭 Gallery">×</button>
+      <h2 class="gallery-title">模板 Gallery</h2>
+      <div class="gallery-grid" id="galleryGrid"></div>
+    </div>
+  </div>
+
+  <script>
+    const template = {
+      "version": 1,
+      "key": "panic-cat-laptop-fire",
+      "topic": "崩溃反应",
+      "title": "电脑前崩溃的火焰猫",
+      "description": "一只惊恐小黑猫坐在电脑前，被满屏火焰包围，用夸张表情表达看到报错、账单、通知或任务爆炸时的灾难化反应。",
+      "assets": {
+        "templateImage": "C:\\Code\\memebuy\\artifacts\\meme-template-analyzer\\panic_cat_laptop_fire_20260707_150230\\output\\high-fidelity-result.png",
+        "cover": "C:\\Code\\memebuy\\artifacts\\meme-template-analyzer\\panic_cat_laptop_fire_20260707_150230\\output\\high-fidelity-result.png",
+        "exampleWorks": []
+      },
+      "inputs": [
+        {
+          "type": "prompt",
+          "id": "trigger_event",
+          "label": "让角色崩溃的屏幕内容",
+          "required": true,
+          "hint": "例如：生产环境报错、云账单飙升、CI 全红、考试范围、老板深夜消息、广告花费异常。",
+          "suggestions": [
+            "生产环境突然全站 500",
+            "云服务账单比上月多了一个零",
+            "CI 流水线全部变红",
+            "明早考试但刚看到范围",
+            "活动投放花费异常飙升"
+          ]
+        },
+        {
+          "type": "image",
+          "id": "subject_reference",
+          "label": "可选主体参考图",
+          "required": false,
+          "hint": "上传宠物、角色或品牌吉祥物参考图，用于替换画面中的惊恐黑猫；不上传则默认使用黑色卡通猫。",
+          "private": true,
+          "maxCount": 1,
+          "extract": "提取主体的稳定外观特征、轮廓、主要颜色、标志性配件和可爱程度；忽略照片背景、拍摄光线、无关持有物、Logo、水印和隐私信息。生成时必须保留夸张惊恐表情，而不是复制参考图姿势。"
+        }
+      ],
+      "prompt": {
+        "master": "方形近景手绘梗图：一只【subject：黑色惊恐猫】在右下前景的【object：笔记本电脑】前突然崩溃，电脑屏幕里隐含【trigger_event：未知的灾难性屏幕内容】。主体有巨大圆眼、小瞳孔、张开的橙红色大嘴、竖起耳朵和僵住的身体，被【setting：满屏红黄橙火焰】包围。构图保持主体占左中大面积，电脑占右下前景，背景火焰用斜向粗笔刷、飞溅点和黑色刮痕形成强烈失控感。整体是粗糙手绘卡通插画，厚重黑线、干刷纹理、高饱和红黄橙紫配色，无文字覆盖主体表情。",
+        "slots": [
+          {
+            "id": "subject",
+            "policy": "extensible",
+            "from": "subject_reference"
+          },
+          {
+            "id": "object",
+            "policy": "extensible",
+            "from": "template_default_or_prompt_context"
+          },
+          {
+            "id": "trigger_event",
+            "policy": "required",
+            "from": "trigger_event"
+          },
+          {
+            "id": "setting",
+            "policy": "extensible",
+            "from": "template_default_or_free_mode"
+          }
+        ]
+      },
+      "modes": {
+        "hifi": {
+          "enabled": true,
+          "useTemplateImage": true,
+          "note": "高保真变体应使用源图作为构图和风格参考，保留方形近景、左中惊恐主体、右下电脑、满屏火焰、高饱和粗糙手绘质感和无文字主体区域。只替换用户提供的 trigger_event；如提供 subject_reference，可替换主体身份，但必须保留巨大眼睛、张嘴、僵住和被火焰压迫的反应。"
+        },
+        "free": {
+          "enabled": true,
+          "mustKeep": [
+            "主体必须是可爱但无助的反应者，表情极度惊恐，眼睛和张嘴是第一视觉焦点。",
+            "前景必须有电脑、手机、终端、后台面板或类似屏幕对象，承担灾难触发入口。",
+            "背景或环境必须把内心崩溃外化为火焰、爆炸、红色警报或等价高压视觉能量。",
+            "构图必须让主体和触发对象同框，先读到崩溃表情，再读到屏幕事故来源。",
+            "整体仍是高对比、粗糙手绘卡通梗图，不应转为写实摄影、干净矢量、3D 渲染或平静插画。"
+          ],
+          "canChange": "自由创意变体可以更换主体物种或角色、屏幕设备、事故类型、局部场景和情绪环境表现；可以把火焰改成爆炸、警报灯、错误弹窗洪水、红色数据风暴等同等强度的崩溃隐喻。但不能弱化惊恐表情、移除屏幕触发器、让背景变平静、让文字遮住主体表情，或把梗改成真实灾难新闻语境。",
+          "baseDescription": "把原图的黑猫电脑火焰公式扩展为“弱小角色在屏幕前看到某个糟糕消息，整个世界瞬间以火焰/爆炸/警报方式崩溃”的模板。自由版本仍共享同一阅读顺序：环境失控 -> 主体惊恐脸 -> 屏幕对象 -> 理解触发事件。",
+          "examples": []
+        }
+      },
+      "output": {
+        "size": "1024x1024",
+        "n": 1
+      }
+    };
+
+    const extracted = {
+      templateType: "image_driven",
+      visibleText: "无",
+      sourceImage: "C:\\Code\\memebuy\\artifacts\\meme-template-analyzer\\panic_cat_laptop_fire_20260707_150230\\output\\high-fidelity-result.png",
+      files: [
+        {
+          label: "打开分析",
+          href: "index.md"
+        },
+        {
+          label: "打开 JSON",
+          href: "meme-template.json"
+        },
+        {
+          label: "刷新预览",
+          href: "review.html"
+        }
+      ],
+      reviewCard: [
+        {
+          id: "core",
+          title: "1. 核心理解",
+          body: "电脑或屏幕里的坏消息，让一个弱小可爱的角色瞬间进入世界末日级崩溃。"
+        },
+        {
+          id: "not_this",
+          title: "2. 不应这样理解",
+          body: "不是猫在真实火灾中逃生，不是普通火焰背景猫图，也不是猫玩电脑。"
+        },
+        {
+          id: "must_keep",
+          title: "3. 必须保留",
+          body: "惊恐大眼和张嘴、前景屏幕对象、火焰/爆炸式情绪外化、主体和屏幕同框、夸张手绘高压风格。"
+        },
+        {
+          id: "can_change",
+          title: "4. 允许变化",
+          body: "猫可以换成其他角色；电脑可以换成手机、后台、账单或终端；火焰可以换成警报、爆炸、错误弹窗洪水等同等高压隐喻。"
+        },
+        {
+          id: "hifi",
+          title: "5. 高保真会怎么做",
+          body: "尽量贴近原图，只替换屏幕触发事件；如果用户提供主体参考图，再替换主体身份。"
+        },
+        {
+          id: "free",
+          title: "6. 自由创意会怎么做",
+          body: "保留“弱小角色 + 屏幕坏消息 + 世界崩溃”的公式，但可重组角色、设备、事故类型和视觉隐喻。"
+        }
+      ]
+    };
+
+    const templateCatalog = [
+      {
+        id: "panic-cat-laptop-fire-review",
+        shortcut: "01",
+        folder: "panic_cat_laptop_fire_analysis_20260707_170700",
+        image: "../panic_cat_laptop_fire_20260707_150230/output/high-fidelity-result.png",
+        template,
+        extracted
+      },
+      {
+        id: "panic-cat-laptop-fire-source",
+        shortcut: "02",
+        folder: "panic_cat_laptop_fire_20260707_150230",
+        image: "../panic_cat_laptop_fire_20260707_150230/output/high-fidelity-result.png",
+        template: makeLegacyTemplate({
+          key: "panic-cat-laptop-fire-source",
+          topic: "崩溃反应",
+          title: "电脑前燃烧崩溃猫",
+          description: "一个角色被电脑里的坏消息击穿，内心崩溃被夸张成火焰包围的灾难现场。",
+          master: "普通屏幕事件被夸张成灾难现场：惊恐主体在右下电脑或屏幕触发源前崩溃，周围是高饱和火焰和粗糙漫画笔触。",
+          slots: [
+            ["subject_primary", "extensible", "主体：惊恐动物、产品拟人、品牌吉祥物或抽象角色"],
+            ["trigger_object", "extensible", "触发源：电脑、手机、后台告警屏、订单面板等"],
+            ["disaster_environment", "extensible", "灾难环境：火焰、红色告警、数据爆炸或弹幕风暴"]
+          ],
+          hifi: "保留方形近景、惊恐主体、右下电脑、火焰包围、粗糙手绘漫画质感和无主字幕。",
+          free: "可替换主体、设备和压力场景，但必须保留屏幕触发型过度崩溃反应公式。",
+          mustKeep: ["主体惊恐脸部必须最显眼。", "电脑或屏幕触发源必须可读。", "火焰或等价灾难隐喻必须包围主体。"]
+        })
+      },
+      {
+        id: "calm-cat-apocalypse-selfie-zh",
+        shortcut: "03",
+        folder: "calm-cat-apocalypse-selfie-zh",
+        image: "",
+        template: makeLegacyTemplate({
+          key: "calm-cat-apocalypse-selfie-zh",
+          topic: "淡定反差",
+          title: "淡定猫咪末日自拍",
+          description: "一只打扮得像在度假的猫淡定喝东西，而身后天空正在发生末日级灾难。",
+          master: "竖版近景：前景【primary_subject：淡定主角】戴着【calm_accessory：休闲配饰】拿着【comfort_object：舒适道具】，背景上方出现【background_crisis：末日危机】，形成极端淡定与巨大灾难的反差。",
+          slots: [
+            ["primary_subject", "extensible", "淡定主角：猫、小狗、角色或人物"],
+            ["comfort_object", "extensible", "舒适道具：杯子、咖啡、书、手机等"],
+            ["background_crisis", "extensible", "背景危机：陨石、火球、海啸、deadline 风暴等"]
+          ],
+          hifi: "保持前景居中淡定动物、墨镜/头巾、杯子、上方天空灾难和柔焦暖色自拍质感。",
+          free: "可换主体、配饰、舒适道具和危机类型，但不能让主角害怕，也不能裁掉背景危机。",
+          mustKeep: ["前景主体必须淡定。", "背景危机必须第二眼可发现。", "不能用大量文字解释笑点。"]
+        })
+      },
+      {
+        id: "calm-cat-apocalypse-selfie",
+        shortcut: "04",
+        folder: "calm-cat-apocalypse-selfie",
+        image: "",
+        template: makeLegacyTemplate({
+          key: "calm-cat-apocalypse-selfie",
+          topic: "Deadpan contrast",
+          title: "Calm Cat Apocalypse Selfie",
+          description: "A stylish cat calmly drinks in the foreground while a catastrophic meteor event unfolds behind it.",
+          master: "A calm, stylish foreground subject holds a comfort prop while a large background catastrophe appears in the upper frame, preserving the ordinary leisure first read and disaster second read.",
+          slots: [
+            ["primary_subject", "extensible", "calm foreground subject"],
+            ["comfort_object", "extensible", "small comfort prop"],
+            ["background_crisis", "extensible", "delayed background catastrophe"]
+          ],
+          hifi: "Preserve vertical portrait crop, centered calm animal, sunglasses or equivalent accessory, small prop, and fiery upper-background disaster.",
+          free: "May change subject, prop, setting, and crisis type while keeping the deadpan foreground-versus-background contradiction.",
+          mustKeep: ["Calm foreground routine.", "Delayed but legible background crisis.", "No caption should carry the main joke."]
+        })
+      },
+      {
+        id: "pikachu-window-apparition",
+        shortcut: "05",
+        folder: "pikachu-window-apparition",
+        image: "",
+        template: makeLegacyTemplate({
+          key: "pikachu-window-apparition",
+          topic: "现实入侵",
+          title: "Window Apparition Over Real World",
+          description: "A mundane balcony/window photo is invaded by an oversized translucent anime-like apparition.",
+          master: "普通阳台或窗外实拍视角中，【apparition_character：巨大半透明角色】覆盖天空和建筑，制造现实照片被超现实角色入侵的荒诞感。",
+          slots: [
+            ["apparition_character", "extensible", "巨大半透明角色或幻影"],
+            ["real_world_setting", "required", "普通阳台、窗外、天空和建筑真实场景"],
+            ["image_artifacts", "extensible", "模糊、涂抹、低保真合成痕迹"]
+          ],
+          hifi: "保留手机随手拍、阳台遮挡、蓝天建筑、巨大半透明角色和模糊合成痕迹。",
+          free: "可替换幻影角色或把效果改成云、AR glitch、电光，但必须保留日常实拍被不合理巨大角色入侵。",
+          mustKeep: ["普通现实照片框架。", "巨大半透明角色必须压过现实比例。", "不要变成精致幻想海报。"]
+        })
+      }
+    ];
+
+    let activeIndex = 0;
+
+    const $ = (id) => document.getElementById(id);
+
+    function activeEntry() {
+      return templateCatalog[activeIndex];
+    }
+
+    function activeTemplate() {
+      return activeEntry().template;
+    }
+
+    function activeExtracted() {
+      const entry = activeEntry();
+      if (entry.extracted) return entry.extracted;
+      const current = entry.template;
+      return {
+        templateType: "image_driven",
+        visibleText: current.prompt?.master?.includes("无主字幕") ? "无主字幕" : "见模板说明",
+        sourceImage: entry.image || "",
+        files: [
+          { label: "打开 JSON", href: `../${entry.folder}/meme-template.json` },
+          { label: "回到预览", href: "review.html" }
+        ],
+        reviewCard: [
+          { id: "core", title: "1. 核心理解", body: current.description },
+          { id: "not_this", title: "2. 不应这样理解", body: "不要只按画面物体表面理解，要保留模板的阅读顺序、反差机制和失效边界。" },
+          { id: "must_keep", title: "3. 必须保留", body: current.modes.free.mustKeep.join("；") },
+          { id: "can_change", title: "4. 允许变化", body: current.modes.free.canChange },
+          { id: "hifi", title: "5. 高保真会怎么做", body: current.modes.hifi.note },
+          { id: "free", title: "6. 自由创意会怎么做", body: current.modes.free.baseDescription }
+        ]
+      };
+    }
+
+    function renderMeta() {
+      const template = activeTemplate();
+      const extracted = activeExtracted();
+      const fields = [
+        `key: ${template.key}`,
+        `topic: ${template.topic}`,
+        `type: ${extracted.templateType}`,
+        `visible text: ${extracted.visibleText}`,
+        `output: ${template.output.size}`
+      ];
+      $("meta").innerHTML = fields.map((item) => `<span class="pill">${escapeHtml(item)}</span>`).join("");
+    }
+
+    function renderReview() {
+      const template = activeTemplate();
+      const extracted = activeExtracted();
+      $("reviewGrid").innerHTML = extracted.reviewCard.map((item) => `
+        <div class="review-item" data-review-id="${escapeHtml(item.id)}" data-status="">
+          <strong>${escapeHtml(item.title)}</strong>
+          <p>${escapeHtml(item.body)}</p>
+          <div class="check-actions" aria-label="${escapeHtml(item.title)}审核状态">
+            <button class="check-btn" type="button" data-status-btn="agree" aria-pressed="false">是这样</button>
+            <button class="check-btn" type="button" data-status-btn="issue" aria-pressed="false">不是这样</button>
+          </div>
+        </div>
+      `).join("");
+      bindReviewButtons(template, extracted);
+    }
+
+    function renderModes() {
+      const template = activeTemplate();
+      const hifi = template.modes.hifi;
+      const free = template.modes.free;
+      $("modeGrid").innerHTML = `
+        <section class="mode">
+          <header>
+            <h3>High-fidelity</h3>
+            <span class="status">${hifi.enabled ? "enabled" : "disabled"}</span>
+          </header>
+          <div class="mode-content">
+            <p><strong>useTemplateImage:</strong> ${hifi.useTemplateImage}</p>
+            <p>${escapeHtml(hifi.note)}</p>
+          </div>
+        </section>
+        <section class="mode">
+          <header>
+            <h3>Free-creative</h3>
+            <span class="status">${free.enabled ? "enabled" : "disabled"}</span>
+          </header>
+          <div class="mode-content">
+            <p>${escapeHtml(free.baseDescription)}</p>
+            <ul>${free.mustKeep.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+            <p><strong>canChange:</strong> ${escapeHtml(free.canChange)}</p>
+          </div>
+        </section>
+      `;
+    }
+
+    function renderSlots() {
+      const template = activeTemplate();
+      const inputById = new Map(template.inputs.map((input) => [input.id, input]));
+      $("slots").innerHTML = template.prompt.slots.map((slot) => {
+        const source = inputById.get(slot.from);
+        const detail = source
+          ? `${source.label}。${source.hint || source.extract || ""}`
+          : slot.from;
+        const policyLabel = slot.policy === "required"
+          ? "必填"
+          : slot.policy === "extensible"
+            ? "可扩展"
+            : slot.policy;
+        return `
+          <div class="slot-row">
+            <code>${escapeHtml(slot.id)}</code>
+            <span>${escapeHtml(detail)}</span>
+            <span class="policy" title="${escapeHtml(slot.policy)}">${escapeHtml(policyLabel)}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderFiles() {
+      const extracted = activeExtracted();
+      $("files").innerHTML = extracted.files.map((file) => `
+        <a class="file" href="${escapeHtml(file.href)}">${escapeHtml(file.label)}</a>
+      `).join("");
+    }
+
+    function renderMedia() {
+      const entry = activeEntry();
+      const panel = $("imageOpen");
+      const thumb = $("thumbImage");
+      const large = $("lightboxImage");
+      if (entry.image) {
+        panel.classList.remove("no-image");
+        panel.setAttribute("role", "button");
+        panel.setAttribute("tabindex", "0");
+        thumb.src = entry.image;
+        thumb.alt = `${entry.template.title} 缩略图`;
+        large.src = entry.image;
+        large.alt = `${entry.template.title} 放大图`;
+        $("imageCaption").textContent = "256 x 256 缩略图，点击放大";
+      } else {
+        panel.classList.add("no-image");
+        panel.removeAttribute("role");
+        panel.removeAttribute("tabindex");
+        $("imageCaption").textContent = "这个模板当前没有可预览封面图";
+      }
+    }
+
+    function renderSetbar() {
+      $("setButtons").innerHTML = templateCatalog.map((entry, index) => `
+        <button class="set-btn" type="button" data-template-index="${index}" aria-current="${index === activeIndex ? "true" : "false"}" title="${escapeHtml(entry.template.title)}">${escapeHtml(entry.shortcut)}</button>
+      `).join("");
+      document.querySelectorAll("[data-template-index]").forEach((button) => {
+        button.addEventListener("click", () => switchTemplate(Number(button.getAttribute("data-template-index"))));
+      });
+    }
+
+    function renderGallery() {
+      $("galleryGrid").innerHTML = templateCatalog.map((entry, index) => `
+        <button class="gallery-card" type="button" data-gallery-index="${index}" aria-current="${index === activeIndex ? "true" : "false"}">
+          <strong>${escapeHtml(entry.template.title)}</strong>
+          <span>${escapeHtml(entry.folder)}</span>
+          <p>${escapeHtml(entry.template.description)}</p>
+        </button>
+      `).join("");
+      document.querySelectorAll("[data-gallery-index]").forEach((button) => {
+        button.addEventListener("click", () => {
+          switchTemplate(Number(button.getAttribute("data-gallery-index")));
+          closeGallery();
+        });
+      });
+    }
+
+    function renderActiveTemplate() {
+      const template = activeTemplate();
+      $("pageTitle").textContent = template.title;
+      $("quickSummary").textContent = template.description;
+      $("masterPrompt").textContent = template.prompt.master;
+      $("rawJson").textContent = JSON.stringify(template, null, 2);
+      renderMeta();
+      renderReview();
+      renderModes();
+      renderSlots();
+      renderFiles();
+      renderMedia();
+      renderSetbar();
+      renderGallery();
+    }
+
+    function switchTemplate(index) {
+      activeIndex = (index + templateCatalog.length) % templateCatalog.length;
+      renderActiveTemplate();
+    }
+
+    function makeLegacyTemplate(config) {
+      return {
+        version: 1,
+        key: config.key,
+        topic: config.topic,
+        title: config.title,
+        description: config.description,
+        assets: {
+          templateImage: "",
+          cover: "",
+          exampleWorks: []
+        },
+        inputs: config.slots.map(([id, policy, label]) => ({
+          type: policy === "required" ? "prompt" : "prompt",
+          id,
+          label,
+          required: policy === "required",
+          hint: label,
+          suggestions: []
+        })),
+        prompt: {
+          master: config.master,
+          slots: config.slots.map(([id, policy]) => ({ id, policy, from: id }))
+        },
+        modes: {
+          hifi: {
+            enabled: true,
+            useTemplateImage: Boolean(config.image),
+            note: config.hifi
+          },
+          free: {
+            enabled: true,
+            mustKeep: config.mustKeep,
+            canChange: config.free,
+            baseDescription: config.free,
+            examples: []
+          }
+        },
+        output: {
+          size: "1024x1024",
+          n: 1
+        }
+      };
+    }
+
+    function setupActions() {
+      const lightbox = $("imageLightbox");
+      const openImage = () => {
+        if (!activeEntry().image) return;
+        lightbox.hidden = false;
+        $("imageClose").focus();
+      };
+      const closeImage = () => {
+        lightbox.hidden = true;
+        $("imageOpen").focus();
+      };
+
+      $("imageOpen").addEventListener("click", openImage);
+      $("imageOpen").addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openImage();
+        }
+      });
+      $("imageClose").addEventListener("click", closeImage);
+      lightbox.addEventListener("click", (event) => {
+        if (event.target === lightbox) closeImage();
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !lightbox.hidden) closeImage();
+      });
+
+      $("prevTemplate").addEventListener("click", () => switchTemplate(activeIndex - 1));
+      $("nextTemplate").addEventListener("click", () => switchTemplate(activeIndex + 1));
+      $("openGalleryTop").addEventListener("click", openGallery);
+      $("openGallerySide").addEventListener("click", openGallery);
+      $("galleryClose").addEventListener("click", closeGallery);
+      $("galleryLightbox").addEventListener("click", (event) => {
+        if (event.target === $("galleryLightbox")) closeGallery();
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (!event.altKey && !event.metaKey && !event.ctrlKey && event.key === "ArrowUp") {
+          event.preventDefault();
+          switchTemplate(activeIndex - 1);
+        }
+        if (!event.altKey && !event.metaKey && !event.ctrlKey && event.key === "ArrowDown") {
+          event.preventDefault();
+          switchTemplate(activeIndex + 1);
+        }
+        if (event.key === "Escape" && !$("galleryLightbox").hidden) closeGallery();
+      });
+
+      $("copyReview").addEventListener("click", async () => {
+        const extracted = activeExtracted();
+        const text = extracted.reviewCard.map((item) => `${item.title}\n${item.body}`).join("\n\n");
+        try {
+          await navigator.clipboard.writeText(text);
+          $("copyReview").textContent = "已复制";
+          window.setTimeout(() => $("copyReview").textContent = "复制核对卡", 1200);
+        } catch {
+          window.prompt("复制以下核对卡内容", text);
+        }
+      });
+
+      $("toggleRaw").addEventListener("click", () => {
+        const details = $("rawDetails");
+        details.open = !details.open;
+        if (details.open) details.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function setReviewStatus(item, status) {
+      item.setAttribute("data-status", status || "");
+      item.querySelectorAll("[data-status-btn]").forEach((button) => {
+        button.setAttribute("aria-pressed", button.getAttribute("data-status-btn") === status ? "true" : "false");
+      });
+    }
+
+    function bindReviewButtons(template, extracted) {
+      document.querySelectorAll(".review-item").forEach((item) => {
+        const reviewId = item.getAttribute("data-review-id");
+        const saved = window.localStorage.getItem(`meme-review:${template.key}:${reviewId}`) || "";
+        setReviewStatus(item, saved);
+        item.querySelectorAll("[data-status-btn]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const next = button.getAttribute("data-status-btn");
+            const current = item.getAttribute("data-status");
+            const value = current === next ? "" : next;
+            setReviewStatus(item, value);
+            if (value) {
+              window.localStorage.setItem(`meme-review:${template.key}:${reviewId}`, value);
+            } else {
+              window.localStorage.removeItem(`meme-review:${template.key}:${reviewId}`);
+            }
+          });
+        });
+      });
+    }
+
+    function openGallery() {
+      $("galleryLightbox").hidden = false;
+      $("galleryClose").focus();
+    }
+
+    function closeGallery() {
+      $("galleryLightbox").hidden = true;
+    }
+
+    function init() {
+      setupActions();
+      renderActiveTemplate();
+    }
+
+    init();
+  </script>
+</body>
+</html>
