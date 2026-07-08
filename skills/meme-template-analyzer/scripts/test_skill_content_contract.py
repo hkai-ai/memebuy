@@ -31,6 +31,11 @@ def main() -> None:
     require(skill, "meme_formula", "SKILL.md")
     require(skill, "slot_minimization_review", "SKILL.md")
     require(skill, "业务槽位不是画面元素清单", "SKILL.md")
+    require(skill, "hifi_free_boundary_reflection", "SKILL.md")
+    require(skill, "hifi_must_keep", "SKILL.md")
+    require(skill, "free_must_keep", "SKILL.md")
+    require(skill, "free_can_change", "SKILL.md")
+    require(skill, "composition_pattern", "SKILL.md")
 
     require(json_contract, "co_variation_constraints", "json-contract.md")
     require(json_contract, "dependent_slot", "json-contract.md")
@@ -49,6 +54,11 @@ def main() -> None:
     require(gallery_contract, "meme_formula", "gallery-authoring-contract.md")
     require(gallery_contract, "不是画面元素清单", "gallery-authoring-contract.md")
     require(gallery_contract, "默认控制在 2-4 个业务槽位", "gallery-authoring-contract.md")
+    require(gallery_contract, "hifi_free_boundary_reflection", "gallery-authoring-contract.md")
+    require(gallery_contract, "hifi_must_keep", "gallery-authoring-contract.md")
+    require(gallery_contract, "free_must_keep", "gallery-authoring-contract.md")
+    require(gallery_contract, "free_can_change", "gallery-authoring-contract.md")
+    require(gallery_contract, "composition_pattern", "gallery-authoring-contract.md")
 
     require(stability_contract, "co_variation_adherence", "stability-testset-contract.md")
     require(stability_contract, "expected_co_variation_constraints", "stability-testset-contract.md")

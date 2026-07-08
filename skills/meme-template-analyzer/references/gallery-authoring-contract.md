@@ -91,6 +91,16 @@ index.md
 - `modes.free.examples`: 业务不填，保持空数组。
 - `output`: 默认 `{ "size": "1024x1024", "n": 1 }`，除非用户或项目规范要求其他值。
 
+## Hifi / Free 边界反思
+
+生成 `modes.hifi` 和 `modes.free` 前必须先完成 `hifi_free_boundary_reflection`，即使该结构不写入主业务 JSON，也要用它推导字段：
+
+- `hifi_must_keep`: 高保真要锁定的源图识别锚点，例如构图、数量、镜头、白底、画风、裁切、文字位置或参照物队列。
+- `free_must_keep`: 自由创意也必须保留的梗成立条件，例如 meme_formula、第一眼误认、第二眼揭示、阅读顺序、关系不变量、融合逻辑和失效条件。
+- `free_can_change`: 自由创意可重构的维度，例如 `misread_target`、`fusion_context`、`composition_pattern`、参照物数量、容器、场景、镜头、背景或揭示方式。
+
+不要把 `hifi_must_keep` 直接复制到 `modes.free.mustKeep`。`composition_pattern` 默认属于 `hifi_must_keep` 或 `free_can_change`；只有当构图模式本身就是梗公式变量时，才可进入 `free_must_keep`。
+
 ## 输入类型
 
 ```json
@@ -148,7 +158,7 @@ index.md
 - 必须由用户提供或选择的内容用 `required`，例如主体照片、人格选项、主标文本。
 - 模板原有但可在自由模式扩展的核心变量用 `extensible`，例如误认对象、关系映射、场景家族、主文案。
 - 高保真模式只替换 `required` 槽，可扩展槽回落原文。
-- 自由创意模式保留 `mustKeep`，允许 `canChange` 范围内重构。
+- 自由创意模式保留 `free_must_keep` 映射出的 `mustKeep`，允许 `free_can_change` 范围内重构；用户明确要求高自由度时，至少开放一个结构性维度，例如 `composition_pattern`、场景家族、关系映射或误认对象类别，而不是只替换主体和局部道具。
 
 ## 质量检查
 
@@ -160,6 +170,8 @@ index.md
 - 每个 `image` input 都有 `extract`。
 - `free.examples` 为空数组。
 - `hifi.useTemplateImage` 有明确判断依据。
+- `modes.free.mustKeep` 没有混入只属于高保真的数量、横向队列、镜头、容器或白底锚点，除非 `hifi_free_boundary_reflection` 说明它们是梗成立条件。
+- 高自由度请求的 `modes.free.canChange` 明确包含 `composition_pattern` 或同等级结构性开放项。
 - 业务可读文本为中文；技术 key、enum、URL、源图可见文字保持原文。
 
 ## Debug 附加
