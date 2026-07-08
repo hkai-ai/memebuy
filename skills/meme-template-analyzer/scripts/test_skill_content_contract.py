@@ -55,6 +55,10 @@ def main() -> None:
     require(skill, "批量完成后", "SKILL.md")
     require(skill, "是否需要查看", "SKILL.md")
     require(skill, "不要自动生成或打开 `review.html`", "SKILL.md")
+    require(skill, "单图打样", "SKILL.md")
+    require(skill, "批量入库", "SKILL.md")
+    require(skill, "single-image-prototype", "SKILL.md")
+    require(skill, "batch-ingestion", "SKILL.md")
 
     require(json_contract, "co_variation_constraints", "json-contract.md")
     require(json_contract, "dependent_slot", "json-contract.md")
@@ -107,6 +111,10 @@ def main() -> None:
     require(readme, "批量完成后", "README.md")
     require(readme, "是否需要查看 `review.html`", "README.md")
     require(readme, "下一步选择", "README.md")
+    require(readme, "单图打样", "README.md")
+    require(readme, "批量入库", "README.md")
+    require(readme, "single-image-prototype", "README.md")
+    require(readme, "batch-ingestion", "README.md")
 
 
 if __name__ == "__main__":

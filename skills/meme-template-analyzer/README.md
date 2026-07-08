@@ -115,6 +115,25 @@ JSON 报告、评分表和 `summary.md` 只能作为辅助文件。不要用 JSO
 
 批量完成后，agent 应主动引导下一步选择，询问用户是否需要查看 `review.html` 人审页面。默认不要自动生成或打开 `review.html`；只有用户确认需要，或一开始就要求“生成审核页”“给运营看”“做个预览页”时，才生成或调取页面。用户确认后，优先复用同目录已有 `review.html`；没有时执行 `template-review-page` 生成，并返回本地路径和 `file:///` 打开方式。用户说不需要时，只汇总 `meme-template.json`、`batch-manifest.json` 和 `index.md` 等主产物。
 
+## 业务口令
+
+业务人员可以用两个固定词触发组合流程，不需要记住底层 command 名。
+
+| 口令 | 内部别名 | 说明 |
+| --- | --- | --- |
+| `单图打样` | `single-image-prototype` | 对一张梗图跑完整打样流程：理解梗图、抽模板、mock 用户输入、生成 high-fidelity / free-creative prompt 或测试对比。用户明确要结果图时，再生成真实 PNG/JPEG。 |
+| `批量入库` | `batch-ingestion` | 对一批梗图做预审、自动聚类、分类、独立源图目录处理，并生成 `meme-template.json`、`batch-manifest.json` 和 `index.md`。完成后询问是否查看 `review.html`。 |
+
+推荐说法：
+
+```text
+对这张图做单图打样。
+```
+
+```text
+对这个文件夹做批量入库。
+```
+
 ## 命令
 
 命令是稳定的用户侧入口。模式是 agent 根据自然语言请求推断出的内部处理分支。
@@ -125,6 +144,8 @@ JSON 报告、评分表和 `summary.md` 只能作为辅助文件。不要用 JSO
 
 | 用户想要 | 使用方式 |
 | --- | --- |
+| 一张图从理解、mock 到 hifi/free 对比 | `单图打样`，内部别名 `single-image-prototype` |
+| 一批图预审、分类并生成入库产物 | `批量入库`，内部别名 `batch-ingestion` |
 | 从 meme 或 meme 创意生成可用于图像生成的提示词 | `render-prompt-pack` |
 | 生成可录入后台的业务收集 JSON | `template-library-entry` |
 | 生成给业务人员审查的静态预览页 | `template-review-page` |
