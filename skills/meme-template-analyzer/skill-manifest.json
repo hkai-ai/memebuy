@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-08",
-  "notes": "Add business trigger phrases for single-image prototyping and batch ingestion workflows.",
+  "notes": "Separate single-image prototyping from template generation testing; add template-generation-test trigger and clarify that single-image prototyping does not create real image outputs by default.",
   "tracked_files": [
     "SKILL.md",
     "README.md",

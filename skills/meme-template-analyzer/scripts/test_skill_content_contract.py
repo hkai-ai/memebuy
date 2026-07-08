@@ -56,9 +56,13 @@ def main() -> None:
     require(skill, "是否需要查看", "SKILL.md")
     require(skill, "不要自动生成或打开 `review.html`", "SKILL.md")
     require(skill, "单图打样", "SKILL.md")
+    require(skill, "模板测试", "SKILL.md")
     require(skill, "批量入库", "SKILL.md")
     require(skill, "single-image-prototype", "SKILL.md")
+    require(skill, "template-generation-test", "SKILL.md")
     require(skill, "batch-ingestion", "SKILL.md")
+    require(skill, "仅说“单图打样”不触发真实图片输出", "SKILL.md")
+    require(skill, "不要在没有 mock 数据的情况下直接生成高保真或自由创意样图", "SKILL.md")
 
     require(json_contract, "co_variation_constraints", "json-contract.md")
     require(json_contract, "dependent_slot", "json-contract.md")
@@ -112,9 +116,12 @@ def main() -> None:
     require(readme, "是否需要查看 `review.html`", "README.md")
     require(readme, "下一步选择", "README.md")
     require(readme, "单图打样", "README.md")
+    require(readme, "模板测试", "README.md")
     require(readme, "批量入库", "README.md")
     require(readme, "single-image-prototype", "README.md")
+    require(readme, "template-generation-test", "README.md")
     require(readme, "batch-ingestion", "README.md")
+    require(readme, "默认不生成真实 PNG/JPEG", "README.md")
 
 
 if __name__ == "__main__":

@@ -117,17 +117,22 @@ JSON 报告、评分表和 `summary.md` 只能作为辅助文件。不要用 JSO
 
 ## 业务口令
 
-业务人员可以用两个固定词触发组合流程，不需要记住底层 command 名。
+业务人员可以用三个固定词触发组合流程，不需要记住底层 command 名。
 
 | 口令 | 内部别名 | 说明 |
 | --- | --- | --- |
-| `单图打样` | `single-image-prototype` | 对一张梗图跑完整打样流程：理解梗图、抽模板、mock 用户输入、生成 high-fidelity / free-creative prompt 或测试对比。用户明确要结果图时，再生成真实 PNG/JPEG。 |
+| `单图打样` | `single-image-prototype` | 对一张梗图跑轻量打样流程：理解梗图、抽 meme-template、从模板公式推导 mock 用户输入方案，并生成 high-fidelity / free-creative prompt pack。默认不生成真实 PNG/JPEG，不创建 `output/`。 |
+| `模板测试` | `template-generation-test` | 基于已确认或当前生成的 meme-template 做真实生成验证：生成 mock 用户输入或 mock 用户上传图，创建测试集，跑 high-fidelity / free-creative / negative-control 结果图和 QA。 |
 | `批量入库` | `batch-ingestion` | 对一批梗图做预审、自动聚类、分类、独立源图目录处理，并生成 `meme-template.json`、`batch-manifest.json` 和 `index.md`。完成后询问是否查看 `review.html`。 |
 
 推荐说法：
 
 ```text
 对这张图做单图打样。
+```
+
+```text
+对这个模板做模板测试。
 ```
 
 ```text
@@ -144,7 +149,8 @@ JSON 报告、评分表和 `summary.md` 只能作为辅助文件。不要用 JSO
 
 | 用户想要 | 使用方式 |
 | --- | --- |
-| 一张图从理解、mock 到 hifi/free 对比 | `单图打样`，内部别名 `single-image-prototype` |
+| 一张图从理解、模板分析到 mock 输入方案和 prompt pack | `单图打样`，内部别名 `single-image-prototype` |
+| 基于模板跑 mock 用户生成、hifi/free/negative-control 图片和 QA | `模板测试`，内部别名 `template-generation-test` |
 | 一批图预审、分类并生成入库产物 | `批量入库`，内部别名 `batch-ingestion` |
 | 从 meme 或 meme 创意生成可用于图像生成的提示词 | `render-prompt-pack` |
 | 生成可录入后台的业务收集 JSON | `template-library-entry` |
@@ -585,18 +591,19 @@ python skills\meme-template-analyzer\scripts\validate_stability_testset.py <path
 
 校验通过后，再进入真实生成或人工评估。
 
-### 真实图片输出测试
+### 模板测试与真实图片输出
 
-当用户说“开始测试”“mock 一下用户实际生成效果”“高保真和高自由两个场景”“我要图片”“输出结果图片”等，测试不应停留在 schema、JSON 或文字描述。
+当用户说“模板测试”“开始测试”“mock 一下用户实际生成效果”“高保真和高自由两个场景”“我要图片”“输出结果图片”等，测试不应停留在 schema、JSON 或文字描述。仅说“单图打样”时，不默认进入这一步。
 
 预期行为：
 
 1. 复用当前解析目录。
-2. 创建或使用该目录下的 `output/`。
-3. 真实生成图片结果：至少包含 `high-fidelity-result.png` 和 `free-creative-result.png`。
-4. 如果图片生成工具输出在外部 generated-images 目录，把真实生成 PNG/JPEG 复制进 `output/`，不要删除原始生成图。
-5. 将 `mock-generation-results.json`、`high-fidelity-test-report.json`、`free-creative-test-report.json` 和 `summary.md` 作为辅助报告放进同一个 `output/`。
-6. 回复用户时优先展示或链接图片文件，然后再简述测试报告。
+2. 基于当前 `meme-template.json` 或 `prompt-pack.json` 推导 mock 用户输入；如果需要主体参考图，生成或声明 mock 用户上传图，并在 `reference_usage` 中标记 `mock_user_upload` 或 `generated_user_upload`。
+3. 创建或使用该目录下的 `output/`。
+4. 真实生成图片结果：至少包含 `high-fidelity-result.png` 和 `free-creative-result.png`。
+5. 如果图片生成工具输出在外部 generated-images 目录，把真实生成 PNG/JPEG 复制进 `output/`，不要删除原始生成图。
+6. 将 `mock-generation-results.json`、`high-fidelity-test-report.json`、`free-creative-test-report.json` 和 `summary.md` 作为辅助报告放进同一个 `output/`。
+7. 回复用户时优先展示或链接图片文件，然后再简述测试报告。
 
 禁止行为：
 
