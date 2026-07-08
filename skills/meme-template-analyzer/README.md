@@ -48,6 +48,7 @@ $CODEX_HOME/generated_artifacts/meme-template-analyzer/<template_id-or-timestamp
 
 ```text
 meme-template.json
+batch-manifest.json
 review.html
 prompt-pack.json
 stability-testset.json
@@ -59,6 +60,7 @@ output/
 
 - `index.md`: 每次产出的人类可读清单。
 - `meme-template.json`: 录入/批量生成时生成，默认是 Gallery Template Authoring JSON v1，而不是分析报告。
+- `batch-manifest.json`: 批量生成时生成，给入库脚本追踪批次、源文件、source hash、输出 key、处理状态和错误原因。
 - `review.html`: 业务人员人审预览页，仅在请求 `template-review-page`、人审预览或 review page 时生成。
 - `prompt-pack.json`: prompt contract、render-prompts 或 render-prompt-pack 输出时生成，并内嵌 VLM recognition、normalized input、slot bindings、prompt templates 和 rendered prompts。
 - `stability-testset.json`: 仅用户要求稳定性测试时生成。
@@ -191,7 +193,38 @@ python skills\meme-template-analyzer\scripts\validate_stability_testset.py <path
 - `prompt.master`，用 `【槽位名：原文】` 标记变量
 - `prompt.slots[]`，每个槽只保留 `id/policy/from`
 - `modes.hifi` 和 `modes.free`
+- `taxonomy`，包含 scenes、topics、styles、emotions、useCases、series、parentTemplateKey 和 variantName
+- `generationFit`，说明 hifi/free 分别是 `recommended`、`usable` 还是 `not_recommended`
+- `ingestion`，记录 sourceId、sourcePath、sourceSha256、status 和 notes
 - `output`
+
+批量场景的 `meme-template.json` 顶层使用：
+
+```json
+{
+  "version": 1,
+  "batch": {
+    "batchId": "",
+    "sourceFolder": "",
+    "createdAt": "",
+    "operatorGrouping": {
+      "folderAsSeries": true,
+      "seriesName": ""
+    }
+  },
+  "templates": []
+}
+```
+
+批量场景还会写 `batch-manifest.json`，用于后续脚本入库和排查，不直接连接数据库。运营按文件夹组织素材时，文件夹名可进入 `operatorGrouping.seriesName` 和 `taxonomy.series[]`，但模板是否相同仍按核心梗点、主体关系和观看逻辑判断。
+
+批量 key 规范：
+
+```text
+<series-or-topic-slug>-<formula-slug>-<short-hash>
+```
+
+key 只使用小写英文、数字和连字符；批次内必须唯一；标题可以后续修改，key 不应随中文标题漂移。
 
 生成业务槽位前，先把梗压缩成一句 `meme_formula`，再从公式里抽 2-4 个核心变量。`prompt.slots[]` 不是画面元素清单；容器、工具、姿势、镜头、表情、字体、风格和局部道具通常应放进锁定描述、默认渲染或生成约束，除非它们本身就是梗公式变量，或用户明确要编辑。
 
@@ -230,6 +263,16 @@ artifacts/meme-template-analyzer/<template_id-or-timestamp>/review.html
 - `Prompt Master`：带槽位标记的主提示词。
 - `Raw JSON`：给产品、工程或高级运营排查时查看。
 - `复制核对卡`：把审核要点复制到聊天或工单。
+
+批量 `review.html` 还应提供：
+
+- 批次摘要：总数、成功数、跳过数、待确认项和相关文件。
+- 模板列表：封面、key、标题、文件夹/系列、taxonomy 和 generationFit。
+- 筛选：按文件夹/系列、场景、hifi/free 适配和待确认项过滤。
+- 详情区：核心公式、业务槽位、hifi/free 推荐原因、Prompt Master 和 Raw JSON。
+- `复制批量摘要`：把整批审核结果复制给运营或产品。
+
+审核勾选状态只保存在浏览器 `localStorage`，不写回 `meme-template.json`。是否上线由后台或运营判断，不由 AI 分数决定。
 
 示例请求：
 

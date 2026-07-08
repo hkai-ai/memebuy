@@ -43,6 +43,11 @@ def main() -> None:
     require(skill, "生成审核页", "SKILL.md")
     require(skill, "给运营看", "SKILL.md")
     require(skill, "做个预览页", "SKILL.md")
+    require(skill, "batch-manifest.json", "SKILL.md")
+    require(skill, "generationFit", "SKILL.md")
+    require(skill, "taxonomy", "SKILL.md")
+    require(skill, "folderAsSeries", "SKILL.md")
+    require(skill, "批量审核页", "SKILL.md")
 
     require(json_contract, "co_variation_constraints", "json-contract.md")
     require(json_contract, "dependent_slot", "json-contract.md")
@@ -66,6 +71,12 @@ def main() -> None:
     require(gallery_contract, "free_must_keep", "gallery-authoring-contract.md")
     require(gallery_contract, "free_can_change", "gallery-authoring-contract.md")
     require(gallery_contract, "composition_pattern", "gallery-authoring-contract.md")
+    require(gallery_contract, "batch-manifest.json", "gallery-authoring-contract.md")
+    require(gallery_contract, "generationFit", "gallery-authoring-contract.md")
+    require(gallery_contract, "taxonomy", "gallery-authoring-contract.md")
+    require(gallery_contract, "ready_for_import", "gallery-authoring-contract.md")
+    require(gallery_contract, "sourceSha256", "gallery-authoring-contract.md")
+    require(gallery_contract, "<series-or-topic-slug>-<formula-slug>-<short-hash>", "gallery-authoring-contract.md")
 
     require(stability_contract, "co_variation_adherence", "stability-testset-contract.md")
     require(stability_contract, "expected_co_variation_constraints", "stability-testset-contract.md")
@@ -77,6 +88,9 @@ def main() -> None:
     require(readme, "file:///", "README.md")
     require(readme, "生成审核页", "README.md")
     require(readme, "给运营看", "README.md")
+    require(readme, "batch-manifest.json", "README.md")
+    require(readme, "generationFit", "README.md")
+    require(readme, "taxonomy", "README.md")
 
 
 if __name__ == "__main__":

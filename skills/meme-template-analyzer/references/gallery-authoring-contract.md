@@ -28,7 +28,44 @@ index.md
 ```json
 {
   "version": 1,
+  "batch": {
+    "batchId": "",
+    "sourceFolder": "",
+    "createdAt": "",
+    "operatorGrouping": {
+      "folderAsSeries": true,
+      "seriesName": ""
+    }
+  },
   "templates": []
+}
+```
+
+批量场景同时写 `batch-manifest.json`。它面向脚本入库和排查，不替代 `meme-template.json`：
+
+```json
+{
+  "version": 1,
+  "batchId": "",
+  "sourceFolder": "",
+  "createdAt": "",
+  "outputs": {
+    "memeTemplate": "meme-template.json",
+    "reviewHtml": "review.html",
+    "index": "index.md"
+  },
+  "sources": [
+    {
+      "sourceId": "",
+      "sourcePath": "",
+      "sourceSha256": "",
+      "folder": "",
+      "templateKey": "",
+      "status": "processed | skipped | failed",
+      "error": "",
+      "notes": []
+    }
+  ]
 }
 ```
 
@@ -43,6 +80,16 @@ index.md
   "topic": "",
   "title": "",
   "description": "",
+  "taxonomy": {
+    "scenes": [],
+    "topics": [],
+    "styles": [],
+    "emotions": [],
+    "useCases": [],
+    "series": [],
+    "parentTemplateKey": "",
+    "variantName": ""
+  },
   "assets": {
     "templateImage": "",
     "cover": "",
@@ -67,17 +114,30 @@ index.md
       "examples": []
     }
   },
+  "generationFit": {
+    "hifi": "recommended | usable | not_recommended",
+    "free": "recommended | usable | not_recommended",
+    "reason": ""
+  },
   "output": {
     "size": "1024x1024",
     "n": 1
+  },
+  "ingestion": {
+    "sourceId": "",
+    "sourcePath": "",
+    "sourceSha256": "",
+    "status": "ready_for_import | needs_human_review | skipped",
+    "notes": []
   }
 }
 ```
 
 ## 字段规则
 
-- `key`: 英文小写连字符，模板内稳定。识别不出时从标题语义生成短 key，并在 `index.md` 标注需人工确认。
+- `key`: 英文小写连字符，模板内稳定。批量场景使用 `<series-or-topic-slug>-<formula-slug>-<short-hash>`。识别不出时从标题语义生成短 key，并在 `index.md` 标注需人工确认。
 - `topic`、`title`、`description`: 面向 C 端展示，中文优先。
+- `taxonomy`: 面向搜索、瀑布流、专题页和运营组织，不替代模板本质边界。缺少明确判断时使用空数组或保守标签，不要硬编。
 - `assets.templateImage`: 模板原图或风格类模板代表图。没有素材 URL 时填本地 artifact 路径或空字符串，并在 `index.md` 标注缺口。
 - `assets.cover`: 默认同 `templateImage`。
 - `assets.exampleWorks`: 只有用户提供示例图时填；图片输入无法预填时不要伪造对应 input。
@@ -89,7 +149,54 @@ index.md
 - `modes.free.enabled`: 默认 `false`。只有用户明确要自由创意，或已有足够测试/范例时才建议 `true`。
 - `modes.free.mustKeep`: 写 3-5 条具体可判定的灵魂属性。
 - `modes.free.examples`: 业务不填，保持空数组。
+- `generationFit`: 只说明高保真和自由模式适配性，不输出 AI 分数，不替运营做上线裁决。取值只能是 `recommended`、`usable`、`not_recommended`。
+- `ingestion`: 批量入库追踪字段。`sourceSha256` 用源文件内容 hash；无法读取源文件时填空字符串并在 `notes` 说明。`status` 默认 `ready_for_import`，只有缺素材、解析失败或需要人补关键信息时用 `needs_human_review` 或 `skipped`。
 - `output`: 默认 `{ "size": "1024x1024", "n": 1 }`，除非用户或项目规范要求其他值。
+
+## Taxonomy 候选
+
+这些值是首批推荐候选，不是封闭枚举；后续可以扩展。输出时使用中文 label，必要时可在后台脚本再映射成内部 ID。
+
+- `scenes`: 宠物、情侣、儿童、亲子、闺蜜、职场、校园、生日、节日、旅行、社媒、头像、表情包。
+- `topics`: 美食、魔法、治愈、反差、搞笑、日常、复古、天气、运动、商品、包装、截图、聊天。
+- `styles`: 手绘、水彩、油画、彩铅、复古、极简、低饱和、可爱、写实照片、截图风、3D、像素风。
+- `emotions`: 可爱、治愈、荒诞、松弛、温暖、困惑、尴尬、惊喜、反差、呆萌。
+- `useCases`: 头像、表情包、朋友圈配图、小红书封面、聊天配图、节日祝福图、运营活动图。
+
+运营按文件夹组织素材时，把文件夹名写入 `batch.operatorGrouping.seriesName` 和每个模板的 `taxonomy.series[]` 候选。文件夹名只表示运营分组，不表示这些素材一定属于同一个模板；是否同模板仍由核心梗点、主体关系和观看逻辑判断。
+
+## Key 规范
+
+批量模板 key 使用：
+
+```text
+<series-or-topic-slug>-<formula-slug>-<short-hash>
+```
+
+规则：
+
+- 只使用小写英文、数字和连字符。
+- `series-or-topic-slug` 优先来自文件夹/系列名；没有时来自主要 topic 或 scene。
+- `formula-slug` 来自 `meme_formula`，例如 `food-fusion`、`hidden-reveal`、`caption-reversal`。
+- `short-hash` 使用源文件 hash 或源路径 hash 的前 6 位，避免批次内冲突。
+- 批次内 key 必须唯一；冲突时追加或替换 short hash，不要覆盖前一个模板。
+- 不要让中文标题决定 key，标题可改，key 应保持稳定。
+
+## Generation Fit
+
+`generationFit` 表达“这个模板更适合哪种生成模式”，不是质量分。
+
+- `recommended`: 推荐作为默认模式，模板结构和输入条件支持稳定生成。
+- `usable`: 可用但需要运营理解边界，或需要更强 prompt/参考图约束。
+- `not_recommended`: 不建议作为该模式开放；如果业务仍要试，应在备注中说明风险。
+
+判断规则：
+
+- 高保真适合保留源图构图、画风、主体关系和少量核心变量替换时，`hifi` 用 `recommended`。
+- 高保真主体替换会破坏融合关系、颜色/材质押韵或第一眼误读时，`hifi` 用 `usable` 或 `not_recommended`。
+- 自由模式能保留 `meme_formula`、阅读顺序、关系不变量和融合逻辑，并允许重构场景或构图时，`free` 用 `recommended` 或 `usable`。
+- 自由模式很容易变成另一个梗、失去观看逻辑或无法定义 `free_must_keep` 时，`free` 用 `not_recommended`。
+- 不要输出数值分数；`reason` 用中文说明具体原因。
 
 ## Hifi / Free 边界反思
 
@@ -173,6 +280,11 @@ index.md
 - `modes.free.mustKeep` 没有混入只属于高保真的数量、横向队列、镜头、容器或白底锚点，除非 `hifi_free_boundary_reflection` 说明它们是梗成立条件。
 - 高自由度请求的 `modes.free.canChange` 明确包含 `composition_pattern` 或同等级结构性开放项。
 - 业务可读文本为中文；技术 key、enum、URL、源图可见文字保持原文。
+- 批量输出有 `batch.batchId`、`batch.operatorGrouping.folderAsSeries`、每个模板的 `taxonomy`、`generationFit` 和 `ingestion`。
+- `batch-manifest.json` 中每个 source 都能追踪到 `templateKey` 或失败/跳过原因。
+- 批次内 `key` 唯一，且符合 `<series-or-topic-slug>-<formula-slug>-<short-hash>`。
+- `ingestion.sourceSha256` 与 `batch-manifest.json.sources[].sourceSha256` 一致；无法计算时两边都留空并说明。
+- `generationFit` 没有使用数值分、星级或“可上线”等替运营裁决的结论。
 
 ## Debug 附加
 

@@ -31,6 +31,7 @@
   "result_directory": "artifacts/meme-template-analyzer/<template_id-or-timestamp>/",
   "files": {
     "meme_template": "meme-template.json",
+    "batch_manifest": "batch-manifest.json",
     "prompt_pack": "prompt-pack.json",
     "stability_testset": "stability-testset.json",
     "manifest": "index.md"
@@ -40,7 +41,8 @@
 
 按 mode 选择主产物：
 
-- `template`、`template-library-entry`、`batch` 默认写 `meme-template.json` 和 `index.md`，格式见 `references/gallery-authoring-contract.md`。
+- `template`、`template-library-entry` 默认写 `meme-template.json` 和 `index.md`，格式见 `references/gallery-authoring-contract.md`。
+- `batch` 默认写 `meme-template.json`、`batch-manifest.json` 和 `index.md`，批量审核页按用户要求写 `review.html`。
 - `compare` 默认写 `meme-template.json` 和 `index.md`，可以使用本文件的 `comparison` 结构。
 - `prompt-contract`、`render-prompts`、`render-prompt-pack` 默认写 `prompt-pack.json` 和 `index.md`。
 - `stability-testset` 额外写 `stability-testset.json`。
