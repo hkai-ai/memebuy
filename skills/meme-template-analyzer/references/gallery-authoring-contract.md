@@ -81,6 +81,8 @@ index.md
   "title": "",
   "description": "",
   "taxonomy": {
+    "category": "",
+    "templateMechanism": "",
     "scenes": [],
     "topics": [],
     "styles": [],
@@ -88,7 +90,8 @@ index.md
     "useCases": [],
     "series": [],
     "parentTemplateKey": "",
-    "variantName": ""
+    "variantName": "",
+    "needs_review": []
   },
   "assets": {
     "templateImage": "",
@@ -137,7 +140,7 @@ index.md
 
 - `key`: 英文小写连字符，模板内稳定。批量场景使用 `<series-or-topic-slug>-<formula-slug>-<short-hash>`。识别不出时从标题语义生成短 key，并在 `index.md` 标注需人工确认。
 - `topic`、`title`、`description`: 面向 C 端展示，中文优先。
-- `taxonomy`: 面向搜索、瀑布流、专题页和运营组织，不替代模板本质边界。缺少明确判断时使用空数组或保守标签，不要硬编。
+- `taxonomy`: 面向搜索、瀑布流、专题页和运营组织，不替代模板本质边界。缺少明确判断时使用空数组、空字符串或保守标签，不要硬编；不确定项写入 `needs_review`。
 - `assets.templateImage`: 模板原图或风格类模板代表图。没有素材 URL 时填本地 artifact 路径或空字符串，并在 `index.md` 标注缺口。
 - `assets.cover`: 默认同 `templateImage`。
 - `assets.exampleWorks`: 只有用户提供示例图时填；图片输入无法预填时不要伪造对应 input。
@@ -155,15 +158,31 @@ index.md
 
 ## Taxonomy 候选
 
-这些值是首批推荐候选，不是封闭枚举；后续可以扩展。输出时使用中文 label，必要时可在后台脚本再映射成内部 ID。
+这些值是首批推荐候选，不是封闭枚举；后续可以扩展，但分类增长必须受控。输出时使用中文 label，必要时可在后台脚本再映射成内部 ID。
 
-- `scenes`: 宠物、情侣、儿童、亲子、闺蜜、职场、校园、生日、节日、旅行、社媒、头像、表情包。
-- `topics`: 美食、魔法、治愈、反差、搞笑、日常、复古、天气、运动、商品、包装、截图、聊天。
+- `category`: 梗机制或模板类型，category 控制在 20-40 个左右。优先使用误读揭示、角色贴标签、对比、反应图、物体融合、聊天截图、多格叙事、前后变化等大类；不要把宠物、情侣、亲子等主题词作为唯一 category。
+- `templateMechanism`: 从 `meme_formula` 推导的更具体模板机制，用于判断是否属于同一个模板簇，例如 `food-fusion`、`hidden-reveal`、`caption-reversal`。
+- `scenes`: 家庭、办公室、餐桌、街头、校园、社媒、头像、聊天、节日、旅行、商品展示。
+- `topics`: 宠物、情侣、儿童、亲子、闺蜜、职场、游戏、美食、魔法、治愈、反差、搞笑、日常、复古、天气、运动、商品、包装、截图。
 - `styles`: 手绘、水彩、油画、彩铅、复古、极简、低饱和、可爱、写实照片、截图风、3D、像素风。
 - `emotions`: 可爱、治愈、荒诞、松弛、温暖、困惑、尴尬、惊喜、反差、呆萌。
 - `useCases`: 头像、表情包、朋友圈配图、小红书封面、聊天配图、节日祝福图、运营活动图。
+- `needs_review`: 待确认项列表，记录自动聚类、模板边界、OCR、category 或 topics 中需要用户/运营确认的原因。
 
 运营按文件夹组织素材时，把文件夹名写入 `batch.operatorGrouping.seriesName` 和每个模板的 `taxonomy.series[]` 候选。文件夹名只表示运营分组，不表示这些素材一定属于同一个模板；是否同模板仍由核心梗点、主体关系和观看逻辑判断。
+
+## 批量预审
+
+批量 authoring 前必须先做批量预审。预审不替代深度模板分析，只判断输入结构是否适合批处理，并把需要人审的边界提前暴露。
+
+预审报告至少覆盖：
+
+- 图片数量、有效格式、尺寸异常、路径层级、平铺程度、是否已有每张源图独立文件夹。
+- 重复图、缩略图、生成结果、截图副本、非源图或无法读取文件。
+- 初步自动聚类结果：模板簇候选、每簇代表图、置信度、可能的 `category`、`templateMechanism` 和待确认原因。
+- 建议结构：按模板簇组织，但每张源图独立工作目录，例如 `<template-cluster>/<source-id>/source.<ext>`。
+
+如果一个文件夹中平铺大量图片，且自动聚类显示可能包含多个模板或分类，先让用户确认分组策略，再移动文件或开始批量模板输出。用户明确允许自动整理时，也要把低置信分组写入 `taxonomy.needs_review` 和 `batch-manifest.json.sources[].notes`。
 
 ## Key 规范
 

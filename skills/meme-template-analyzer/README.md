@@ -91,6 +91,30 @@ free-creative-result.png
 
 JSON 报告、评分表和 `summary.md` 只能作为辅助文件。不要用 JSON、SVG、Pillow 手绘图、程序化占位图或图表来冒充用户要看的生成结果。如果图像生成工具把图片先保存到自己的 generated-images 目录，应复制真实生成图到 `output/`，并保留原始生成文件。
 
+## 批量预审与自动分类
+
+当用户提供一批图片或目录时，先做批量预审，再做模板分析。预审的目标是判断输入结构是否适合批处理，而不是一次性替运营定稿。
+
+预审需要检查：
+
+1. 图片数量、格式、尺寸、目录层级和是否全部平铺。
+2. 是否已经做到每张源图独立文件夹；如果没有，建议整理成 `<template-cluster>/<source-id>/source.<ext>`。
+3. 是否混入重复图、缩略图、生成结果、截图副本、非源图或无法读取文件。
+4. 是否可能一个文件夹里包含多个模板簇，例如 100 张图可能只属于 20 个模板机制。
+5. 自动聚类出的候选模板簇、代表图、置信度、待确认项和建议目录结构。
+
+分类由 agent 先处理，用户主要确认有争议的边界。推荐层级：
+
+- `category`: 少而稳定，表示梗机制或模板类型，例如误读揭示、角色贴标签、对比、反应图、物体融合、聊天截图、多格叙事、前后变化。category 控制在 20-40 个左右。
+- `templateMechanism`: 从 `meme_formula` 推导的更具体模板机制，用于判断是否属于同一模板簇。
+- `topics`: 宠物、情侣、亲子、职场、校园、游戏、美食等内容标签，可以多值。
+- `styles`、`emotions`、`useCases`: 尽量使用稳定候选枚举。
+- `needs_review`: 自动聚类或标签不确定时记录原因，供用户或运营确认。
+
+不要只按宠物、情侣、亲子等主题词建目录。物理目录优先按模板簇组织，主题、风格、情绪和用途写进 `taxonomy`。如果需要移动或重排源文件，先给出预审报告和建议结构，等用户确认后再执行。
+
+批量完成后，agent 应主动引导下一步选择，询问用户是否需要查看 `review.html` 人审页面。默认不要自动生成或打开 `review.html`；只有用户确认需要，或一开始就要求“生成审核页”“给运营看”“做个预览页”时，才生成或调取页面。用户确认后，优先复用同目录已有 `review.html`；没有时执行 `template-review-page` 生成，并返回本地路径和 `file:///` 打开方式。用户说不需要时，只汇总 `meme-template.json`、`batch-manifest.json` 和 `index.md` 等主产物。
+
 ## 命令
 
 命令是稳定的用户侧入口。模式是 agent 根据自然语言请求推断出的内部处理分支。
@@ -193,7 +217,7 @@ python skills\meme-template-analyzer\scripts\validate_stability_testset.py <path
 - `prompt.master`，用 `【槽位名：原文】` 标记变量
 - `prompt.slots[]`，每个槽只保留 `id/policy/from`
 - `modes.hifi` 和 `modes.free`
-- `taxonomy`，包含 scenes、topics、styles、emotions、useCases、series、parentTemplateKey 和 variantName
+- `taxonomy`，包含 category、templateMechanism、scenes、topics、styles、emotions、useCases、series、parentTemplateKey、variantName 和 needs_review
 - `generationFit`，说明 hifi/free 分别是 `recommended`、`usable` 还是 `not_recommended`
 - `ingestion`，记录 sourceId、sourcePath、sourceSha256、status 和 notes
 - `output`
@@ -499,11 +523,13 @@ file:///C:/Code/memebuy/artifacts/meme-template-analyzer/<目录>/review.html
 
 预期行为：
 
-1. 分别处理每个来源。
-2. 为每个 meme 创建一个模板条目。
-3. 保留每个来源独立的 OCR、限制和置信度说明。
-4. 只有证据充分时，才归类共享公式。
-5. 将模板库输出保存到产物目录。
+1. 先做批量预审，检查目录结构、平铺情况、重复/派生图、非源图和是否已有每张源图独立文件夹。
+2. 对图片做轻量识别和自动聚类，按模板机制提出候选分组；低置信分组写入 `needs_review`。
+3. 如果平铺图片明显包含多个模板簇，先输出预审报告并让用户确认分组策略。
+4. 分别处理每个来源，为每个 meme 创建一个模板条目。
+5. 保留每个来源独立的 OCR、限制和置信度说明。
+6. 只有证据充分时，才归类共享公式；不要把文件夹、主题或场景当成模板本质边界。
+7. 将模板库输出保存到产物目录。
 
 独立条目使用推断的 `batch` 模式。用户要求共享公式、差异或系列方向时，使用推断的 `compare` 模式。
 
@@ -623,6 +649,8 @@ agent 可以从请求中推断一个或多个模式：
 除非用户明确要求内联 JSON、内联提示词或严格 schema 输出，否则不要在聊天中粘贴完整 JSON 或完整提示词。
 
 如果用户要求图片结果，聊天回复应优先展示或链接 `output/` 中的 PNG/JPEG。JSON 路径只作为补充说明。
+
+批量处理完成后，聊天回复还应问一句下一步选择，例如：“是否需要我生成或打开 `review.html` 人审页面，方便你快速检查这一批模板？”用户确认前不要自动生成或打开页面。
 
 ## 版本与运行时同步
 

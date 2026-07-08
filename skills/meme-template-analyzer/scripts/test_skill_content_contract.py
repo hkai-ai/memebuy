@@ -48,6 +48,13 @@ def main() -> None:
     require(skill, "taxonomy", "SKILL.md")
     require(skill, "folderAsSeries", "SKILL.md")
     require(skill, "批量审核页", "SKILL.md")
+    require(skill, "批量预审", "SKILL.md")
+    require(skill, "每张源图独立工作目录", "SKILL.md")
+    require(skill, "templateMechanism", "SKILL.md")
+    require(skill, "needs_review", "SKILL.md")
+    require(skill, "批量完成后", "SKILL.md")
+    require(skill, "是否需要查看", "SKILL.md")
+    require(skill, "不要自动生成或打开 `review.html`", "SKILL.md")
 
     require(json_contract, "co_variation_constraints", "json-contract.md")
     require(json_contract, "dependent_slot", "json-contract.md")
@@ -77,6 +84,9 @@ def main() -> None:
     require(gallery_contract, "ready_for_import", "gallery-authoring-contract.md")
     require(gallery_contract, "sourceSha256", "gallery-authoring-contract.md")
     require(gallery_contract, "<series-or-topic-slug>-<formula-slug>-<short-hash>", "gallery-authoring-contract.md")
+    require(gallery_contract, "category 控制在 20-40 个左右", "gallery-authoring-contract.md")
+    require(gallery_contract, "模板机制", "gallery-authoring-contract.md")
+    require(gallery_contract, "待确认", "gallery-authoring-contract.md")
 
     require(stability_contract, "co_variation_adherence", "stability-testset-contract.md")
     require(stability_contract, "expected_co_variation_constraints", "stability-testset-contract.md")
@@ -91,6 +101,12 @@ def main() -> None:
     require(readme, "batch-manifest.json", "README.md")
     require(readme, "generationFit", "README.md")
     require(readme, "taxonomy", "README.md")
+    require(readme, "批量预审", "README.md")
+    require(readme, "每张源图独立文件夹", "README.md")
+    require(readme, "自动聚类", "README.md")
+    require(readme, "批量完成后", "README.md")
+    require(readme, "是否需要查看 `review.html`", "README.md")
+    require(readme, "下一步选择", "README.md")
 
 
 if __name__ == "__main__":
