@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.9.10",
+  "version": "0.9.12",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
-  "updated_at": "2026-07-07",
-  "notes": "Add hifi_free_boundary_reflection rules so high-fidelity anchors do not over-constrain free-creative composition patterns.",
+  "updated_at": "2026-07-08",
+  "notes": "Add simple business-facing trigger phrases for template-review-page review.html generation.",
   "tracked_files": [
     "SKILL.md",
     "README.md",

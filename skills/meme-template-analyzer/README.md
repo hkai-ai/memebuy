@@ -48,6 +48,7 @@ $CODEX_HOME/generated_artifacts/meme-template-analyzer/<template_id-or-timestamp
 
 ```text
 meme-template.json
+review.html
 prompt-pack.json
 stability-testset.json
 index.md
@@ -58,6 +59,7 @@ output/
 
 - `index.md`: 每次产出的人类可读清单。
 - `meme-template.json`: 录入/批量生成时生成，默认是 Gallery Template Authoring JSON v1，而不是分析报告。
+- `review.html`: 业务人员人审预览页，仅在请求 `template-review-page`、人审预览或 review page 时生成。
 - `prompt-pack.json`: prompt contract、render-prompts 或 render-prompt-pack 输出时生成，并内嵌 VLM recognition、normalized input、slot bindings、prompt templates 和 rendered prompts。
 - `stability-testset.json`: 仅用户要求稳定性测试时生成。
 - `output/`: 仅用户要求真实生成结果、mock 用户侧输出、测试输出图或结果图时创建。
@@ -99,6 +101,7 @@ JSON 报告、评分表和 `summary.md` 只能作为辅助文件。不要用 JSO
 | --- | --- |
 | 从 meme 或 meme 创意生成可用于图像生成的提示词 | `render-prompt-pack` |
 | 生成可录入后台的业务收集 JSON | `template-library-entry` |
+| 生成给业务人员审查的静态预览页 | `template-review-page` |
 | 为 faithful / creative 生成做可重复性测试 | `stability-testset` |
 | 只快速解释或阅读一个 meme | 不显式指定命令；推断 `analyze` |
 | 将多个 meme 分析成一个模板库 | 不显式指定命令；推断 `batch` |
@@ -207,6 +210,67 @@ python skills\meme-template-analyzer\scripts\validate_stability_testset.py <path
 ```
 
 当模板本身就是目标产物，而不只是为了生成提示词时，使用这个命令。
+
+### template-review-page
+
+当需要让业务人员快速审查模板理解、槽位和生成边界时，使用这个命令。业务人员不需要记住 `template-review-page`；只要说“生成审核页”“给运营看”“做个预览页”这类短句，agent 应映射到这个命令。
+
+默认输出：
+
+```text
+artifacts/meme-template-analyzer/<template_id-or-timestamp>/review.html
+```
+
+页面用于回答“这个 meme 是怎么生成的”：
+
+- 快速结论：模板标题、主题、可见文字和核心描述。
+- 理解核对卡：核心理解、不应这样理解、必须保留、允许变化、高保真会怎么做、自由创意会怎么做。
+- 两种变体边界：`modes.hifi` 与 `modes.free` 的启用状态、保留项和可变化项。
+- 槽位与输入：业务人员需要填写或上传什么。
+- `Prompt Master`：带槽位标记的主提示词。
+- `Raw JSON`：给产品、工程或高级运营排查时查看。
+- `复制核对卡`：把审核要点复制到聊天或工单。
+
+示例请求：
+
+业务人员推荐说法：
+
+```text
+生成审核页
+```
+
+```text
+给运营看一下这个模板
+```
+
+```text
+做个预览页
+```
+
+内部或调试时才需要显式 command：
+
+```text
+对这个模板使用 meme-template-analyzer template-review-page，生成给业务人员审查的 review.html。
+```
+
+```text
+基于 artifacts/meme-template-analyzer/panic_cat_laptop_fire_analysis_20260707_170700/meme-template.json 生成 template-review-page。
+```
+
+业务人员查看方式：
+
+```text
+请用浏览器打开：
+C:\Code\memebuy\artifacts\meme-template-analyzer\<目录>\review.html
+```
+
+也可以把本地路径换成浏览器地址：
+
+```text
+file:///C:/Code/memebuy/artifacts/meme-template-analyzer/<目录>/review.html
+```
+
+`review.html` 是静态页面，不需要运行 `pnpm dev`、`wrangler dev` 或其他本地服务。页面通常会引用同一 artifact 目录或相邻目录中的图片和 JSON；如果要发给其他同事，打包时应连同相关 artifact 图片、`meme-template.json` 和 `review.html` 一起发送。
 
 ## 使用教程
 

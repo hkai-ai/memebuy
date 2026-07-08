@@ -36,6 +36,13 @@ def main() -> None:
     require(skill, "free_must_keep", "SKILL.md")
     require(skill, "free_can_change", "SKILL.md")
     require(skill, "composition_pattern", "SKILL.md")
+    require(skill, "template-review-page", "SKILL.md")
+    require(skill, "review.html", "SKILL.md")
+    require(skill, "人审预览页", "SKILL.md")
+    require(skill, "复制核对卡", "SKILL.md")
+    require(skill, "生成审核页", "SKILL.md")
+    require(skill, "给运营看", "SKILL.md")
+    require(skill, "做个预览页", "SKILL.md")
 
     require(json_contract, "co_variation_constraints", "json-contract.md")
     require(json_contract, "dependent_slot", "json-contract.md")
@@ -62,6 +69,14 @@ def main() -> None:
 
     require(stability_contract, "co_variation_adherence", "stability-testset-contract.md")
     require(stability_contract, "expected_co_variation_constraints", "stability-testset-contract.md")
+
+    readme = read("README.md")
+    require(readme, "template-review-page", "README.md")
+    require(readme, "review.html", "README.md")
+    require(readme, "业务人员", "README.md")
+    require(readme, "file:///", "README.md")
+    require(readme, "生成审核页", "README.md")
+    require(readme, "给运营看", "README.md")
 
 
 if __name__ == "__main__":
