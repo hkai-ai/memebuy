@@ -209,6 +209,75 @@ index.md
 
 如果一个文件夹中平铺大量图片，且自动聚类显示可能包含多个模板或分类，先让用户确认分组策略，再移动文件或开始批量模板输出。
 
+## Batch Review Workbench
+
+`batch-review-workbench` 是批量入库前的轻量整理工具，也可以单独调用。工具文件是 `assets/batch-workbench.html`，用户用 Chrome/Edge 打开后通过 File System Access API 选择本地素材目录。它让用户把相似图归到同一组，并给每组勾选标签和模板参考配置；不需要 Python、本地服务或额外依赖。
+
+默认文件：
+
+```text
+batch-workspace.json
+batch-manifest.json
+<group-name>/group-config.json
+```
+
+`batch-workspace.json` 记录源图清单：
+
+```json
+{
+  "schemaVersion": "1.0",
+  "artifactType": "batch_review_workspace",
+  "batchId": "",
+  "sourceFolder": "",
+  "images": [
+    {
+      "id": "img-0001",
+      "sourcePath": "",
+      "relativePath": "",
+      "sourceSha256": "",
+      "previewPath": "",
+      "suggestedGroup": ""
+    }
+  ]
+}
+```
+
+`group-config.json` 和 `batch-manifest.json` 记录用户整理决策：
+
+```json
+{
+  "schemaVersion": "1.0",
+  "artifactType": "batch_review_manifest",
+  "rootName": "",
+  "groups": [
+    {
+      "groupName": "",
+      "imageIds": ["img-0001"],
+      "status": "ready_for_template | needs_review | skipped",
+      "referenceConfig": {
+        "template_reference": true,
+        "style_reference": false,
+        "composition_reference": true,
+        "identity_reference": false,
+        "other": ""
+      },
+      "referenceDependencyLevel": "low | medium | high | blocked",
+      "testModeRecommendation": "text_only_ok | reference_aware_preferred | reference_aware_required | do_not_test_without_reference",
+      "tags": [],
+      "notes": ""
+    }
+  ]
+}
+```
+
+工作台规则：
+
+- 直接写回根目录 `batch-workspace.json` 和 `batch-manifest.json`。
+- 直接写回每组目录的 `group-config.json`。
+- 用户可选复制素材到分组目录，原文件不删除。
+- 不提供删除源文件或移动源文件能力。
+- 后续生成 `meme-template.json` 或 `image-edit-template.json` 时，优先读取每组的 `group-config.json`。如果 `referenceDependencyLevel` 为 `high` 或 `blocked`，不要把纯文本生成测试当成代表性验证；应记录需要 reference-aware 后端。
+
 ## Key 规范
 
 批量模板 key 使用：

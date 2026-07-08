@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
-  "updated_at": "2026-07-08",
-  "notes": "Add analyze-and-generate-test command for one-step meme analysis plus real image generation testing.",
+  "updated_at": "2026-07-09",
+  "notes": "Add standalone Chrome batch workbench HTML for local image grouping, reference-role configuration, and direct JSON writeback.",
   "tracked_files": [
     "SKILL.md",
     "README.md",
@@ -13,6 +13,7 @@
     "references/gallery-authoring-contract.md",
     "references/json-contract.md",
     "references/stability-testset-contract.md",
+    "assets/batch-workbench.html",
     "scripts/test_skill_content_contract.py",
     "scripts/validate_stability_testset.py",
     "scripts/test_validate_stability_testset.py"

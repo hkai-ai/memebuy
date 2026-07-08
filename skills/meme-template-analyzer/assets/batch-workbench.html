@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Meme Batch Workbench</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --line: #d7dde7;
+      --text: #152033;
+      --muted: #66758a;
+      --brand: #2563eb;
+      --brand-weak: #e8f0ff;
+      --danger: #b42318;
+      --ok: #157347;
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    button, input, select, textarea { font: inherit; }
+    button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 6px;
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+    button.danger { color: var(--danger); border-color: #f1b5ad; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 7px 8px;
+      background: #fff;
+      color: var(--text);
+    }
+    textarea { min-height: 72px; resize: vertical; }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.95);
+      backdrop-filter: blur(8px);
+    }
+    h1 { margin: 0; font-size: 18px; }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .status { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    main {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr) 360px;
+      gap: 12px;
+      padding: 12px;
+    }
+    aside, section.workarea {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      min-height: calc(100vh - 74px);
+    }
+    aside {
+      padding: 12px;
+      position: sticky;
+      top: 62px;
+      height: calc(100vh - 74px);
+      overflow: auto;
+    }
+    .workarea { overflow: hidden; }
+    .filters {
+      display: grid;
+      grid-template-columns: 1fr 150px 150px auto auto;
+      gap: 8px;
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+    .grid {
+      height: calc(100vh - 134px);
+      overflow: auto;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+      gap: 10px;
+      align-content: start;
+    }
+    .card {
+      border: 2px solid transparent;
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(15,23,42,.08);
+    }
+    .card.selected { border-color: var(--brand); background: var(--brand-weak); }
+    .thumb {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      display: block;
+      object-fit: cover;
+      background: #e8edf5;
+    }
+    .meta { padding: 7px; font-size: 12px; line-height: 1.3; color: var(--muted); }
+    .meta strong { display: block; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 12px;
+      color: var(--muted);
+      background: #fff;
+    }
+    .group-list { display: grid; gap: 8px; }
+    .group-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      cursor: pointer;
+      background: #fff;
+    }
+    .group-item.active { border-color: var(--brand); background: var(--brand-weak); }
+    .group-title { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 700; }
+    label { display: block; margin-top: 10px; font-size: 13px; font-weight: 650; }
+    .checks label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 7px;
+      font-weight: 500;
+    }
+    .checks input { width: auto; }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .row > * { flex: 1; }
+    .small-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .unsupported {
+      display: none;
+      margin: 12px;
+      padding: 12px;
+      border: 1px solid #f6c36b;
+      border-radius: 8px;
+      background: #fff8e6;
+      color: #7a4d00;
+    }
+    @media (max-width: 1040px) {
+      main { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; min-height: 0; }
+      .grid { height: auto; min-height: 420px; }
+      .filters { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>批量整理台</h1>
+    <div id="status" class="status">使用 Chrome/Edge 打开，选择素材文件夹开始。</div>
+    <div class="toolbar">
+      <button id="pickRoot" class="primary">选择素材文件夹</button>
+      <button id="saveJson" disabled>写入 JSON</button>
+      <button id="copyFiles" disabled>复制到分组文件夹</button>
+      <button id="downloadJson" disabled>下载备份 JSON</button>
+    </div>
+  </header>
+
+  <div id="unsupported" class="unsupported">
+    当前浏览器不支持 File System Access API。请使用 Chrome 或 Edge 直接打开本文件。
+  </div>
+
+  <main>
+    <aside>
+      <div class="row">
+        <button id="newGroup">新建分组</button>
+        <button id="deleteGroup" class="danger">删除分组</button>
+      </div>
+      <p class="hint">分组代表后续同一模板或同一素材文件夹。选中图片后点“加入当前分组”。</p>
+      <div class="small-actions">
+        <button id="assignSelected">加入当前分组</button>
+        <button id="unassignSelected">移出分组</button>
+      </div>
+      <h2 style="font-size:15px;margin:14px 0 8px">分组</h2>
+      <div id="groups" class="group-list"></div>
+    </aside>
+
+    <section class="workarea">
+      <div class="filters">
+        <input id="search" placeholder="搜索文件名、路径、标签">
+        <select id="groupFilter"><option value="">全部分组</option></select>
+        <select id="statusFilter"><option value="">全部状态</option><option>ready_for_template</option><option>needs_review</option><option>skipped</option><option value="unassigned">未分组</option></select>
+        <button id="selectVisible">全选可见</button>
+        <button id="clearSelection">清空选择</button>
+      </div>
+      <div id="grid" class="grid"></div>
+    </section>
+
+    <aside>
+      <h2 style="font-size:15px;margin:0 0 8px">当前分组配置</h2>
+      <label>分组目录名 <input id="groupName" placeholder="ufo-abduction-cats"></label>
+      <label>状态
+        <select id="groupStatus">
+          <option>ready_for_template</option>
+          <option>needs_review</option>
+          <option>skipped</option>
+        </select>
+      </label>
+      <div class="row">
+        <label>参考依赖
+          <select id="dependency">
+            <option>low</option>
+            <option>medium</option>
+            <option>high</option>
+            <option>blocked</option>
+          </select>
+        </label>
+        <label>测试建议
+          <select id="testMode">
+            <option>text_only_ok</option>
+            <option>reference_aware_preferred</option>
+            <option>reference_aware_required</option>
+            <option>do_not_test_without_reference</option>
+          </select>
+        </label>
+      </div>
+      <div class="checks">
+        <label><input id="templateRef" type="checkbox"> template_reference</label>
+        <label><input id="styleRef" type="checkbox"> style_reference</label>
+        <label><input id="compositionRef" type="checkbox"> composition_reference</label>
+        <label><input id="identityRef" type="checkbox"> identity_reference</label>
+      </div>
+      <label>其他参考说明 <input id="otherRef" placeholder="例如只参考配色，不参考角色"></label>
+      <label>标签 <input id="tags" placeholder="UFO,动物,反应图"></label>
+      <label>备注 <textarea id="notes" placeholder="这里写后续模板处理要注意的点"></textarea></label>
+      <button id="saveGroup" class="primary" style="margin-top:10px">保存分组配置</button>
+      <p class="hint">写入 JSON 会在素材目录创建/更新 `batch-workspace.json`、`batch-manifest.json`，并在每个分组目录写 `group-config.json`。复制文件会额外把图片复制到分组目录，不删除原文件。</p>
+    </aside>
+  </main>
+
+<script>
+const imageExtensions = new Set(["png", "jpg", "jpeg", "webp", "gif", "bmp", "avif"]);
+const state = {
+  rootHandle: null,
+  rootName: "",
+  images: [],
+  groups: [],
+  selectedIds: new Set(),
+  activeGroupId: "",
+  visibleIds: [],
+  objectUrls: new Map(),
+  dirty: false
+};
+
+const $ = (id) => document.getElementById(id);
+const els = {
+  status: $("status"),
+  grid: $("grid"),
+  groups: $("groups"),
+  groupFilter: $("groupFilter"),
+  statusFilter: $("statusFilter"),
+  search: $("search")
+};
+
+if (!("showDirectoryPicker" in window)) {
+  $("unsupported").style.display = "block";
+}
+
+function slugify(value) {
+  const normalized = (value || "group").trim().toLowerCase();
+  return normalized
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-") || "group";
+}
+
+function makeId(prefix) {
+  return `${prefix}-${Math.random().toString(36).slice(2, 8)}-${Date.now().toString(36)}`;
+}
+
+function setStatus(text) {
+  els.status.textContent = text;
+}
+
+async function digestFile(file) {
+  const buf = await file.arrayBuffer();
+  const hash = await crypto.subtle.digest("SHA-256", buf);
+  return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function* walkDirectory(dirHandle, prefix = "") {
+  for await (const [name, handle] of dirHandle.entries()) {
+    if (name.startsWith(".")) continue;
+    const rel = prefix ? `${prefix}/${name}` : name;
+    if (handle.kind === "file") {
+      const ext = name.split(".").pop().toLowerCase();
+      if (imageExtensions.has(ext)) yield { handle, name, relativePath: rel };
+    } else if (handle.kind === "directory") {
+      if (["node_modules", ".git", "organized"].includes(name)) continue;
+      yield* walkDirectory(handle, rel);
+    }
+  }
+}
+
+async function pickRoot() {
+  state.rootHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+  state.rootName = state.rootHandle.name;
+  setButtons(true);
+  await scanImages();
+}
+
+async function scanImages() {
+  state.images = [];
+  state.groups = [];
+  state.selectedIds.clear();
+  state.activeGroupId = "";
+  setStatus(`正在扫描 ${state.rootName} ...`);
+  let count = 0;
+  for await (const entry of walkDirectory(state.rootHandle)) {
+    count += 1;
+    const file = await entry.handle.getFile();
+    const id = `img-${String(count).padStart(4, "0")}`;
+    state.images.push({
+      id,
+      fileName: entry.name,
+      relativePath: entry.relativePath,
+      size: file.size,
+      lastModified: file.lastModified,
+      sourceSha256: "",
+      handle: entry.handle,
+      groupId: ""
+    });
+    if (count % 50 === 0) setStatus(`已扫描 ${count} 张图片 ...`);
+  }
+  createGroup("未命名分组", true);
+  setStatus(`已扫描 ${state.images.length} 张图片。`);
+  renderAll();
+}
+
+function setButtons(enabled) {
+  $("saveJson").disabled = !enabled;
+  $("copyFiles").disabled = !enabled;
+  $("downloadJson").disabled = !enabled;
+}
+
+function createGroup(name = "新分组", setActive = true) {
+  const group = {
+    id: makeId("grp"),
+    groupName: slugify(name),
+    status: "needs_review",
+    referenceConfig: {
+      template_reference: true,
+      style_reference: false,
+      composition_reference: true,
+      identity_reference: false,
+      other: ""
+    },
+    referenceDependencyLevel: "medium",
+    testModeRecommendation: "reference_aware_preferred",
+    tags: [],
+    notes: ""
+  };
+  state.groups.push(group);
+  if (setActive) state.activeGroupId = group.id;
+  state.dirty = true;
+  return group;
+}
+
+function activeGroup() {
+  return state.groups.find(g => g.id === state.activeGroupId) || null;
+}
+
+function imagesInGroup(groupId) {
+  return state.images.filter(img => img.groupId === groupId);
+}
+
+function updateGroupEditor() {
+  const group = activeGroup();
+  const disabled = !group;
+  for (const id of ["groupName","groupStatus","dependency","testMode","templateRef","styleRef","compositionRef","identityRef","otherRef","tags","notes","saveGroup"]) {
+    $(id).disabled = disabled;
+  }
+  if (!group) {
+    $("groupName").value = "";
+    $("groupStatus").value = "needs_review";
+    $("dependency").value = "medium";
+    $("testMode").value = "reference_aware_preferred";
+    $("templateRef").checked = false;
+    $("styleRef").checked = false;
+    $("compositionRef").checked = false;
+    $("identityRef").checked = false;
+    $("otherRef").value = "";
+    $("tags").value = "";
+    $("notes").value = "";
+    return;
+  }
+  $("groupName").value = group.groupName;
+  $("groupStatus").value = group.status;
+  $("dependency").value = group.referenceDependencyLevel;
+  $("testMode").value = group.testModeRecommendation;
+  $("templateRef").checked = group.referenceConfig.template_reference;
+  $("styleRef").checked = group.referenceConfig.style_reference;
+  $("compositionRef").checked = group.referenceConfig.composition_reference;
+  $("identityRef").checked = group.referenceConfig.identity_reference;
+  $("otherRef").value = group.referenceConfig.other || "";
+  $("tags").value = group.tags.join(",");
+  $("notes").value = group.notes || "";
+}
+
+function saveGroupEditor() {
+  const group = activeGroup();
+  if (!group) return;
+  group.groupName = slugify($("groupName").value);
+  group.status = $("groupStatus").value;
+  group.referenceDependencyLevel = $("dependency").value;
+  group.testModeRecommendation = $("testMode").value;
+  group.referenceConfig = {
+    template_reference: $("templateRef").checked,
+    style_reference: $("styleRef").checked,
+    composition_reference: $("compositionRef").checked,
+    identity_reference: $("identityRef").checked,
+    other: $("otherRef").value.trim()
+  };
+  group.tags = $("tags").value.split(",").map(v => v.trim()).filter(Boolean);
+  group.notes = $("notes").value.trim();
+  state.dirty = true;
+  renderAll();
+}
+
+function assignSelected() {
+  const group = activeGroup();
+  if (!group || state.selectedIds.size === 0) return;
+  for (const img of state.images) {
+    if (state.selectedIds.has(img.id)) img.groupId = group.id;
+  }
+  state.selectedIds.clear();
+  state.dirty = true;
+  renderAll();
+}
+
+function unassignSelected() {
+  for (const img of state.images) {
+    if (state.selectedIds.has(img.id)) img.groupId = "";
+  }
+  state.selectedIds.clear();
+  state.dirty = true;
+  renderAll();
+}
+
+function deleteActiveGroup() {
+  const group = activeGroup();
+  if (!group) return;
+  if (!confirm(`删除分组 ${group.groupName}？图片不会被删除，只会变为未分组。`)) return;
+  for (const img of state.images) {
+    if (img.groupId === group.id) img.groupId = "";
+  }
+  state.groups = state.groups.filter(g => g.id !== group.id);
+  state.activeGroupId = state.groups[0]?.id || "";
+  state.dirty = true;
+  renderAll();
+}
+
+function filteredImages() {
+    const q = els.search.value.trim().toLowerCase();
+    const groupFilter = els.groupFilter.value;
+    const statusFilter = els.statusFilter.value;
+    return state.images.filter(img => {
+      const group = state.groups.find(g => g.id === img.groupId);
+    if (groupFilter === "unassigned" && img.groupId) return false;
+    if (groupFilter && groupFilter !== "unassigned" && img.groupId !== groupFilter) return false;
+    if (statusFilter === "unassigned" && img.groupId) return false;
+    if (statusFilter && statusFilter !== "unassigned" && group?.status !== statusFilter) return false;
+    if (!q) return true;
+    const haystack = [img.fileName, img.relativePath, group?.groupName, ...(group?.tags || [])].join(" ").toLowerCase();
+    return haystack.includes(q);
+  });
+}
+
+function renderGroups() {
+  els.groups.innerHTML = "";
+  for (const group of state.groups) {
+    const item = document.createElement("div");
+    item.className = `group-item ${group.id === state.activeGroupId ? "active" : ""}`;
+    item.onclick = () => { state.activeGroupId = group.id; renderAll(); };
+    const count = imagesInGroup(group.id).length;
+    item.innerHTML = `
+      <div class="group-title"><span>${group.groupName}</span><span>${count}</span></div>
+      <div class="hint">${group.status} · ${group.referenceDependencyLevel} · ${group.testModeRecommendation}</div>
+      <div>${group.tags.map(t => `<span class="pill">${escapeHtml(t)}</span>`).join(" ")}</div>
+    `;
+    els.groups.appendChild(item);
+  }
+  els.groupFilter.innerHTML = `<option value="">全部分组</option><option value="unassigned">未分组</option>`;
+  for (const group of state.groups) {
+    const option = document.createElement("option");
+    option.value = group.id;
+    option.textContent = group.groupName;
+    els.groupFilter.appendChild(option);
+  }
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+}
+
+function renderGrid() {
+  const images = filteredImages();
+  state.visibleIds = images.map(img => img.id);
+  els.grid.innerHTML = "";
+  const fragment = document.createDocumentFragment();
+  for (const img of images) {
+    const group = state.groups.find(g => g.id === img.groupId);
+    const card = document.createElement("div");
+    card.className = `card ${state.selectedIds.has(img.id) ? "selected" : ""}`;
+    card.dataset.id = img.id;
+    card.innerHTML = `
+      <img class="thumb" loading="lazy" alt="">
+      <div class="meta">
+        <strong title="${escapeHtml(img.fileName)}">${escapeHtml(img.fileName)}</strong>
+        <span title="${escapeHtml(img.relativePath)}">${escapeHtml(img.relativePath)}</span><br>
+        <span>${group ? escapeHtml(group.groupName) : "未分组"}</span>
+      </div>`;
+    card.onclick = (event) => {
+      if (event.shiftKey) {
+        state.selectedIds.add(img.id);
+      } else if (state.selectedIds.has(img.id)) {
+        state.selectedIds.delete(img.id);
+      } else {
+        state.selectedIds.add(img.id);
+      }
+      renderGrid();
+    };
+    fragment.appendChild(card);
+  }
+  els.grid.appendChild(fragment);
+  hydrateVisibleThumbnails();
+  setStatus(`${state.images.length} 张图片 · 当前显示 ${images.length} · 已选 ${state.selectedIds.size}`);
+}
+
+function hydrateVisibleThumbnails() {
+  const observer = new IntersectionObserver(async entries => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const imgEl = entry.target;
+      observer.unobserve(imgEl);
+      const id = imgEl.closest(".card").dataset.id;
+      const item = state.images.find(img => img.id === id);
+      if (!item) continue;
+      let url = state.objectUrls.get(id);
+      if (!url) {
+        const file = await item.handle.getFile();
+        url = URL.createObjectURL(file);
+        state.objectUrls.set(id, url);
+      }
+      imgEl.src = url;
+    }
+  }, { root: els.grid, rootMargin: "300px" });
+  els.grid.querySelectorAll("img.thumb").forEach(img => observer.observe(img));
+}
+
+function renderAll() {
+  renderGroups();
+  updateGroupEditor();
+  renderGrid();
+}
+
+function workspaceObject(includeHashes = false) {
+  return {
+    schemaVersion: "1.0",
+    artifactType: "batch_review_workspace",
+    createdAt: new Date().toISOString(),
+    rootName: state.rootName,
+    images: state.images.map(img => ({
+      id: img.id,
+      fileName: img.fileName,
+      relativePath: img.relativePath,
+      size: img.size,
+      lastModified: img.lastModified,
+      sourceSha256: includeHashes ? img.sourceSha256 : "",
+      groupId: img.groupId
+    })),
+    groups: state.groups.map(groupWithImageIds)
+  };
+}
+
+function groupWithImageIds(group) {
+  return {
+    id: group.id,
+    groupName: group.groupName,
+    imageIds: imagesInGroup(group.id).map(img => img.id),
+    status: group.status,
+    referenceConfig: group.referenceConfig,
+    referenceDependencyLevel: group.referenceDependencyLevel,
+    testModeRecommendation: group.testModeRecommendation,
+    tags: group.tags,
+    notes: group.notes
+  };
+}
+
+function manifestObject() {
+  return {
+    schemaVersion: "1.0",
+    artifactType: "batch_review_manifest",
+    createdAt: new Date().toISOString(),
+    rootName: state.rootName,
+    totals: {
+      images: state.images.length,
+      groups: state.groups.length,
+      unassigned: state.images.filter(img => !img.groupId).length
+    },
+    groups: state.groups.map(group => ({
+      groupName: group.groupName,
+      status: group.status,
+      referenceConfig: group.referenceConfig,
+      referenceDependencyLevel: group.referenceDependencyLevel,
+      testModeRecommendation: group.testModeRecommendation,
+      tags: group.tags,
+      notes: group.notes,
+      imageCount: imagesInGroup(group.id).length,
+      images: imagesInGroup(group.id).map(img => ({
+        id: img.id,
+        fileName: img.fileName,
+        relativePath: img.relativePath,
+        sourceSha256: img.sourceSha256 || ""
+      }))
+    }))
+  };
+}
+
+async function writeTextFile(dirHandle, name, data) {
+  const fileHandle = await dirHandle.getFileHandle(name, { create: true });
+  const writable = await fileHandle.createWritable();
+  await writable.write(data);
+  await writable.close();
+}
+
+async function ensureHashes() {
+  let done = 0;
+  for (const img of state.images) {
+    if (!img.sourceSha256) {
+      const file = await img.handle.getFile();
+      img.sourceSha256 = await digestFile(file);
+    }
+    done += 1;
+    if (done % 20 === 0) setStatus(`正在计算 hash ${done}/${state.images.length} ...`);
+  }
+}
+
+async function saveJson() {
+  if (!state.rootHandle) return;
+  await ensureHashes();
+  await writeTextFile(state.rootHandle, "batch-workspace.json", JSON.stringify(workspaceObject(true), null, 2));
+  await writeTextFile(state.rootHandle, "batch-manifest.json", JSON.stringify(manifestObject(), null, 2));
+  for (const group of state.groups) {
+    const dir = await state.rootHandle.getDirectoryHandle(group.groupName, { create: true });
+    const config = { ...groupWithImageIds(group), imageCount: imagesInGroup(group.id).length };
+    await writeTextFile(dir, "group-config.json", JSON.stringify(config, null, 2));
+  }
+  state.dirty = false;
+  setStatus("JSON 已写入素材目录和各分组目录。");
+}
+
+async function copyFilesToGroups() {
+  if (!state.rootHandle) return;
+  await saveJson();
+  for (const group of state.groups) {
+    const dir = await state.rootHandle.getDirectoryHandle(group.groupName, { create: true });
+    const imgs = imagesInGroup(group.id);
+    let index = 0;
+    for (const img of imgs) {
+      index += 1;
+      const file = await img.handle.getFile();
+      const out = await dir.getFileHandle(`${img.id}-${img.fileName}`, { create: true });
+      const writable = await out.createWritable();
+      await writable.write(file);
+      await writable.close();
+      if (index % 10 === 0) setStatus(`正在复制 ${group.groupName}: ${index}/${imgs.length}`);
+    }
+  }
+  setStatus("已复制图片到分组目录；原文件未删除。");
+}
+
+function downloadBackup() {
+  const data = {
+    workspace: workspaceObject(false),
+    manifest: manifestObject()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `meme-batch-backup-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function debounce(fn, wait = 120) {
+  let timer = 0;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), wait);
+  };
+}
+
+$("pickRoot").onclick = () => pickRoot().catch(err => setStatus(`选择失败：${err.message}`));
+$("newGroup").onclick = () => { createGroup("新分组", true); renderAll(); };
+$("deleteGroup").onclick = deleteActiveGroup;
+$("assignSelected").onclick = assignSelected;
+$("unassignSelected").onclick = unassignSelected;
+$("saveGroup").onclick = saveGroupEditor;
+$("saveJson").onclick = () => saveJson().catch(err => setStatus(`写入失败：${err.message}`));
+$("copyFiles").onclick = () => {
+  if (confirm("会把已分组图片复制到对应分组目录，原文件不会删除。继续？")) {
+    copyFilesToGroups().catch(err => setStatus(`复制失败：${err.message}`));
+  }
+};
+$("downloadJson").onclick = downloadBackup;
+$("selectVisible").onclick = () => { state.visibleIds.forEach(id => state.selectedIds.add(id)); renderGrid(); };
+$("clearSelection").onclick = () => { state.selectedIds.clear(); renderGrid(); };
+els.search.oninput = debounce(renderGrid);
+els.groupFilter.onchange = renderGrid;
+els.statusFilter.onchange = renderGrid;
+window.addEventListener("beforeunload", event => {
+  if (!state.dirty) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
+setButtons(false);
+updateGroupEditor();
+</script>
+</body>
+</html>
