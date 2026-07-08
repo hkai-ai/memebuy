@@ -49,6 +49,8 @@
   "templateId": "short_snake_case_id",
   "title": "",
   "summary": "",
+  "templateSource": {},
+  "userSubjectInput": {},
   "templateText": "这是一只【主体：狗】在吃【食物：哈密瓜】",
   "editablePrompt": "这是一只狗在吃哈密瓜",
   "allowFullRewrite": true,
@@ -63,6 +65,8 @@
 字段规则：
 
 - `templateText`: 使用 `【槽位：默认值】` 标记变量，供前端显示槽位边界。
+- `templateSource`: 模板资产图，不等同于用户上传图；默认 `role: "template_reference"`，用于封装源梗图的结构、构图、排布、风格和保留约束。
+- `userSubjectInput`: 用户主体输入的统一抽象；可以是文字、用户上传图片、素材选择或默认主体。
 - `editablePrompt`: 当前整段提示词。用户可以整段删除、重写或只改槽位。
 - `allowFullRewrite`: 必须为 `true`，除非用户明确要求锁定整段 prompt。
 - `slots[]`: 前端表单控件定义；文本和图片槽统一放在这里。
@@ -70,6 +74,70 @@
 - `imageRefs[]`: 当前可用图片引用，包括源图、用户上传、用户选择、mock 上传。
 - `backendHint`: 后端拼接建议，不绑定具体图像模型 API。
 - `analysis`: 可选内嵌分析，包括 `meme_formula`、`slot_minimization_review`、`co_variation_constraints`、`fusion_model`。
+
+## Template Source Object
+
+`templateSource` 描述模板自带源图。它不是用户每次上传的图，而是模板资产。只要模板封装了源梗图，就应写入该对象。
+
+```json
+{
+  "id": "source_meme_image",
+  "role": "template_reference",
+  "path": "",
+  "authority": {
+    "composition_authority": "high | medium | low | none",
+    "style_authority": "high | medium | low | none",
+    "identity_authority": "high | medium | low | none"
+  },
+  "preserve": [
+    "vertical_crop",
+    "center_subject_position",
+    "foreground_occlusion",
+    "arrangement_pattern"
+  ],
+  "locked_composition_constraints": [
+    {
+      "id": "arrangement_pattern",
+      "label": "排布方式",
+      "value": "规整行列墙面",
+      "description": "周围重复物按近似行列、货架或墙面矩阵排布，而不是随机堆叠。"
+    }
+  ],
+  "doNotUseFor": ["user_identity"]
+}
+```
+
+规则：
+
+- `template_reference` 的 `composition_authority` 默认高于用户上传图。
+- `arrangement_pattern`、文字位置、镜头裁切、前景遮挡、中心主体位置如果是梗成立关键，必须写入 `preserve` 或 `locked_composition_constraints`。
+- 不要把“规整排布”误写成“每个元素的精确位置”。前者是模板结构，后者通常不是前端槽位。
+
+## User Subject Input Object
+
+`userSubjectInput` 统一描述用户想替换或生成的主体。用户可能上传图，也可能只输入文本。
+
+```json
+{
+  "slotId": "target_subject",
+  "acceptedInputKinds": ["text", "image_upload", "image_select"],
+  "currentKind": "text | image_upload | image_select | default",
+  "textValue": "",
+  "imageRefId": "",
+  "authority": {
+    "semantic_authority": "high | medium | low | none",
+    "identity_authority": "high | medium | low | none",
+    "composition_authority": "none"
+  },
+  "fallback": "使用模板默认主体"
+}
+```
+
+规则：
+
+- 用户上传图片或选择素材时，通常只提供 `identity_authority`，不要覆盖 `templateSource` 的构图权限。
+- 用户只输入“一条狗”“某个角色名”时，使用 `semantic_authority`，并在 reference-aware prompt 中说明主体来自文字描述。
+- 用户不提供主体时，使用默认主体或槽位默认值，不要伪造 mock 上传图。
 
 ## Frontend Slot Object
 
@@ -182,6 +250,28 @@
   "strategy": "compose_edit_instruction",
   "inputSummary": "后端读取 editablePrompt、slots 当前值和 imageRefs，拼接成图像编辑模型的指令。",
   "exampleInstruction": "参考图1，将小狗改为小猪，让小猪在吃西瓜。",
+  "generationModes": {
+    "reference_aware_prompt": {
+      "default": true,
+      "templateSourcePolicy": {
+        "role": "template_reference",
+        "authority": ["composition_authority", "style_authority"],
+        "mustPreserve": ["arrangement_pattern", "center_subject_position", "foreground_occlusion"]
+      },
+      "userInputPolicy": {
+        "text": "按文字语义生成或替换主体。",
+        "image_upload": "只提取身份线索，不覆盖模板构图。",
+        "image_select": "按素材身份线索替换主体。",
+        "default": "使用模板默认主体。"
+      },
+      "promptSkeleton": "Use template image as composition reference; preserve {locked_composition_constraints}. Use user subject input as {authority}; edit {editable_slots}."
+    },
+    "prompt_mode": {
+      "alias": "text_only_prompt",
+      "promptMustInclude": ["arrangement_pattern", "camera_crop", "foreground_occlusion", "style_notes"],
+      "promptMustAvoid": ["random pile", "scattered heap", "using user image as layout reference"]
+    }
+  },
   "imageReferencePolicy": [
     "identity_reference 用于保留用户上传主体身份。",
     "edit_target 用于直接编辑目标图。",
@@ -192,6 +282,8 @@
 ```
 
 `backendHint` 不绑定 OpenAI、Cloudflare、ComfyUI 或其他图像 API。后端可以自由把 `editablePrompt + slots + imageRefs` 转成实际请求。
+
+`generationModes.reference_aware_prompt` 是有模板资产图时的默认编译路径。它把同一份用户输入转换成带参考图约束的提示词：模板资产图负责构图和保留项，用户输入负责主体语义或身份。`generationModes.prompt_mode` / `text_only_prompt` 是无参考图或自由变体的降级路径，必须把模板结构完整文字化。
 
 ## 分析对象
 
@@ -253,6 +345,7 @@
     "missing_obvious_slots": [],
     "coverage_requirements": []
   },
+  "locked_composition_constraints": [],
   "variable_slots": []
 }
 ```
@@ -396,6 +489,7 @@
         "background": "pass | fail",
         "text": "pass | fail",
         "style": "pass | fail",
+        "arrangement_pattern": "pass | fail | partial | not_applicable",
         "watermarkAvoidance": "pass | fail",
         "differsFromSource": "pass | fail",
         "color_or_background_changed": "pass | fail | not_applicable"

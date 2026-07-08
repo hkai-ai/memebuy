@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.11.3",
+  "version": "0.12.0",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-08",
-  "notes": "Add slot_reflection_review so slot discovery must self-check semantic, text, visual, composition, image-reference, and constraint candidates before final frontend slots.",
+  "notes": "Add templateSource/userSubjectInput separation and dual backend generation compilation for reference-aware prompt and prompt_mode, including arrangement_pattern preservation.",
   "tracked_files": [
     "SKILL.md",
     "README.md",
