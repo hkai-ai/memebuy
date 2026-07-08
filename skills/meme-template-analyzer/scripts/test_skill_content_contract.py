@@ -170,6 +170,13 @@ def main() -> None:
     require(skill, "批量入库", "SKILL.md")
     require(skill, "single-image-prototype", "SKILL.md")
     require(skill, "batch-ingestion", "SKILL.md")
+    require(skill, "分析生成测试", "SKILL.md")
+    require(skill, "analyze-and-generate-test", "SKILL.md")
+    require(skill, "一键分析生成", "SKILL.md")
+    require(skill, "第 1 张覆盖用户主需求或 mock 用户输入", "SKILL.md")
+    require(skill, "第 2 张改变至少一个显性视觉变量", "SKILL.md")
+    require(skill, "第 3 张改变另一个核心槽位", "SKILL.md")
+    require(skill, "不要停在 JSON 报告", "SKILL.md")
 
     require(json_contract, "co_variation_constraints", "json-contract.md")
     require(json_contract, "dependent_slot", "json-contract.md")
@@ -216,6 +223,10 @@ def main() -> None:
     require(readme, "批量入库", "README.md")
     require(readme, "single-image-prototype", "README.md")
     require(readme, "batch-ingestion", "README.md")
+    require(readme, "分析生成测试", "README.md")
+    require(readme, "analyze-and-generate-test", "README.md")
+    require(readme, "一次完成分析和出图测试", "README.md")
+    require(readme, "直接进入真实生成测试", "README.md")
 
 
 if __name__ == "__main__":

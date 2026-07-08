@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-08",
-  "notes": "Add templateSource/userSubjectInput separation and dual backend generation compilation for reference-aware prompt and prompt_mode, including arrangement_pattern preservation.",
+  "notes": "Add analyze-and-generate-test command for one-step meme analysis plus real image generation testing.",
   "tracked_files": [
     "SKILL.md",
     "README.md",
