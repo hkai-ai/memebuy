@@ -26,7 +26,8 @@
 
 按目的选择主产物：
 
-- `image-edit-template` 默认写 `image-edit-template.json` 和 `index.md`。
+- `image-edit-template` 默认写 `meme-template.json`、`image-edit-template.json` 和 `index.md`；`meme-template.json` 是后端入库主文件，`image-edit-template.json` 是 API/editConfig 草稿。
+- `image-edit-template` 需要保留完整分析链路时，默认额外写 `image-edit-analysis.json`，不要把完整 `analysis` 塞进主文件。
 - `template`、`template-library-entry` 默认写 `meme-template.json` 和 `index.md`。
 - `batch` 默认写 `meme-template.json`、`batch-manifest.json` 和 `index.md`。
 - legacy `render-prompt-pack`、debug prompt pipeline 才写 `prompt-pack.json`。
@@ -34,7 +35,7 @@
 
 ## Image Edit Template Object
 
-`image-edit-template.json` 是面向前端的默认 schema。它让前端渲染可编辑提示词、槽位控件、候选项和图片输入；后端只根据最终编辑状态拼接图像编辑指令。
+`image-edit-template.json` 是后端 API/editConfig 草稿 schema。正式产品链路中，前端不直接读取本地 artifact；后端录入模板后，把等价的编辑配置作为 API 响应返回给前端，前端再渲染可编辑提示词、槽位控件、候选项和图片输入。后端根据最终编辑状态拼接图像编辑指令。
 
 ```json
 {
@@ -55,10 +56,9 @@
   "editablePrompt": "这是一只狗在吃哈密瓜",
   "allowFullRewrite": true,
   "slots": [],
-  "mockUserInput": {},
   "imageRefs": [],
   "backendHint": {},
-  "analysis": {}
+  "analysisRef": "image-edit-analysis.json"
 }
 ```
 
@@ -70,10 +70,59 @@
 - `editablePrompt`: 当前整段提示词。用户可以整段删除、重写或只改槽位。
 - `allowFullRewrite`: 必须为 `true`，除非用户明确要求锁定整段 prompt。
 - `slots[]`: 前端表单控件定义；文本和图片槽统一放在这里。
-- `mockUserInput`: 基于槽位生成的示例用户填写结果，不再按 hifi/free 分支生成。
+- `mockUserInput`: 可选。只在 demo、产品验收或用户明确要求 mock 时生成；普通前端运行模板和后台入库不需要它。
 - `imageRefs[]`: 当前可用图片引用，包括源图、用户上传、用户选择、mock 上传。
 - `backendHint`: 后端拼接建议，不绑定具体图像模型 API。
-- `analysis`: 可选内嵌分析，包括 `meme_formula`、`slot_minimization_review`、`co_variation_constraints`、`fusion_model`。
+- `analysisRef`: 可选分析 sidecar 路径。默认用它指向 `image-edit-analysis.json`。
+- `analysis`: 仅 debug、单文件归档或用户明确要求时内嵌；包括 `meme_formula`、`slot_minimization_review`、`co_variation_constraints`、`fusion_model`。
+
+## Runtime vs Analysis Split
+
+默认 `image-edit-template.json` 是后端可下发的编辑配置草稿，不是完整分析档案，也不是生产前端直接读取的文件。主文件应保留后端入库/API 响应和前端渲染真正需要的字段：
+
+- API/editConfig：`templateText`、`editablePrompt`、`allowFullRewrite`、`slots[]`。
+- 后端：`templateSource`、`userSubjectInput`、`imageRefs`、`backendHint`。
+- 追踪：`sourceAccess`、`analysisRef`。
+
+完整分析、自检和 QA 依据写入同目录 `image-edit-analysis.json`：
+
+```json
+{
+  "schemaVersion": "1.0",
+  "artifactType": "image_edit_analysis",
+  "createdAt": "ISO-8601 timestamp",
+  "sourceTemplate": "image-edit-template.json",
+  "templateId": "short_snake_case_id",
+  "title": "",
+  "analysis": {}
+}
+```
+
+清洗历史过长产物时，使用仓库脚本：
+
+```bash
+python skills/meme-template-analyzer/scripts/clean_image_edit_template.py artifacts/meme-template-analyzer/<id>/image-edit-template.json
+```
+
+默认输出 `image-edit-template.clean.json` 和 `image-edit-analysis.json`，不覆盖原文件。只需要模拟后端 API 返回给前端的字段时可加 `--profile frontend` 输出 `image-edit-template.frontend.json`。
+
+清洗脚本默认删除 `mockUserInput`。如需 demo 或验收预览，加 `--keep-mock-user-input`。
+
+从历史编辑配置草稿补生成入库主文件时，使用：
+
+```bash
+python skills/meme-template-analyzer/scripts/convert_image_edit_to_meme_template.py artifacts/meme-template-analyzer/<id>/image-edit-template.json
+```
+
+转换脚本默认输出最小后端记录，只保留：
+
+- `version`、`key`、`title`、`description`
+- `taxonomy`
+- `assets`
+- `editConfig`
+- `ingestion`
+
+默认不写 `inputs`、`prompt`、`modes`、`generationFit`、`output`、`backendHint`、`mockUserInput`、`slots[].ui`、`suggestions[].reason`。旧后台兼容字段用 `--include-legacy` 输出；后端生成策略用 `--include-backend-hint` 输出。
 
 ## Template Source Object
 
@@ -152,11 +201,9 @@
   "currentValue": "狗",
   "placeholder": "输入新的主体",
   "suggestions": [
-    {
-      "value": "小猪",
-      "label": "小猪",
-      "reason": "与原句结构兼容，适合替换主体。"
-    }
+    "小猪",
+    "猫",
+    "柯基犬"
   ],
   "allowCustom": true,
   "bindsToTemplateText": true,
@@ -170,11 +217,7 @@
     "maxLength": 40,
     "allowedMimeTypes": []
   },
-  "ui": {
-    "group": "main",
-    "order": 1,
-    "helperText": ""
-  }
+  "ui": {}
 }
 ```
 
@@ -196,6 +239,18 @@
 - `composition_reference`: 提取构图、镜头、布局或文字位置。
 
 显性视觉变量槽位可使用 `slotRole: "visual_variable"` 标记，尤其是颜色、背景、主体色、文字色、画幅、主体数量、文字位置等前端用户一眼会感知的属性。此类槽位可以同时保留具体语义，例如在 `ui.helperText` 或 `validation` 中说明它是背景色、主色调还是文字色。
+
+`suggestions` 默认使用 `string[]`。不要在普通前端运行模板里写重复的 `{ "value": "小猪", "label": "小猪" }`，也不要默认写 `reason`。只有候选值和展示名不同、需要后台解释或 debug 时，才使用对象：
+
+```json
+{
+  "suggestions": [
+    {"value": "corgi", "label": "柯基犬", "reason": "后台审核解释，可选"}
+  ]
+}
+```
+
+`ui` 是可选字段。普通前端编辑器可以按数组顺序、`inputKind`、`slotRole` 和 `templateText` 渲染，不需要默认写 `group`、`order`、`helperText`。只有后台配置页、强绑定布局或需要运营提示时才写 `ui`。
 
 图片槽位必须填写 `extract`、`maxCount`、`private`、`sourceOptions`。例如：
 
@@ -287,7 +342,7 @@
 
 ## 分析对象
 
-这些对象用于 `image-edit-template.json.analysis`、debug 输出或 legacy prompt pack 内嵌结构，不默认暴露为前端必填字段。
+这些对象用于 `image-edit-analysis.json`、debug 输出或 legacy prompt pack 内嵌结构，不默认暴露为前端必填字段。只有单文件归档或用户明确要求时，才放入 `image-edit-template.json.analysis`。
 
 ### Template Object
 

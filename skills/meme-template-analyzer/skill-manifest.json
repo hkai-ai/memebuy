@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.14.0",
+  "version": "0.16.0",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
-  "updated_at": "2026-07-09",
-  "notes": "Add standalone Chrome batch workbench HTML for local image grouping, reference-role configuration, and direct JSON writeback.",
+  "updated_at": "2026-07-10",
+  "notes": "Make meme-template.json the default compact ingestion artifact, remove redundant legacy fields by default, and keep optional converter flags for legacy/backend hints.",
   "tracked_files": [
     "SKILL.md",
     "README.md",
@@ -14,6 +14,8 @@
     "references/json-contract.md",
     "references/stability-testset-contract.md",
     "assets/batch-workbench.html",
+    "scripts/clean_image_edit_template.py",
+    "scripts/convert_image_edit_to_meme_template.py",
     "scripts/test_skill_content_contract.py",
     "scripts/validate_stability_testset.py",
     "scripts/test_validate_stability_testset.py"

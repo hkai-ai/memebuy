@@ -1,13 +1,13 @@
 # Gallery Template Authoring Contract
 
-本文件用于后台录入、批量入库和 `meme-template.json`。新默认前端图片编辑交付应优先使用 `image-edit-template.json`；后台 authoring 只在用户明确要求入库、批量模板或 seed 脚本时使用。
+本文件用于后台录入、批量入库和 `meme-template.json`。正式产品链路以后端为 source of truth：后台录入 `meme-template.json`，前端从后端 API 拉取模板编辑配置后渲染。`image-edit-template.json` 只是本地 artifact、审查草稿或 API/editConfig 草稿，不是生产前端直接读取的文件。
 
 ## Purpose 路由
 
 | purpose | 触发场景 | 主输出 |
 | --- | --- | --- |
-| `frontend_editing` | 图片编辑方案、前端编辑模板、用户可编辑提示词、用户上传/选择图槽位。 | `image-edit-template.json`，详见 `references/json-contract.md`。 |
-| `authoring` | 用户要识别模板内容、批量生成模板、录入后台、产出 gallery template、template-library-entry。 | `meme-template.json`，格式为业务收集 JSON v1。 |
+| `frontend_editing` | 图片编辑方案、前端编辑配置、用户可编辑提示词、用户上传/选择图槽位。 | `image-edit-template.json` 作为后端 API/editConfig 草稿，详见 `references/json-contract.md`。 |
+| `authoring` | 用户要识别模板内容、批量生成模板、录入后台、产出 gallery template、template-library-entry。 | `meme-template.json`，格式为业务收集 JSON v1，可包含 `editConfig`。 |
 | `debug` | 用户要调试 skill、查看 VLM mock、slot binding、prompt template、legacy rendered prompt。 | 展开中间 JSON 文件和可选 `_analysis`。 |
 
 快速解释、预览或评审模板，默认归入 `frontend_editing`。只有明确要求后台模板时才走 `authoring`。
@@ -43,6 +43,56 @@ index.md
 
 ## 业务收集 JSON v1
 
+默认入库记录应使用最小结构，避免每个模板存储重复的 prompt/inputs/legacy 模式：
+
+```json
+{
+  "version": 1,
+  "key": "",
+  "title": "",
+  "description": "",
+  "taxonomy": {
+    "category": "",
+    "templateMechanism": "",
+    "scenes": [],
+    "topics": [],
+    "styles": [],
+    "emotions": [],
+    "useCases": [],
+    "series": [],
+    "parentTemplateKey": "",
+    "variantName": "",
+    "needs_review": []
+  },
+  "assets": {
+    "templateImage": "",
+    "cover": "",
+    "exampleWorks": []
+  },
+  "editConfig": {
+    "templateText": "",
+    "editablePrompt": "",
+    "allowFullRewrite": true,
+    "slots": [],
+    "templateSource": {}
+  },
+  "ingestion": {
+    "sourceId": "",
+    "sourcePath": "",
+    "sourceSha256": "",
+    "sourceArtifact": "",
+    "status": "ready_for_import | needs_human_review | skipped",
+    "notes": []
+  }
+}
+```
+
+默认不要写 `inputs`、`prompt`、`modes`、`generationFit`、`output`、`backendHint`、`mockUserInput`、`slots[].ui`、`suggestions[].reason`。如果旧后台仍需要兼容字段，转换脚本使用 `--include-legacy`；如果后端需要把 prompt 编译策略随模板存储，使用 `--include-backend-hint`。
+
+### Legacy 兼容 JSON
+
+以下结构仅用于旧后台或历史批量入库兼容，不是默认输出：
+
 ```json
 {
   "version": 1,
@@ -72,6 +122,14 @@ index.md
   "prompt": {
     "master": "",
     "slots": []
+  },
+  "editConfig": {
+    "templateText": "",
+    "editablePrompt": "",
+    "allowFullRewrite": true,
+    "slots": [],
+    "imageRefs": [],
+    "backendHint": {}
   },
   "modes": {
     "hifi": {
@@ -106,7 +164,7 @@ index.md
 }
 ```
 
-`modes.hifi`、`modes.free` 和 `generationFit` 是 legacy 兼容字段，用于已有后台或历史批量入库。不要让这些字段决定新 `image-edit-template.json` 的前端编辑体验。
+`inputs`、`prompt`、`modes.hifi`、`modes.free`、`generationFit` 和 `output` 是 legacy 兼容字段，用于已有后台或历史批量入库。不要让这些字段决定新 `editConfig` 的前端编辑体验。
 
 ## 字段规则
 
@@ -114,42 +172,45 @@ index.md
 - `topic`、`title`、`description`: 面向 C 端展示，中文优先。
 - `taxonomy`: 面向搜索、瀑布流、专题页和运营组织，不替代模板本质边界；不确定项写入 `needs_review`。
 - `assets.templateImage`: 模板原图或代表图。没有素材 URL 时填本地 artifact 路径或空字符串，并在 `index.md` 标注缺口。
-- `inputs`: 后台需要的内容，建议不超过 3 个。新前端槽位应优先写入 `image-edit-template.json.slots[]`。
-- `prompt.master`: 完整画面描述，使用 `【槽位名：原文】` 标记可变部分。
-- `prompt.slots`: 每个槽写 `id`、`policy` 和 `from`。`policy` 只能是 `required` 或 `extensible`。
+- `inputs`: legacy 字段；新后台默认从 `editConfig.slots[]` 读取。
+- `prompt.master`: legacy 字段；新后台默认使用 `editConfig.templateText`。
+- `prompt.slots`: legacy 字段；新后台默认使用 `editConfig.slots[]`。
+- `editConfig`: 可选但推荐。它是后端入库后可直接下发给前端编辑器的轻量配置，来源等价于清洗后的 `image-edit-template.json`；默认不包含 `analysis`、`mockUserInput`、`slots[].ui` 和 `suggestions[].reason`。
 - `output`: 默认 `{ "size": "1024x1024", "n": 1 }`。
 
-## 前端编辑模板映射
+## 后端入库与前端编辑模板映射
 
-当同一模板需要给前端使用时，优先输出 `image-edit-template.json`。从后台模板映射到前端编辑模板时：
+当同一模板需要给前端编辑器使用时，优先把编辑配置作为 `meme-template.json.templates[].editConfig` 或后端等价字段入库。前端不直接读 artifact，而是从后端 API 获取这个配置。从后台模板映射到 `editConfig` 时：
 
 - `prompt.master` -> `templateText`。
 - `prompt.master` 去掉槽位标记并代入默认值 -> `editablePrompt`。
 - `prompt.slots[]` -> `slots[]`，每个槽补齐 `inputKind`、`slotRole`、`defaultValue`、`currentValue`、`suggestions` 和 `allowCustom`。
 - `inputs[]` 中的图片输入 -> `inputKind: image_upload` 或 `image_select`，并写入 `extract`、`maxCount`、`private`、`sourceOptions`。
 - 后台 `modes.hifi/free` 不映射成前端模式开关；如需保留，只写入 `backendHint.notes` 或 legacy 附注。
-- 前端必须设置 `allowFullRewrite: true`，允许用户整段删除、重写或只改槽位。
+- API 返回的编辑配置必须设置 `allowFullRewrite: true`，允许用户整段删除、重写或只改槽位。
 
 示例：
 
 ```json
 {
-  "templateText": "这是一只【主体：狗】在吃【食物：哈密瓜】",
-  "editablePrompt": "这是一只狗在吃哈密瓜",
-  "allowFullRewrite": true,
-  "slots": [
-    {
-      "id": "subject",
-      "label": "主体",
-      "inputKind": "text",
-      "slotRole": "semantic_replacement",
-      "defaultValue": "狗",
-      "currentValue": "狗",
-      "suggestions": [{"value": "小猪", "label": "小猪"}],
-      "allowCustom": true,
-      "required": true
-    }
-  ]
+  "editConfig": {
+    "templateText": "这是一只【主体：狗】在吃【食物：哈密瓜】",
+    "editablePrompt": "这是一只狗在吃哈密瓜",
+    "allowFullRewrite": true,
+    "slots": [
+      {
+        "id": "subject",
+        "label": "主体",
+        "inputKind": "text",
+        "slotRole": "semantic_replacement",
+        "defaultValue": "狗",
+        "currentValue": "狗",
+        "suggestions": ["小猪", "猫"],
+        "allowCustom": true,
+        "required": true
+      }
+    ]
+  }
 }
 ```
 
@@ -276,7 +337,7 @@ batch-manifest.json
 - 直接写回每组目录的 `group-config.json`。
 - 用户可选复制素材到分组目录，原文件不删除。
 - 不提供删除源文件或移动源文件能力。
-- 后续生成 `meme-template.json` 或 `image-edit-template.json` 时，优先读取每组的 `group-config.json`。如果 `referenceDependencyLevel` 为 `high` 或 `blocked`，不要把纯文本生成测试当成代表性验证；应记录需要 reference-aware 后端。
+- 后续生成 `meme-template.json` 或 API/editConfig 草稿时，优先读取每组的 `group-config.json`。如果 `referenceDependencyLevel` 为 `high` 或 `blocked`，不要把纯文本生成测试当成代表性验证；应记录需要 reference-aware 后端。
 
 ## Key 规范
 
