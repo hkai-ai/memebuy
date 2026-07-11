@@ -1,7 +1,9 @@
+import json
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = ROOT.parents[1]
 
 
 def read(name: str) -> str:
@@ -16,264 +18,195 @@ def require(text: str, needle: str, source: str) -> None:
 def main() -> None:
     skill = read("SKILL.md")
     json_contract = read("references/json-contract.md")
-    stability_contract = read("references/stability-testset-contract.md")
     gallery_contract = read("references/gallery-authoring-contract.md")
-    batch_workbench = read("assets/batch-workbench.html")
+    slot_design = read("references/slot-and-visual-design.md")
+    reference_authority = read("references/reference-authority.md")
+    prompt_validation = read("references/prompt-and-validation.md")
+    generation_testing = read("references/generation-testing.md")
+    batch_review = read("references/batch-and-review.md")
+    stability_contract = read("references/stability-testset-contract.md")
     readme = read("README.md")
-    business_doc = (ROOT.parents[1] / "docs" / "梗图模板业务使用说明.md").read_text(encoding="utf-8")
-    taxonomy_doc = (ROOT.parents[1] / "docs" / "梗图模板库分类逻辑说明.md").read_text(encoding="utf-8")
+    business_doc = (REPO_ROOT / "docs" / "梗图模板业务使用说明.md").read_text(encoding="utf-8")
+    taxonomy_doc = (REPO_ROOT / "docs" / "梗图模板库分类逻辑说明.md").read_text(encoding="utf-8")
+    batch_workbench = read("assets/batch-workbench.html")
+    schema = json.loads(read("references/gallery-template-import.schema.json"))
+    sample = json.loads(read("references/gallery-template-import.sample.json"))
+    manifest = json.loads(read("skill-manifest.json"))
 
-    require(skill, "image-edit-template", "SKILL.md")
-    require(skill, "image-edit-template.json", "SKILL.md")
-    require(skill, "前端编辑模板", "SKILL.md")
-    require(skill, "editablePrompt", "SKILL.md")
-    require(skill, "allowFullRewrite", "SKILL.md")
-    require(skill, "templateText", "SKILL.md")
-    require(skill, "mockUserInput", "SKILL.md")
-    require(skill, "inputKind", "SKILL.md")
-    require(skill, "slotRole", "SKILL.md")
-    require(skill, "semantic_replacement", "SKILL.md")
-    require(skill, "identity_reference", "SKILL.md")
-    require(skill, "edit_target", "SKILL.md")
-    require(skill, "style_reference", "SKILL.md")
-    require(skill, "composition_reference", "SKILL.md")
-    require(skill, "image_upload", "SKILL.md")
-    require(skill, "image_select", "SKILL.md")
-    require(skill, "suggestions", "SKILL.md")
-    require(skill, "用户可以整段删除、重写或只改槽位", "SKILL.md")
-    require(skill, "后端拼接", "SKILL.md")
-    require(skill, "参考图1，将小狗改为小猪，让小猪在吃西瓜", "SKILL.md")
-    require(skill, "legacy", "SKILL.md")
-    require(skill, "`prompt-pack.json` 不再是默认主产物", "SKILL.md")
-    require(skill, "真实生成测试", "SKILL.md")
-    require(skill, "默认生成 3 张明显不同于原图的结果图", "SKILL.md")
-    require(skill, "每张结果必须记录完整 `prompt`", "SKILL.md")
-    require(skill, "不要只记录 promptSummary", "SKILL.md")
-    require(skill, "generation-results.json", "SKILL.md")
-    require(skill, "显性视觉变量", "SKILL.md")
-    require(skill, "颜色、背景、主体色、文字色", "SKILL.md")
-    require(skill, "默认提升为前端槽位", "SKILL.md")
-    require(skill, "至少 1 张必须改变颜色或背景槽", "SKILL.md")
-    require(skill, "slot_reflection_review", "SKILL.md")
-    require(skill, "反思逻辑", "SKILL.md")
-    require(skill, "candidate_scan", "SKILL.md")
-    require(skill, "missing_obvious_slots", "SKILL.md")
-    require(skill, "coverage_requirements", "SKILL.md")
-    require(skill, "templateSource", "SKILL.md")
-    require(skill, "template_reference", "SKILL.md")
-    require(skill, "userSubjectInput", "SKILL.md")
-    require(skill, "reference-aware prompt", "SKILL.md")
-    require(skill, "prompt_mode", "SKILL.md")
-    require(skill, "arrangement_pattern", "SKILL.md")
-    require(skill, "模板资产图", "SKILL.md")
-    require(skill, "用户主体输入", "SKILL.md")
-    require(skill, "composition_authority", "SKILL.md")
-    require(skill, "identity_authority", "SKILL.md")
+    for needle in [
+        "GalleryTemplateImport",
+        "meme-template.json",
+        "image-edit-template.json",
+        "强制门禁",
+        "请求路由",
+        "Reference 导航",
+        "默认单图流程",
+        "编译与验证",
+        "用户原图默认直通生成",
+        "validate_gallery_template.py",
+        "一个模板一个",
+    ]:
+        require(skill, needle, "SKILL.md")
 
-    require(json_contract, "Image Edit Template Object", "json-contract.md")
-    require(json_contract, "image_edit_template", "json-contract.md")
-    require(json_contract, "templateText", "json-contract.md")
-    require(json_contract, "editablePrompt", "json-contract.md")
-    require(json_contract, "allowFullRewrite", "json-contract.md")
-    require(json_contract, "mockUserInput", "json-contract.md")
-    require(json_contract, "inputKind", "json-contract.md")
-    require(json_contract, "slotRole", "json-contract.md")
-    require(json_contract, "sourceOptions", "json-contract.md")
-    require(json_contract, "backendHint", "json-contract.md")
-    require(json_contract, "Prompt Pack Object 是 legacy/debug 结构", "json-contract.md")
-    require(json_contract, "Image Generation Results Object", "json-contract.md")
-    require(json_contract, "\"prompt\":", "json-contract.md")
-    require(json_contract, "mustDifferFromSource", "json-contract.md")
-    require(json_contract, "variantIntent", "json-contract.md")
-    require(json_contract, "visual_variable", "json-contract.md")
-    require(json_contract, "color_or_background_changed", "json-contract.md")
-    require(json_contract, "slot_reflection_review", "json-contract.md")
-    require(json_contract, "candidate_scan", "json-contract.md")
-    require(json_contract, "missing_obvious_slots", "json-contract.md")
-    require(json_contract, "coverage_requirements", "json-contract.md")
-    require(json_contract, "templateSource", "json-contract.md")
-    require(json_contract, "template_reference", "json-contract.md")
-    require(json_contract, "userSubjectInput", "json-contract.md")
-    require(json_contract, "generationModes", "json-contract.md")
-    require(json_contract, "reference_aware_prompt", "json-contract.md")
-    require(json_contract, "prompt_mode", "json-contract.md")
-    require(json_contract, "text_only_prompt", "json-contract.md")
-    require(json_contract, "arrangement_pattern", "json-contract.md")
-    require(json_contract, "composition_authority", "json-contract.md")
-    require(json_contract, "identity_authority", "json-contract.md")
+    for needle in [
+        "templateText",
+        "editablePrompt",
+        "allowFullRewrite",
+        "slots[]",
+        "slot_reflection_review",
+        "templateSource",
+        "userSubjectInput",
+        "image-edit-analysis.json",
+    ]:
+        require(skill, needle, "SKILL.md")
 
-    require(gallery_contract, "前端编辑模板映射", "gallery-authoring-contract.md")
-    require(gallery_contract, "image-edit-template.json", "gallery-authoring-contract.md")
-    require(gallery_contract, "modes.hifi", "gallery-authoring-contract.md")
-    require(gallery_contract, "legacy", "gallery-authoring-contract.md")
+    for needle in [
+        "分析生成测试",
+        "3 张明显不同",
+        "generation-results.json",
+        "完整 `prompt`",
+        "template-review-page",
+        "batch-review-workbench",
+        "batch-manifest.json",
+        "prompt-pack.json",
+        "stability-testset.json",
+    ]:
+        require(skill, needle, "SKILL.md")
 
-    require(readme, "图片编辑模板", "README.md")
-    require(readme, "image-edit-template", "README.md")
-    require(readme, "image-edit-template.json", "README.md")
-    require(readme, "editablePrompt", "README.md")
-    require(readme, "allowFullRewrite", "README.md")
-    require(readme, "用户可以整段删除、重写或只改槽位", "README.md")
-    require(readme, "候选项只是建议", "README.md")
-    require(readme, "后端拼接", "README.md")
-    require(readme, "真实生成测试", "README.md")
-    require(readme, "默认生成 3 张明显不同于原图的结果图", "README.md")
-    require(readme, "记录每张完整 prompt", "README.md")
-    require(readme, "generation-results.json", "README.md")
-    require(readme, "颜色、背景、主体色、文字色", "README.md")
-    require(readme, "至少 1 张必须改变颜色或背景槽", "README.md")
-    require(readme, "slot_reflection_review", "README.md")
-    require(readme, "missing_obvious_slots", "README.md")
-    require(readme, "templateSource", "README.md")
-    require(readme, "模板资产图", "README.md")
-    require(readme, "用户主体输入", "README.md")
-    require(readme, "reference-aware prompt", "README.md")
-    require(readme, "prompt_mode", "README.md")
-    require(readme, "arrangement_pattern", "README.md")
+    assert len(skill.splitlines()) <= 250, "SKILL.md should stay concise; move details to references"
+    for reference in [
+        "slot-and-visual-design.md",
+        "reference-authority.md",
+        "prompt-and-validation.md",
+        "generation-testing.md",
+        "batch-and-review.md",
+    ]:
+        require(skill, reference, "SKILL.md")
 
-    require(business_doc, "前端编辑模板", "docs/梗图模板业务使用说明.md")
-    require(business_doc, "用户编辑哪些槽位", "docs/梗图模板业务使用说明.md")
-    require(business_doc, "是否允许整段重写", "docs/梗图模板业务使用说明.md")
-    require(business_doc, "批量整理台", "docs/梗图模板业务使用说明.md")
-    require(business_doc, "batch-review-workbench", "docs/梗图模板业务使用说明.md")
-    require(business_doc, "batch-manifest.json", "docs/梗图模板业务使用说明.md")
+    for needle in [
+        "semantic_merge_review",
+        "canvas_background",
+        "frame_border",
+        "subject_outline",
+        "content_panel",
+        "identity_reference",
+        "co_variation_constraints",
+        "fusion_model",
+    ]:
+        require(slot_design, needle, "slot-and-visual-design.md")
+
+    for needle in [
+        "templateSource",
+        "userSubjectInput",
+        "imageRefs[]",
+        "composition_authority",
+        "identity_authority",
+        "arrangement_pattern",
+        "用户上传图默认原图直通生成",
+    ]:
+        require(reference_authority, needle, "reference-authority.md")
+
+    for needle in [
+        "promptTemplate",
+        "inputSchema",
+        "preprocessSteps",
+        "LiquidJS",
+        "allowCustom: true",
+        "{value,label}",
+        "gallery.template_image",
+        "validate_gallery_template.py",
+    ]:
+        require(prompt_validation, needle, "prompt-and-validation.md")
+
+    for needle in [
+        "3 张真实",
+        "generation-results.json",
+        "完整 `prompt`",
+        "mustDifferFromSource",
+        "arrangement_pattern",
+    ]:
+        require(generation_testing, needle, "generation-testing.md")
+
+    for needle in [
+        "batch-workspace.json",
+        "batch-manifest.json",
+        "group-config.json",
+        "metadata.needsReview",
+        "DRAFT",
+        "PUBLISHED",
+        "review.html",
+    ]:
+        require(batch_review, needle, "batch-and-review.md")
+
+    for needle in [
+        "additionalProperties: false",
+        "{{ subject | \"白猫\" }}",
+        "select.options",
+        "原图直通",
+        "preprocessSteps",
+        "metadata.templateSource",
+        "import-report.json",
+        "DRAFT",
+        "PUBLISHED",
+    ]:
+        require(gallery_contract, needle, "gallery-authoring-contract.md")
+
+    for needle in [
+        "GalleryTemplateImport",
+        "promptTemplate",
+        "inputSchema",
+        "preprocessSteps",
+        "metadata",
+        "validate_gallery_template.py",
+    ]:
+        require(json_contract, needle, "json-contract.md")
+        require(readme, needle, "README.md")
+
+    for needle in [
+        "GalleryTemplate",
+        "上传本地图到 OSS",
+        "promptTemplate",
+        "用户上传图片默认原图直通生成",
+    ]:
+        require(business_doc, needle, "docs/梗图模板业务使用说明.md")
 
     require(taxonomy_doc, "历史生成模式", "docs/梗图模板库分类逻辑说明.md")
-    require(taxonomy_doc, "新主流程", "docs/梗图模板库分类逻辑说明.md")
-
-    # Still required because the legacy stability validator remains available.
-    require(skill, "co_variation_constraints", "SKILL.md")
-    require(skill, "跨槽关系", "SKILL.md")
-    require(skill, "颜色、明度、材质", "SKILL.md")
-    require(skill, "生成图 QA", "SKILL.md")
-    require(skill, "fusion_model", "SKILL.md")
-    require(skill, "fused_slots", "SKILL.md")
-    require(skill, "replacement_sensitivity", "SKILL.md")
-    require(skill, "meme_formula", "SKILL.md")
-    require(skill, "slot_minimization_review", "SKILL.md")
-    require(skill, "业务槽位不是画面元素清单", "SKILL.md")
-    require(skill, "template-review-page", "SKILL.md")
-    require(skill, "review.html", "SKILL.md")
-    require(skill, "人审预览页", "SKILL.md")
-    require(skill, "复制核对卡", "SKILL.md")
-    require(skill, "生成审核页", "SKILL.md")
-    require(skill, "给运营看", "SKILL.md")
-    require(skill, "做个预览页", "SKILL.md")
-    require(skill, "batch-manifest.json", "SKILL.md")
-    require(skill, "generationFit", "SKILL.md")
-    require(skill, "taxonomy", "SKILL.md")
-    require(skill, "folderAsSeries", "SKILL.md")
-    require(skill, "批量审核页", "SKILL.md")
-    require(skill, "批量预审", "SKILL.md")
-    require(skill, "每张源图独立工作目录", "SKILL.md")
-    require(skill, "templateMechanism", "SKILL.md")
-    require(skill, "needs_review", "SKILL.md")
-    require(skill, "批量完成后", "SKILL.md")
-    require(skill, "是否需要查看", "SKILL.md")
-    require(skill, "不要自动生成或打开 `review.html`", "SKILL.md")
-    require(skill, "单图打样", "SKILL.md")
-    require(skill, "批量入库", "SKILL.md")
-    require(skill, "single-image-prototype", "SKILL.md")
-    require(skill, "batch-ingestion", "SKILL.md")
-    require(skill, "分析生成测试", "SKILL.md")
-    require(skill, "analyze-and-generate-test", "SKILL.md")
-    require(skill, "一键分析生成", "SKILL.md")
-    require(skill, "第 1 张覆盖用户主需求或 mock 用户输入", "SKILL.md")
-    require(skill, "第 2 张改变至少一个显性视觉变量", "SKILL.md")
-    require(skill, "第 3 张改变另一个核心槽位", "SKILL.md")
-    require(skill, "不要停在 JSON 报告", "SKILL.md")
-    require(skill, "batch-review-workbench", "SKILL.md")
-    require(skill, "批量整理台", "SKILL.md")
-    require(skill, "单独调用", "SKILL.md")
-    require(skill, "batch-workspace.json", "SKILL.md")
-    require(skill, "batch-manifest.json", "SKILL.md")
-    require(skill, "assets/batch-workbench.html", "SKILL.md")
-    require(skill, "Chrome", "SKILL.md")
-    require(skill, "File System Access API", "SKILL.md")
-    require(skill, "不需要 Python", "SKILL.md")
-    require(skill, "直接写回", "SKILL.md")
-    require(skill, "可选复制", "SKILL.md")
-    require(skill, "style_reference", "SKILL.md")
-    require(skill, "composition_reference", "SKILL.md")
-    require(skill, "referenceDependencyLevel", "SKILL.md")
-    require(skill, "testModeRecommendation", "SKILL.md")
-
-    require(json_contract, "co_variation_constraints", "json-contract.md")
-    require(json_contract, "dependent_slot", "json-contract.md")
-    require(json_contract, "failure_if_unsynced", "json-contract.md")
-    require(json_contract, "fusion_model", "json-contract.md")
-    require(json_contract, "has_fused_subject", "json-contract.md")
-    require(json_contract, "requires_remap_if_subject_changes", "json-contract.md")
-    require(json_contract, "meme_formula", "json-contract.md")
-    require(json_contract, "slot_minimization_review", "json-contract.md")
-    require(json_contract, "business_exposure", "json-contract.md")
-
-    require(gallery_contract, "meme_formula", "gallery-authoring-contract.md")
-    require(gallery_contract, "不是画面元素清单", "gallery-authoring-contract.md")
-    require(gallery_contract, "默认控制在 2-4 个业务槽位", "gallery-authoring-contract.md")
-    require(gallery_contract, "batch-manifest.json", "gallery-authoring-contract.md")
-    require(gallery_contract, "generationFit", "gallery-authoring-contract.md")
-    require(gallery_contract, "taxonomy", "gallery-authoring-contract.md")
-    require(gallery_contract, "ready_for_import", "gallery-authoring-contract.md")
-    require(gallery_contract, "sourceSha256", "gallery-authoring-contract.md")
-    require(gallery_contract, "<series-or-topic-slug>-<formula-slug>-<short-hash>", "gallery-authoring-contract.md")
-    require(gallery_contract, "category 控制在 20-40 个左右", "gallery-authoring-contract.md")
-    require(gallery_contract, "模板机制", "gallery-authoring-contract.md")
-    require(gallery_contract, "待确认", "gallery-authoring-contract.md")
-    require(gallery_contract, "Batch Review Workbench", "gallery-authoring-contract.md")
-    require(gallery_contract, "batch-workspace.json", "gallery-authoring-contract.md")
-    require(gallery_contract, "batch-manifest.json", "gallery-authoring-contract.md")
-    require(gallery_contract, "group-config.json", "gallery-authoring-contract.md")
-    require(gallery_contract, "referenceConfig", "gallery-authoring-contract.md")
-    require(gallery_contract, "referenceDependencyLevel", "gallery-authoring-contract.md")
-    require(gallery_contract, "testModeRecommendation", "gallery-authoring-contract.md")
-    require(gallery_contract, "File System Access API", "gallery-authoring-contract.md")
-
     require(stability_contract, "co_variation_adherence", "stability-testset-contract.md")
-    require(stability_contract, "expected_co_variation_constraints", "stability-testset-contract.md")
 
-    require(readme, "template-review-page", "README.md")
-    require(readme, "review.html", "README.md")
-    require(readme, "业务人员", "README.md")
-    require(readme, "file:///", "README.md")
-    require(readme, "生成审核页", "README.md")
-    require(readme, "给运营看", "README.md")
-    require(readme, "batch-manifest.json", "README.md")
-    require(readme, "generationFit", "README.md")
-    require(readme, "taxonomy", "README.md")
-    require(readme, "批量预审", "README.md")
-    require(readme, "每张源图独立文件夹", "README.md")
-    require(readme, "自动聚类", "README.md")
-    require(readme, "批量完成后", "README.md")
-    require(readme, "是否需要查看 `review.html`", "README.md")
-    require(readme, "下一步选择", "README.md")
-    require(readme, "单图打样", "README.md")
-    require(readme, "批量入库", "README.md")
-    require(readme, "single-image-prototype", "README.md")
-    require(readme, "batch-ingestion", "README.md")
-    require(readme, "分析生成测试", "README.md")
-    require(readme, "analyze-and-generate-test", "README.md")
-    require(readme, "一次完成分析和出图测试", "README.md")
-    require(readme, "直接进入真实生成测试", "README.md")
-    require(readme, "批量整理台", "README.md")
-    require(readme, "batch-review-workbench", "README.md")
-    require(readme, "assets/batch-workbench.html", "README.md")
-    require(readme, "Chrome", "README.md")
-    require(readme, "File System Access API", "README.md")
-    require(readme, "不需要 Python", "README.md")
-    require(readme, "batch-manifest.json", "README.md")
+    for needle in [
+        "showDirectoryPicker",
+        "batch-workspace.json",
+        "group-config.json",
+        "referenceDependencyLevel",
+    ]:
+        require(batch_workbench, needle, "assets/batch-workbench.html")
 
-    require(batch_workbench, "showDirectoryPicker", "assets/batch-workbench.html")
-    require(batch_workbench, "File System Access API", "assets/batch-workbench.html")
-    require(batch_workbench, "batch-workspace.json", "assets/batch-workbench.html")
-    require(batch_workbench, "batch-manifest.json", "assets/batch-workbench.html")
-    require(batch_workbench, "group-config.json", "assets/batch-workbench.html")
-    require(batch_workbench, "复制到分组文件夹", "assets/batch-workbench.html")
-    require(batch_workbench, "template_reference", "assets/batch-workbench.html")
-    require(batch_workbench, "style_reference", "assets/batch-workbench.html")
-    require(batch_workbench, "composition_reference", "assets/batch-workbench.html")
-    require(batch_workbench, "identity_reference", "assets/batch-workbench.html")
-    require(batch_workbench, "referenceDependencyLevel", "assets/batch-workbench.html")
-    require(batch_workbench, "testModeRecommendation", "assets/batch-workbench.html")
+    assert schema["additionalProperties"] is False
+    assert schema["required"] == ["key", "title", "promptTemplate", "inputSchema"]
+    assert set(schema["properties"]) == {
+        "key",
+        "title",
+        "description",
+        "cover",
+        "referenceImage",
+        "imageSize",
+        "imageN",
+        "stageKey",
+        "promptTemplate",
+        "inputSchema",
+        "preprocessSteps",
+        "metadata",
+    }
+    assert sample["preprocessSteps"] == []
+    assert any(item["type"] == "image" for item in sample["inputSchema"])
+    assert any(item["type"] == "select" for item in sample["inputSchema"])
+    assert any(item["type"] == "prompt" for item in sample["inputSchema"])
+
+    assert manifest["version"] == "0.19.0"
+    assert manifest["updated_at"] == "2026-07-11"
+    for tracked in manifest["tracked_files"]:
+        if not (ROOT / tracked).exists():
+            raise AssertionError(f"skill-manifest.json tracks missing file: {tracked}")
 
 
 if __name__ == "__main__":

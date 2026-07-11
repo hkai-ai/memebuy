@@ -1,0 +1,359 @@
+#!/usr/bin/env python3
+"""Validate GalleryTemplate import JSON without third-party dependencies."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+from urllib.parse import urlparse
+from pathlib import Path
+from typing import Any
+
+
+KEY_RE = re.compile(r"^[a-z][a-z0-9-]{1,59}$")
+ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{0,39}$")
+SIZE_RE = re.compile(r"^\d{2,4}x\d{2,4}$")
+PLACEHOLDER_RE = re.compile(r"{{\s*(.*?)\s*}}")
+PATH_TERM_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{0,39}(?:\.[a-zA-Z][a-zA-Z0-9_-]{0,39})*$")
+ROOT_KEYS = {
+    "key", "title", "description", "cover", "referenceImage", "imageSize",
+    "imageN", "stageKey", "promptTemplate", "inputSchema", "preprocessSteps", "metadata",
+}
+INPUT_KEYS = {
+    "prompt": {"type", "id", "label", "placeholder", "required", "suggestions"},
+    "select": {"type", "id", "label", "required", "options"},
+    "image": {
+        "type", "id", "label", "hint", "required", "maxCount", "minWidth", "minHeight", "private",
+    },
+}
+STEP_KEYS = {
+    "vision": {"type", "id", "stageKey", "imageInputId", "prompt", "maxOutputTokens", "cache"},
+    "text": {"type", "id", "stageKey", "prompt", "maxOutputTokens", "temperature", "cache"},
+}
+
+
+def check_string(errors: list[str], path: str, value: Any, minimum: int, maximum: int) -> None:
+    if not isinstance(value, str) or not minimum <= len(value) <= maximum:
+        errors.append(f"{path} must be a string with {minimum}-{maximum} characters")
+
+
+def check_boolean(errors: list[str], path: str, value: Any) -> None:
+    if not isinstance(value, bool):
+        errors.append(f"{path} must be a boolean")
+
+
+def check_integer(errors: list[str], path: str, value: Any, minimum: int, maximum: int) -> None:
+    if isinstance(value, bool) or not isinstance(value, int) or not minimum <= value <= maximum:
+        errors.append(f"{path} must be an integer from {minimum} to {maximum}")
+
+
+def split_fallback_terms(expression: str) -> list[str] | None:
+    terms: list[str] = []
+    current: list[str] = []
+    quoted = False
+    escaped = False
+    for char in expression:
+        if escaped:
+            current.append(char)
+            escaped = False
+        elif char == "\\" and quoted:
+            current.append(char)
+            escaped = True
+        elif char == '"':
+            current.append(char)
+            quoted = not quoted
+        elif char == "|" and not quoted:
+            terms.append("".join(current).strip())
+            current = []
+        else:
+            current.append(char)
+    if quoted or escaped:
+        return None
+    terms.append("".join(current).strip())
+    return terms
+
+
+def prompt_expressions(errors: list[str], path: str, prompt: str) -> list[list[str]]:
+    if "{%" in prompt or "%}" in prompt:
+        errors.append(f"{path} contains unsupported Liquid control syntax")
+    stripped = PLACEHOLDER_RE.sub("", prompt)
+    if "{{" in stripped or "}}" in stripped:
+        errors.append(f"{path} contains an unclosed or unmatched placeholder")
+    parsed: list[list[str]] = []
+    for expression in PLACEHOLDER_RE.findall(prompt):
+        terms = split_fallback_terms(expression)
+        if terms is None or not terms or any(not term for term in terms):
+            errors.append(f"{path} contains an invalid fallback expression: {expression}")
+            continue
+        for term in terms:
+            if term.startswith('"'):
+                try:
+                    literal = json.loads(term)
+                except json.JSONDecodeError:
+                    errors.append(f"{path} contains an invalid string literal: {term}")
+                else:
+                    if not isinstance(literal, str):
+                        errors.append(f"{path} fallback literals must be strings: {term}")
+            elif not PATH_TERM_RE.fullmatch(term):
+                errors.append(f"{path} contains an invalid placeholder term: {term}")
+        parsed.append(terms)
+    return parsed
+
+
+def validate_prompt_references(
+    errors: list[str], path: str, prompt: str, defined: set[str], select_payloads: dict[str, set[str]]
+) -> None:
+    for terms in prompt_expressions(errors, path, prompt):
+        for term in terms:
+            if term.startswith('"'):
+                continue
+            head, _, field = term.partition(".")
+            if head not in defined:
+                errors.append(f"{path} references undefined id: {head}")
+            elif field and head in select_payloads and field not in select_payloads[head]:
+                errors.append(f"{path} references undefined select payload field: {term}")
+
+
+def reject_extra(errors: list[str], path: str, value: dict[str, Any], allowed: set[str]) -> None:
+    extra = sorted(set(value) - allowed)
+    if extra:
+        errors.append(f"{path} contains unsupported fields: {', '.join(extra)}")
+
+
+def validate_input(errors: list[str], item: Any, index: int) -> None:
+    path = f"inputSchema[{index}]"
+    if not isinstance(item, dict):
+        errors.append(f"{path} must be an object")
+        return
+    kind = item.get("type")
+    if kind not in INPUT_KEYS:
+        errors.append(f"{path}.type must be prompt, select, or image")
+        return
+    reject_extra(errors, path, item, INPUT_KEYS[kind])
+    for field in ["type", "id", "label"]:
+        if field not in item:
+            errors.append(f"{path}.{field} is required")
+    if kind == "select" and "options" not in item:
+        errors.append(f"{path}.options is required")
+    if not ID_RE.fullmatch(str(item.get("id", ""))):
+        errors.append(f"{path}.id is invalid")
+    check_string(errors, f"{path}.label", item.get("label"), 1, 40)
+    if "required" in item:
+        check_boolean(errors, f"{path}.required", item["required"])
+
+    if kind == "prompt":
+        if "placeholder" in item:
+            check_string(errors, f"{path}.placeholder", item["placeholder"], 0, 120)
+        suggestions = item.get("suggestions", [])
+        if not isinstance(suggestions, list) or len(suggestions) > 10:
+            errors.append(f"{path}.suggestions must contain at most 10 strings")
+        elif any(not isinstance(value, str) or len(value) > 120 for value in suggestions):
+            errors.append(f"{path}.suggestions contains an invalid value")
+    elif kind == "select":
+        options = item.get("options")
+        if not isinstance(options, list) or not 1 <= len(options) <= 30:
+            errors.append(f"{path}.options must contain 1-30 items")
+        else:
+            for option_index, option in enumerate(options):
+                option_path = f"{path}.options[{option_index}]"
+                if not isinstance(option, dict):
+                    errors.append(f"{option_path} must be an object")
+                    continue
+                reject_extra(errors, option_path, option, {"value", "label", "thumbnail", "payload"})
+                check_string(errors, f"{option_path}.value", option.get("value"), 1, 120)
+                check_string(errors, f"{option_path}.label", option.get("label"), 1, 40)
+                payload = option.get("payload")
+                if payload is not None and (
+                    not isinstance(payload, dict)
+                    or any(not isinstance(v, str) or len(v) > 4000 for v in payload.values())
+                ):
+                    errors.append(f"{option_path}.payload must contain string values up to 4000 characters")
+                thumbnail = option.get("thumbnail")
+                if thumbnail is not None:
+                    if not isinstance(thumbnail, str) or len(thumbnail) > 500:
+                        errors.append(f"{option_path}.thumbnail must be a URI up to 500 characters")
+                    else:
+                        parsed = urlparse(thumbnail)
+                        if not parsed.scheme:
+                            errors.append(f"{option_path}.thumbnail must be an absolute URI")
+    else:
+        if "hint" in item:
+            check_string(errors, f"{path}.hint", item["hint"], 0, 120)
+        if "maxCount" in item:
+            check_integer(errors, f"{path}.maxCount", item["maxCount"], 1, 6)
+        for field in ["minWidth", "minHeight"]:
+            if field in item:
+                check_integer(errors, f"{path}.{field}", item[field], 64, 8192)
+        if "private" in item:
+            check_boolean(errors, f"{path}.private", item["private"])
+
+
+def validate_step(errors: list[str], step: Any, index: int, image_ids: set[str]) -> None:
+    path = f"preprocessSteps[{index}]"
+    if not isinstance(step, dict):
+        errors.append(f"{path} must be an object")
+        return
+    kind = step.get("type")
+    if kind not in STEP_KEYS:
+        errors.append(f"{path}.type must be vision or text")
+        return
+    reject_extra(errors, path, step, STEP_KEYS[kind])
+    required = ["type", "id", "stageKey", "prompt"]
+    if kind == "vision":
+        required.append("imageInputId")
+    for field in required:
+        if field not in step:
+            errors.append(f"{path}.{field} is required")
+    if not ID_RE.fullmatch(str(step.get("id", ""))):
+        errors.append(f"{path}.id is invalid")
+    check_string(errors, f"{path}.stageKey", step.get("stageKey"), 1, 60)
+    check_string(errors, f"{path}.prompt", step.get("prompt"), 1, 8000)
+    if kind == "vision" and step.get("imageInputId") not in image_ids:
+        errors.append(f"{path}.imageInputId must reference an image input")
+    if "maxOutputTokens" in step:
+        check_integer(errors, f"{path}.maxOutputTokens", step["maxOutputTokens"], 256, 32000)
+    if "cache" in step:
+        check_boolean(errors, f"{path}.cache", step["cache"])
+    if "temperature" in step and (
+        isinstance(step["temperature"], bool)
+        or not isinstance(step["temperature"], (int, float))
+        or not 0 <= step["temperature"] <= 2
+    ):
+        errors.append(f"{path}.temperature must be a number from 0 to 2")
+
+
+def validate(data: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        return ["document must be an object"]
+    reject_extra(errors, "$", data, ROOT_KEYS)
+    for field in ["key", "title", "promptTemplate", "inputSchema"]:
+        if field not in data:
+            errors.append(f"{field} is required")
+    if not KEY_RE.fullmatch(str(data.get("key", ""))):
+        errors.append("key must match ^[a-z][a-z0-9-]{1,59}$")
+    check_string(errors, "title", data.get("title"), 1, 80)
+    if data.get("description") is not None:
+        check_string(errors, "description", data.get("description"), 0, 300)
+    for field in ["cover", "referenceImage"]:
+        if field in data and data[field] is not None and not isinstance(data[field], str):
+            errors.append(f"{field} must be a string or null")
+    if "imageSize" in data and (not isinstance(data["imageSize"], str) or not SIZE_RE.fullmatch(data["imageSize"])):
+        errors.append("imageSize must look like 1024x1024")
+    if "imageN" in data:
+        check_integer(errors, "imageN", data["imageN"], 1, 4)
+    if data.get("stageKey") is not None:
+        check_string(errors, "stageKey", data["stageKey"], 0, 60)
+    check_string(errors, "promptTemplate", data.get("promptTemplate"), 1, 4000)
+
+    inputs = data.get("inputSchema")
+    if not isinstance(inputs, list) or len(inputs) > 20:
+        errors.append("inputSchema must be an array with at most 20 items")
+        inputs = []
+    for index, item in enumerate(inputs):
+        validate_input(errors, item, index)
+    input_ids = [item.get("id") for item in inputs if isinstance(item, dict)]
+    if len(input_ids) != len(set(input_ids)):
+        errors.append("inputSchema ids must be unique")
+    image_ids = {
+        str(item.get("id"))
+        for item in inputs
+        if isinstance(item, dict) and item.get("type") == "image"
+    }
+    select_payloads: dict[str, set[str]] = {}
+    for item in inputs:
+        if not isinstance(item, dict) or item.get("type") != "select":
+            continue
+        payload_keys: set[str] = set()
+        for option in item.get("options", []):
+            if isinstance(option, dict) and isinstance(option.get("payload"), dict):
+                payload_keys.update(str(key) for key in option["payload"])
+        select_payloads[str(item.get("id"))] = payload_keys
+
+    steps = data.get("preprocessSteps", [])
+    if not isinstance(steps, list) or len(steps) > 4:
+        errors.append("preprocessSteps must be an array with at most 4 items")
+        steps = []
+    for index, step in enumerate(steps):
+        validate_step(errors, step, index, image_ids)
+    step_ids = [step.get("id") for step in steps if isinstance(step, dict)]
+    all_ids = input_ids + step_ids
+    if len(all_ids) != len(set(all_ids)):
+        errors.append("inputSchema and preprocessSteps ids must share a unique namespace")
+
+    defined = set(str(value) for value in all_ids)
+    validate_prompt_references(
+        errors, "promptTemplate", str(data.get("promptTemplate", "")), defined, select_payloads
+    )
+    available = set(str(value) for value in input_ids)
+    for index, step in enumerate(steps):
+        if isinstance(step, dict):
+            validate_prompt_references(
+                errors,
+                f"preprocessSteps[{index}].prompt",
+                str(step.get("prompt", "")),
+                available,
+                select_payloads,
+            )
+            available.add(str(step.get("id")))
+    metadata = data.get("metadata")
+    if metadata is not None and not isinstance(metadata, dict):
+        errors.append("metadata must be an object")
+    elif isinstance(metadata, dict):
+        tags = metadata.get("tags")
+        if tags is not None and (
+            not isinstance(tags, list) or any(not isinstance(tag, str) for tag in tags)
+        ):
+            errors.append("metadata.tags must be an array of strings")
+        input_semantics = metadata.get("inputSemantics")
+        if input_semantics is not None:
+            if not isinstance(input_semantics, dict):
+                errors.append("metadata.inputSemantics must be an object")
+            else:
+                missing_semantic_ids = sorted(set(input_semantics) - defined)
+                if missing_semantic_ids:
+                    errors.append(
+                        "metadata.inputSemantics references undefined input ids: "
+                        + ", ".join(missing_semantic_ids)
+                    )
+    return errors
+
+
+def validate_artifact_paths(data: Any, base_dir: Path) -> list[str]:
+    if not isinstance(data, dict):
+        return []
+    errors: list[str] = []
+    for field in ["cover", "referenceImage"]:
+        value = data.get(field)
+        if not isinstance(value, str) or not value or urlparse(value).scheme:
+            continue
+        path = (base_dir / value).resolve()
+        if not path.is_file():
+            errors.append(f"{field} local file does not exist: {value}")
+    source = data.get("metadata", {}).get("templateSource") if isinstance(data.get("metadata"), dict) else None
+    if isinstance(source, dict) and source.get("referenceField") != "referenceImage":
+        errors.append("metadata.templateSource.referenceField must be referenceImage")
+    return errors
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Validate GalleryTemplate import JSON v1.")
+    parser.add_argument("files", nargs="+", type=Path)
+    args = parser.parse_args()
+    failed = False
+    for path in args.files:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        errors = validate(data) + validate_artifact_paths(data, path.parent)
+        if errors:
+            failed = True
+            print(f"FAIL {path}")
+            for error in errors:
+                print(f"  - {error}")
+        else:
+            print(f"PASS {path}")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

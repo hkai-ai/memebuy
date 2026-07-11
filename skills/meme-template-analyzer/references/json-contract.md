@@ -26,7 +26,7 @@
 
 按目的选择主产物：
 
-- `image-edit-template` 默认写 `meme-template.json`、`image-edit-template.json` 和 `index.md`；`meme-template.json` 是后端入库主文件，`image-edit-template.json` 是 API/editConfig 草稿。
+- `image-edit-template` 默认写 `meme-template.json`、`image-edit-template.json` 和 `index.md`；`meme-template.json` 严格符合 GalleryTemplateImport，`image-edit-template.json` 是 Agent 编辑草稿。
 - `image-edit-template` 需要保留完整分析链路时，默认额外写 `image-edit-analysis.json`，不要把完整 `analysis` 塞进主文件。
 - `template`、`template-library-entry` 默认写 `meme-template.json` 和 `index.md`。
 - `batch` 默认写 `meme-template.json`、`batch-manifest.json` 和 `index.md`。
@@ -114,15 +114,20 @@ python skills/meme-template-analyzer/scripts/clean_image_edit_template.py artifa
 python skills/meme-template-analyzer/scripts/convert_image_edit_to_meme_template.py artifacts/meme-template-analyzer/<id>/image-edit-template.json
 ```
 
-转换脚本默认输出最小后端记录，只保留：
+转换脚本输出 GalleryTemplateImport 固定字段：
 
-- `version`、`key`、`title`、`description`
-- `taxonomy`
-- `assets`
-- `editConfig`
-- `ingestion`
+- 展示/资产：`key`、`title`、`description`、`cover`、`referenceImage`
+- 生成配置：`imageSize`、`imageN`
+- 可执行字段：`promptTemplate`、`inputSchema`、`preprocessSteps`
+- 扩展存储：`metadata`
 
-默认不写 `inputs`、`prompt`、`modes`、`generationFit`、`output`、`backendHint`、`mockUserInput`、`slots[].ui`、`suggestions[].reason`。旧后台兼容字段用 `--include-legacy` 输出；后端生成策略用 `--include-backend-hint` 输出。
+顶层 Schema 设置 `additionalProperties: false`，不要输出 `version`、`taxonomy`、`assets`、
+`editConfig`、`ingestion`、`exampleWorks` 或 legacy 块。完整规则见
+`references/gallery-authoring-contract.md`；转换后运行：
+
+```bash
+python skills/meme-template-analyzer/scripts/validate_gallery_template.py artifacts/meme-template-analyzer/<id>/meme-template.json
+```
 
 ## Template Source Object
 
@@ -406,6 +411,10 @@ python skills/meme-template-analyzer/scripts/convert_image_edit_to_meme_template
 ```
 
 `slot_reflection_review` 是槽位反思逻辑，用来防止漏掉用户自然会编辑的候选，也防止把所有画面元素都暴露成表单。`candidate_scan` 必须覆盖语义、文案、显性视觉变量、构图、图片引用和约束六类；`missing_obvious_slots` 理想情况下为空；`coverage_requirements` 可驱动真实生成测试，例如要求至少改变一个颜色或背景槽。
+
+反思时增加语义合并：表达同一用户意图、通常需要同步修改或可由其他槽推导的维度不应全部成为必填槽。默认保留 2-4 个核心业务槽位，辅助颜色和图片参考可选。
+
+颜色候选必须按视觉层识别：`canvas_background` 是画布底层，`frame_border` 是沿画布或容器边缘的外框，`subject_outline` 是贴合主体轮廓的描边，`content_panel` 是局部前景容器。背景与边框可独立变化时分槽；需要统一配色时合并为 `palette` 或 `surface_style` 并记录同步规则。
 
 ### Fusion Model Object
 

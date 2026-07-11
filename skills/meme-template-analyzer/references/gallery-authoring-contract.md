@@ -1,376 +1,141 @@
-# Gallery Template Authoring Contract
+# GalleryTemplate 导入契约
 
-本文件用于后台录入、批量入库和 `meme-template.json`。正式产品链路以后端为 source of truth：后台录入 `meme-template.json`，前端从后端 API 拉取模板编辑配置后渲染。`image-edit-template.json` 只是本地 artifact、审查草稿或 API/editConfig 草稿，不是生产前端直接读取的文件。
+本文件用于后台录入、批量入库和 `meme-template.json`。后端仓库中的
+`docs/gallery-template-import/{schema.json,sample.json,README.md}` 是最终唯一标准；本 Skill
+内置同步副本：
 
-## Purpose 路由
+- `gallery-template-import.schema.json`
+- `gallery-template-import.sample.json`
 
-| purpose | 触发场景 | 主输出 |
+## 文件与职责
+
+一个模板输出一个 `meme-template.json`。它必须直接符合 `GalleryTemplateImport` Schema，
+由导入脚本执行：Schema 校验 -> 上传本地图到 OSS -> URL 回填 -> 按 `key` upsert。
+
+`image-edit-template.json` 是 Agent 的分析与编辑草稿，不是入库文件。二者通过
+`scripts/convert_image_edit_to_meme_template.py` 确定性转换。
+
+## 顶层结构
+
+```json
+{
+  "key": "laser-cat-beach-ufo",
+  "title": "激光眼巨型萌宠海滩 UFO",
+  "description": "模板简介",
+  "cover": "./source.png",
+  "referenceImage": "./source.png",
+  "imageSize": "1024x1024",
+  "imageN": 1,
+  "inputSchema": [],
+  "preprocessSteps": [],
+  "promptTemplate": "可执行提示词",
+  "metadata": {"tags": [], "version": "1.0.0"}
+}
+```
+
+必填字段是 `key`、`title`、`promptTemplate`、`inputSchema`。Schema 设置
+`additionalProperties: false`，不要输出旧的 `version`、`taxonomy`、`assets`、`editConfig`、
+`ingestion` 或 `exampleWorks` 顶层块。
+
+字段映射：
+
+| Agent 草稿 | GalleryTemplate 导入字段 |
+| --- | --- |
+| `templateId` | `key` |
+| `title` / `summary` | `title` / `description` |
+| `templateSource.path` | `cover` + `referenceImage` |
+| `templateText` + `slots[]` | `promptTemplate` |
+| `slots[]` | `inputSchema[]` |
+| `templateSource`、`taxonomy`、槽位语义 | `metadata` |
+| `ingestion`、source hash、追踪状态 | 不入库，写 `import-report.json` |
+
+`cover` 是列表展示图；`referenceImage` 是生成时固定参考图。默认可指向同一个本地文件，
+导入脚本只上传一次并复用 URL，但契约允许二者不同。
+
+## promptTemplate
+
+使用后端兜底链语法：
+
+```text
+{{ term | term | "字面量默认" }}
+```
+
+- `{{inputId}}` 读取输入值。
+- `{{selectId.key}}` 读取所选 option 的 `payload[key]`。
+- `{{stepId.field}}` 读取预处理 JSON 字段。
+- head id 必须存在于 `inputSchema` 或 `preprocessSteps`。
+- 把 `【主体：白猫】` 编译为 `{{ subject | "白猫" }}`，使用稳定 slot id，不能使用 label。
+- 不在槽位中的静态画面描述原样保留。
+- `templateSource.preserve` 和 `lockedConstraints` 中影响出图的硬约束必须烘进文本；
+  结构副本同时写入 `metadata.templateSource`。
+- 语法是受限兜底链，不是完整 LiquidJS：不允许控制标签、循环或任意 filter，fallback 必须是 JSON 双引号字符串。
+- 同一视觉属性只能有一个动态来源；存在颜色槽时，静态描述不得再写死冲突颜色。
+- 文案槽在草稿中使用 `validation.maxLength`，转换器把长度要求烘进 prompt。
+
+## inputSchema 映射
+
+后端只支持 `prompt | select | image`：
+
+| Agent `inputKind` | 后端类型 | 规则 |
 | --- | --- | --- |
-| `frontend_editing` | 图片编辑方案、前端编辑配置、用户可编辑提示词、用户上传/选择图槽位。 | `image-edit-template.json` 作为后端 API/editConfig 草稿，详见 `references/json-contract.md`。 |
-| `authoring` | 用户要识别模板内容、批量生成模板、录入后台、产出 gallery template、template-library-entry。 | `meme-template.json`，格式为业务收集 JSON v1，可包含 `editConfig`。 |
-| `debug` | 用户要调试 skill、查看 VLM mock、slot binding、prompt template、legacy rendered prompt。 | 展开中间 JSON 文件和可选 `_analysis`。 |
+| `text` / `prompt` | `prompt` | `suggestions` 保持 `string[]` |
+| `select` + `allowCustom: true` | `prompt` | 预设项转 `suggestions[]` |
+| `select` + `allowCustom: false` | `select` | `options` 必须为 `{value,label}[]` |
+| `image_upload` | `image` | 用户原图默认直通生成 |
+| `image_select`，只注入文字 | `select` | option 可带 `thumbnail` |
+| `image_select`，选中图片作为参考图 | 不支持 | v1 拒绝转换；固定素材改用 `referenceImage` |
 
-快速解释、预览或评审模板，默认归入 `frontend_editing`。只有明确要求后台模板时才走 `authoring`。
+`select.options` 不能简化成 `string[]`，因为后端 Schema 强制 `value` 和 `label`。只有
+`prompt.suggestions` 使用 `string[]`。
 
-## 默认文件
+图片槽不要默认创建 vision 步。用户上传原图默认直通；挂 vision 会让原图退出直通，
+变为“读图转文字且不把原图传给生成模型”。槽位的 `extract` 暂存于
+`metadata.inputSemantics`。
 
-`authoring` 默认写：
+## preprocessSteps 与 stageKey
 
-```text
-meme-template.json
-index.md
+- 顶层 `stageKey` 默认省略，后端自动使用 `gallery.template_image`。
+- `preprocessSteps` 默认 `[]`。
+- 运维尚未绑定 `gallery.vision` 前，禁止输出 vision 步。
+- 未来需要读图转文字时，vision step 使用 `stageKey: gallery.vision`；step prompt 自己定义
+  输出 JSON，`promptTemplate` 用同名 `{{stepId.field}}` 引用。
+- 不要填写未经绑定的 stageKey；它会静默回落到文本模型并导致图片流程出错。
+
+## metadata
+
+后端未设专列但有价值的数据放 `metadata`：
+
+- `tags[]`: 从 taxonomy 非空值铺平并去重。
+- `version`: Agent artifact/schema 版本。
+- `taxonomy`: 保留完整分类结构。
+- `templateSource`: 保留 authority、preserve、locked constraints；图片路径改为
+  `referenceField: "referenceImage"`，避免留下本地路径。
+- `inputSemantics`: 保留 `slotRole`、默认值、`extract`、`sourceOptions` 等不可执行语义。
+- `needsReview`: 非空字符串会让导入脚本强制写入 `DRAFT`；为空时默认 `PUBLISHED`。
+
+`topicId`、`status`、`sortOrder` 不由 Agent 产出。`topicId` 由导入运维指定；status 默认
+`PUBLISHED`，但 `metadata.needsReview` 非空时强制 `DRAFT`；sortOrder 默认 0。
+
+## 批量规则
+
+- 一个模板一个 JSON 文件，不再输出顶层 `templates[]` 聚合文件供导入。
+- `batch-manifest.json` 只用于 Agent 批次追踪，不进入 GalleryTemplate 表。
+- 每张源图使用独立目录，JSON 中图片路径相对当前 JSON 文件解析。
+- 导入脚本负责 OSS 上传、hash 去重、按 key upsert 和 `import-report.json`。
+- Agent 输出后运行：
+
+```bash
+python skills/meme-template-analyzer/scripts/validate_gallery_template.py <template>/meme-template.json
 ```
-
-批量场景仍写同一个 `meme-template.json`，顶层使用：
-
-```json
-{
-  "version": 1,
-  "batch": {
-    "batchId": "",
-    "sourceFolder": "",
-    "createdAt": "",
-    "operatorGrouping": {
-      "folderAsSeries": true,
-      "seriesName": ""
-    }
-  },
-  "templates": []
-}
-```
-
-批量场景同时写 `batch-manifest.json`，用于脚本入库和排查。
-
-## 业务收集 JSON v1
-
-默认入库记录应使用最小结构，避免每个模板存储重复的 prompt/inputs/legacy 模式：
-
-```json
-{
-  "version": 1,
-  "key": "",
-  "title": "",
-  "description": "",
-  "taxonomy": {
-    "category": "",
-    "templateMechanism": "",
-    "scenes": [],
-    "topics": [],
-    "styles": [],
-    "emotions": [],
-    "useCases": [],
-    "series": [],
-    "parentTemplateKey": "",
-    "variantName": "",
-    "needs_review": []
-  },
-  "assets": {
-    "templateImage": "",
-    "cover": "",
-    "exampleWorks": []
-  },
-  "editConfig": {
-    "templateText": "",
-    "editablePrompt": "",
-    "allowFullRewrite": true,
-    "slots": [],
-    "templateSource": {}
-  },
-  "ingestion": {
-    "sourceId": "",
-    "sourcePath": "",
-    "sourceSha256": "",
-    "sourceArtifact": "",
-    "status": "ready_for_import | needs_human_review | skipped",
-    "notes": []
-  }
-}
-```
-
-默认不要写 `inputs`、`prompt`、`modes`、`generationFit`、`output`、`backendHint`、`mockUserInput`、`slots[].ui`、`suggestions[].reason`。如果旧后台仍需要兼容字段，转换脚本使用 `--include-legacy`；如果后端需要把 prompt 编译策略随模板存储，使用 `--include-backend-hint`。
-
-### Legacy 兼容 JSON
-
-以下结构仅用于旧后台或历史批量入库兼容，不是默认输出：
-
-```json
-{
-  "version": 1,
-  "key": "",
-  "topic": "",
-  "title": "",
-  "description": "",
-  "taxonomy": {
-    "category": "",
-    "templateMechanism": "",
-    "scenes": [],
-    "topics": [],
-    "styles": [],
-    "emotions": [],
-    "useCases": [],
-    "series": [],
-    "parentTemplateKey": "",
-    "variantName": "",
-    "needs_review": []
-  },
-  "assets": {
-    "templateImage": "",
-    "cover": "",
-    "exampleWorks": []
-  },
-  "inputs": [],
-  "prompt": {
-    "master": "",
-    "slots": []
-  },
-  "editConfig": {
-    "templateText": "",
-    "editablePrompt": "",
-    "allowFullRewrite": true,
-    "slots": [],
-    "imageRefs": [],
-    "backendHint": {}
-  },
-  "modes": {
-    "hifi": {
-      "enabled": true,
-      "useTemplateImage": false,
-      "note": "legacy compatibility field; not the new front-end default."
-    },
-    "free": {
-      "enabled": false,
-      "mustKeep": [],
-      "canChange": "",
-      "baseDescription": "",
-      "examples": []
-    }
-  },
-  "generationFit": {
-    "hifi": "recommended | usable | not_recommended",
-    "free": "recommended | usable | not_recommended",
-    "reason": ""
-  },
-  "output": {
-    "size": "1024x1024",
-    "n": 1
-  },
-  "ingestion": {
-    "sourceId": "",
-    "sourcePath": "",
-    "sourceSha256": "",
-    "status": "ready_for_import | needs_human_review | skipped",
-    "notes": []
-  }
-}
-```
-
-`inputs`、`prompt`、`modes.hifi`、`modes.free`、`generationFit` 和 `output` 是 legacy 兼容字段，用于已有后台或历史批量入库。不要让这些字段决定新 `editConfig` 的前端编辑体验。
-
-## 字段规则
-
-- `key`: 英文小写连字符，模板内稳定。批量场景使用 `<series-or-topic-slug>-<formula-slug>-<short-hash>`。
-- `topic`、`title`、`description`: 面向 C 端展示，中文优先。
-- `taxonomy`: 面向搜索、瀑布流、专题页和运营组织，不替代模板本质边界；不确定项写入 `needs_review`。
-- `assets.templateImage`: 模板原图或代表图。没有素材 URL 时填本地 artifact 路径或空字符串，并在 `index.md` 标注缺口。
-- `inputs`: legacy 字段；新后台默认从 `editConfig.slots[]` 读取。
-- `prompt.master`: legacy 字段；新后台默认使用 `editConfig.templateText`。
-- `prompt.slots`: legacy 字段；新后台默认使用 `editConfig.slots[]`。
-- `editConfig`: 可选但推荐。它是后端入库后可直接下发给前端编辑器的轻量配置，来源等价于清洗后的 `image-edit-template.json`；默认不包含 `analysis`、`mockUserInput`、`slots[].ui` 和 `suggestions[].reason`。
-- `output`: 默认 `{ "size": "1024x1024", "n": 1 }`。
-
-## 后端入库与前端编辑模板映射
-
-当同一模板需要给前端编辑器使用时，优先把编辑配置作为 `meme-template.json.templates[].editConfig` 或后端等价字段入库。前端不直接读 artifact，而是从后端 API 获取这个配置。从后台模板映射到 `editConfig` 时：
-
-- `prompt.master` -> `templateText`。
-- `prompt.master` 去掉槽位标记并代入默认值 -> `editablePrompt`。
-- `prompt.slots[]` -> `slots[]`，每个槽补齐 `inputKind`、`slotRole`、`defaultValue`、`currentValue`、`suggestions` 和 `allowCustom`。
-- `inputs[]` 中的图片输入 -> `inputKind: image_upload` 或 `image_select`，并写入 `extract`、`maxCount`、`private`、`sourceOptions`。
-- 后台 `modes.hifi/free` 不映射成前端模式开关；如需保留，只写入 `backendHint.notes` 或 legacy 附注。
-- API 返回的编辑配置必须设置 `allowFullRewrite: true`，允许用户整段删除、重写或只改槽位。
-
-示例：
-
-```json
-{
-  "editConfig": {
-    "templateText": "这是一只【主体：狗】在吃【食物：哈密瓜】",
-    "editablePrompt": "这是一只狗在吃哈密瓜",
-    "allowFullRewrite": true,
-    "slots": [
-      {
-        "id": "subject",
-        "label": "主体",
-        "inputKind": "text",
-        "slotRole": "semantic_replacement",
-        "defaultValue": "狗",
-        "currentValue": "狗",
-        "suggestions": ["小猪", "猫"],
-        "allowCustom": true,
-        "required": true
-      }
-    ]
-  }
-}
-```
-
-## 输入类型
-
-后台 `inputs[]` 可继续使用：
-
-```json
-{
-  "type": "image | select | prompt",
-  "id": "",
-  "label": "",
-  "required": true
-}
-```
-
-`image` 输入必须包含：
-
-```json
-{
-  "hint": "",
-  "private": true,
-  "maxCount": 1,
-  "extract": ""
-}
-```
-
-`select` 输入可包含 `options[]`。`prompt` 输入可包含 `hint` 和 `suggestions`。如果目标是前端新编辑器，请改用 `image-edit-template.json.slots[]` 的 `inputKind` 和 `slotRole`。
-
-## 从 meme 分析映射到业务 JSON
-
-- 先写一句 `meme_formula`，把梗压缩成 2-4 个核心变量；再把这些变量转成 `prompt.master` 里的 `【槽位名：原文】`。
-- `prompt.slots[]` 不是画面元素清单。容器、工具、姿势、镜头、表情、字体、风格、局部道具等默认属于锁定描述、默认渲染或生成约束。
-- 默认控制在 2-4 个业务槽位。超过 4 个时必须先合并到更高层变量。
-- 每个槽位都能追溯到 `meme_formula` 的核心变量；如果只是画面道具或渲染细节，应从 `prompt.slots[]` 移除。
-- 每个 `image` input 都有 `extract`。
-
-## Taxonomy 候选
-
-- `category`: 梗机制或模板类型，category 控制在 20-40 个左右。优先使用误读揭示、角色贴标签、对比、反应图、物体融合、聊天截图、多格叙事、前后变化等大类。
-- `templateMechanism`: 从 `meme_formula` 推导的更具体模板机制，用于判断是否属于同一个模板簇，例如 `food-fusion`、`hidden-reveal`、`caption-reversal`。
-- `scenes`: 家庭、办公室、餐桌、街头、校园、社媒、头像、聊天、节日、旅行、商品展示。
-- `topics`: 宠物、情侣、儿童、亲子、闺蜜、职场、游戏、美食、魔法、治愈、反差、搞笑、日常、复古、天气、运动、商品、包装、截图。
-- `styles`: 手绘、水彩、油画、彩铅、复古、极简、低饱和、可爱、写实照片、截图风、3D、像素风。
-- `emotions`: 可爱、治愈、荒诞、松弛、温暖、困惑、尴尬、惊喜、反差、呆萌。
-- `useCases`: 头像、表情包、朋友圈配图、小红书封面、聊天配图、节日祝福图、运营活动图。
-- `needs_review`: 待确认项列表，记录自动聚类、模板边界、OCR、category 或 topics 中需要用户/运营确认的原因。
-
-## 批量预审
-
-批量 authoring 前必须先做批量预审。预审报告至少覆盖：
-
-- 图片数量、有效格式、尺寸异常、路径层级、平铺程度、是否已有每张源图独立文件夹。
-- 重复图、缩略图、生成结果、截图副本、非源图或无法读取文件。
-- 初步自动聚类结果：模板簇候选、每簇代表图、置信度、可能的 `category`、`templateMechanism` 和待确认原因。
-- 建议结构：按模板簇组织，但每张源图独立工作目录，例如 `<template-cluster>/<source-id>/source.<ext>`。
-
-如果一个文件夹中平铺大量图片，且自动聚类显示可能包含多个模板或分类，先让用户确认分组策略，再移动文件或开始批量模板输出。
-
-## Batch Review Workbench
-
-`batch-review-workbench` 是批量入库前的轻量整理工具，也可以单独调用。工具文件是 `assets/batch-workbench.html`，用户用 Chrome/Edge 打开后通过 File System Access API 选择本地素材目录。它让用户把相似图归到同一组，并给每组勾选标签和模板参考配置；不需要 Python、本地服务或额外依赖。
-
-默认文件：
-
-```text
-batch-workspace.json
-batch-manifest.json
-<group-name>/group-config.json
-```
-
-`batch-workspace.json` 记录源图清单：
-
-```json
-{
-  "schemaVersion": "1.0",
-  "artifactType": "batch_review_workspace",
-  "batchId": "",
-  "sourceFolder": "",
-  "images": [
-    {
-      "id": "img-0001",
-      "sourcePath": "",
-      "relativePath": "",
-      "sourceSha256": "",
-      "previewPath": "",
-      "suggestedGroup": ""
-    }
-  ]
-}
-```
-
-`group-config.json` 和 `batch-manifest.json` 记录用户整理决策：
-
-```json
-{
-  "schemaVersion": "1.0",
-  "artifactType": "batch_review_manifest",
-  "rootName": "",
-  "groups": [
-    {
-      "groupName": "",
-      "imageIds": ["img-0001"],
-      "status": "ready_for_template | needs_review | skipped",
-      "referenceConfig": {
-        "template_reference": true,
-        "style_reference": false,
-        "composition_reference": true,
-        "identity_reference": false,
-        "other": ""
-      },
-      "referenceDependencyLevel": "low | medium | high | blocked",
-      "testModeRecommendation": "text_only_ok | reference_aware_preferred | reference_aware_required | do_not_test_without_reference",
-      "tags": [],
-      "notes": ""
-    }
-  ]
-}
-```
-
-工作台规则：
-
-- 直接写回根目录 `batch-workspace.json` 和 `batch-manifest.json`。
-- 直接写回每组目录的 `group-config.json`。
-- 用户可选复制素材到分组目录，原文件不删除。
-- 不提供删除源文件或移动源文件能力。
-- 后续生成 `meme-template.json` 或 API/editConfig 草稿时，优先读取每组的 `group-config.json`。如果 `referenceDependencyLevel` 为 `high` 或 `blocked`，不要把纯文本生成测试当成代表性验证；应记录需要 reference-aware 后端。
-
-## Key 规范
-
-批量模板 key 使用：
-
-```text
-<series-or-topic-slug>-<formula-slug>-<short-hash>
-```
-
-规则：
-
-- 只使用小写英文、数字和连字符。
-- `series-or-topic-slug` 优先来自文件夹/系列名；没有时来自主要 topic 或 scene。
-- `formula-slug` 来自 `meme_formula`。
-- `short-hash` 使用源文件 hash 或源路径 hash 的前 6 位。
-- 批次内 key 必须唯一。
-
-## Generation Fit
-
-`generationFit` 只作为 legacy 后台兼容字段，不输出数值分，不替运营做上线裁决。新前端编辑模板不需要用户选择高保真或自由模式。
 
 ## 质量检查
 
-生成 `meme-template.json` 前检查：
-
-- `master` 去掉槽位标记并代回原文后，能准确描述模板图或模板风格。
-- 每个 `【槽位名：原文】` 都在 `prompt.slots[]` 有对应 `id`。
-- 每个槽位都能追溯到 `meme_formula` 的核心变量。
-- 每个 `image` input 都有 `extract`。
-- 批量输出有 `batch.batchId`、`batch.operatorGrouping.folderAsSeries`、每个模板的 `taxonomy`、`generationFit` 和 `ingestion`。
-- `batch-manifest.json` 中每个 source 都能追踪到 `templateKey` 或失败/跳过原因。
-- `ingestion.sourceSha256` 与 `batch-manifest.json.sources[].sourceSha256` 一致；无法计算时两边都留空并说明。
-
-## Debug 附加
-
-只有 `purpose: debug` 或用户明确要求时，才允许在主 JSON 中加入 `_analysis`，或额外写 VLM mock、slot bindings、prompt templates、rendered prompts 等 legacy 中间文件。
+- `key` 满足 `^[a-z][a-z0-9-]{1,59}$`，批次内唯一。
+- 每个 input id 唯一，且与 preprocess step id 共享命名空间。
+- 所有 promptTemplate 引用的 head id 已定义。
+- 所有模板硬约束既保存在 metadata，也出现在可执行 promptTemplate。
+- 用户图片槽默认原图直通，`preprocessSteps` 为 `[]`。
+- taxonomy 未完成人审时，`metadata.needsReview` 非空。
+- 文件通过内置 Schema/validator 后再交给导入脚本。
+- validator 必须检查严格字段类型和范围、prompt 语法、preprocess 引用顺序、本地资产存在性与 metadata/input 对齐。
+- 颜色分析先区分 `canvas_background`、`frame_border`、`subject_outline` 和 `content_panel`；改变背景时明确边框是独立、同步还是锁定。

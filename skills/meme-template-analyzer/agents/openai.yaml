@@ -1,4 +1,4 @@
 interface:
-  display_name: "梗图分析与生成测试"
-  short_description: "分析梗图，输出前端编辑模板，并可一键生成真实测试图"
-  default_prompt: "使用 $meme-template-analyzer 执行分析生成测试：图1是源梗图 template_reference，图2是用户主体 identity_reference。请先生成 image-edit-template.json，再继续生成 3 张真实 PNG 测试图，并写 generation-results.json 和 summary.md。"
+  display_name: "梗图模板分析与入库"
+  short_description: "分析梗图并生成严格 GalleryTemplateImport JSON"
+  default_prompt: "使用 $meme-template-analyzer 分析这张图：先生成 image-edit-template.json 草稿，再编译一个符合 GalleryTemplateImport Schema 的 meme-template.json，并运行 validate_gallery_template.py 校验。"

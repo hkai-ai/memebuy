@@ -1,0 +1,71 @@
+{
+  "key": "mbti-fusion-avatar",
+  "title": "MBTI 融合头像",
+  "description": "上传一张正脸照，选一个 MBTI 人格，把你的脸和该人格的专属风格融合成一张头像。",
+  "cover": "./assets/cover.png",
+  "referenceImage": "./assets/style-reference.png",
+  "imageSize": "1024x1024",
+  "imageN": 1,
+  "stageKey": "meme.avatar_gen",
+  "inputSchema": [
+    {
+      "type": "image",
+      "id": "face",
+      "label": "你的正脸照",
+      "hint": "请上传一张五官清晰的正脸照",
+      "required": true,
+      "maxCount": 1,
+      "minWidth": 512,
+      "minHeight": 512,
+      "private": true
+    },
+    {
+      "type": "select",
+      "id": "mbti",
+      "label": "MBTI 人格",
+      "required": true,
+      "options": [
+        {
+          "value": "理性冷冽的战略家气质，深蓝金属色调，锐利眼神",
+          "label": "INTJ 建筑师",
+          "payload": {
+            "subtitle": "运筹帷幄的孤独设计师",
+            "palette": "deep navy, gunmetal, cold silver"
+          }
+        },
+        {
+          "value": "热烈张扬的表演者气质，暖橙霓虹，动感光斑",
+          "label": "ESFP 表演者",
+          "payload": {
+            "subtitle": "点燃全场的天生主角",
+            "palette": "warm orange, magenta neon, gold sparkle"
+          }
+        }
+      ]
+    },
+    {
+      "type": "prompt",
+      "id": "extra",
+      "label": "额外风格描述（可选）",
+      "placeholder": "例如：赛博朋克、水彩、胶片颗粒",
+      "required": false,
+      "suggestions": [
+        "赛博朋克",
+        "水彩插画",
+        "胶片颗粒感"
+      ]
+    }
+  ],
+  "preprocessSteps": [],
+  "promptTemplate": "一张 {{mbti}} 风格的头像肖像，保留上传人脸的五官特征。整体配色 {{mbti.palette}}。副标题氛围：{{mbti.subtitle}}。{{extra | \"电影级布光，高细节\"}}",
+  "metadata": {
+    "tags": [
+      "头像",
+      "MBTI",
+      "人脸融合",
+      "潮流"
+    ],
+    "category": "avatar/personality-fusion",
+    "version": "1.0.0"
+  }
+}

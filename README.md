@@ -60,9 +60,9 @@ scripts\check-skill-sync.ps1 -SkillName meme-template-analyzer
 - 提取用户可改的文本槽位，例如主体、食物、动作、文案或场景。
 - 提取用户可上传或选择的图片槽位。
 - 为文本槽生成 3-8 个候选替换项。
-- 生成 `mockUserInput`，方便前端预览。
-- 生成 `backendHint`，帮助后端把用户最终输入拼成图像编辑指令。
-- 批量分析文件夹并生成后台入库 JSON。
+- 按需生成 `mockUserInput`，方便前端预览。
+- 把 Agent 草稿编译成严格 GalleryTemplateImport JSON。
+- 批量分析文件夹并生成一个模板一个后台入库 JSON。
 
 ## 支持输入
 
@@ -91,8 +91,11 @@ scripts\check-skill-sync.ps1 -SkillName meme-template-analyzer
 - `allowFullRewrite`
 - `slots[]`
 - `suggestions`
-- `mockUserInput`
+- 可选 `mockUserInput`
 - `backendHint`
+
+同目录 `meme-template.json` 会编译为后端固定字段：`promptTemplate`、`inputSchema`、
+`preprocessSteps` 和 `metadata`。前端通过后端 API 获取运行配置，不直接读取 artifact。
 
 ### 2. 生成可替换槽位
 
@@ -129,7 +132,9 @@ mock 应包含 `slotValues`、`imageSelections`、`renderedTemplateText` 和 `re
 使用 $meme-template-analyzer 批量分析这个文件夹里的梗图，输出 meme-template.json 和 batch-manifest.json。
 ```
 
-批量流程仍包含批量预审、自动聚类、`taxonomy`、`generationFit`、source hash 和 `review.html` 可选审核页。
+批量流程包含批量预审、自动聚类、metadata taxonomy、source hash 和可选审核页。每个
+`meme-template.json` 先过 Schema 校验，再由导入脚本上传本地图到 OSS、回填 URL，并按
+`key` upsert；追踪信息进入 `import-report.json`，不进入 GalleryTemplate 表。
 
 ## 输出格式
 

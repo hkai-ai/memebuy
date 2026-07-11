@@ -1,0 +1,33 @@
+# 批量、整理与审核
+
+## 批量入库
+
+先预审有效图片、格式、尺寸、目录层级、重复文件、缩略图、生成结果和非源图。平铺目录可能包含多个模板簇时，先输出预审并请求确认分类策略。
+
+规则：
+
+- 每张源图独立工作目录。
+- 一个模板一个 `meme-template.json`，不要生成顶层 `templates[]` 入库文件。
+- 批量另写 `batch-manifest.json`，不把 source hash 和追踪状态塞进入库 JSON。
+- taxonomy 未完成人审时写非空 `metadata.needsReview`，导入状态为 `DRAFT`；否则默认 `PUBLISHED`。
+- 每个模板单独通过 validator 后才上传。
+
+## Batch Review Workbench
+
+用户要求“批量整理台”“素材分组”时使用 `assets/batch-workbench.html`。它是 Chrome/Edge 静态工具，通过 File System Access API 选择素材目录并写回：
+
+- 根目录 `batch-workspace.json`
+- 根目录 `batch-manifest.json`
+- 每组目录 `group-config.json`
+
+用户可配置 `status`、`referenceConfig`、`referenceDependencyLevel`、`testModeRecommendation`、tags 和 notes。工具默认只写 JSON；复制到分组目录需要用户点击，不移动或删除源文件。
+
+后续分析必须优先读取用户确认的 `referenceConfig`，不要重新猜测图片用途。
+
+## Template Review Page
+
+用户要求审核页、运营预览或 review page 时，在模板结果目录写 `review.html`。页面必须可直接双击打开，不依赖服务或外部 CDN。
+
+单模板展示封面、理解摘要、槽位、`templateText`、`editablePrompt`、`backendHint`、相关文件和 Raw JSON。批量页展示批次摘要、模板列表、key、标题、tags、needsReview 和待确认项。提供复制核对卡/批量摘要按钮。
+
+批量完成后可询问是否需要审核页，但不要默认生成或打开。

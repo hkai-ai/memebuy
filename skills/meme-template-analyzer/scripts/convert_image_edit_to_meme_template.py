@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert an image-edit-template artifact into a backend meme-template record."""
+"""Compile image-edit-template.json into GalleryTemplate import JSON v1."""
 
 from __future__ import annotations
 
@@ -10,7 +10,14 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
-from clean_image_edit_template import clean_template, simplify_suggestions
+from clean_image_edit_template import simplify_suggestions
+from validate_gallery_template import validate as validate_gallery_record
+
+
+TOKEN_RE = re.compile(r"【\s*([^【】：:]+?)\s*[：:]\s*([^】]*)】")
+KEY_RE = re.compile(r"^[a-z][a-z0-9-]{1,59}$")
+ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{0,39}$")
+TEXTUAL_KINDS = {"text", "prompt", "select"}
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -28,280 +35,389 @@ def write_json(path: Path, data: Any, indent: int) -> None:
         f.write("\n")
 
 
-def slugify(value: str, fallback: str) -> str:
-    value = value.strip().lower()
-    value = re.sub(r"[^a-z0-9]+", "-", value)
+def slugify(value: str, fallback: str = "meme-template") -> str:
+    value = re.sub(r"[^a-z0-9]+", "-", value.strip().lower())
     value = re.sub(r"-+", "-", value).strip("-")
-    return value or fallback
+    if not value or not value[0].isalpha():
+        value = f"meme-{value}" if value else fallback
+    return value[:60].rstrip("-")
 
 
-def first_source_path(data: dict[str, Any]) -> str:
+def source_path(data: dict[str, Any]) -> str | None:
     template_source = data.get("templateSource")
     if isinstance(template_source, dict) and template_source.get("path"):
         return str(template_source["path"])
     source_access = data.get("sourceAccess")
     if isinstance(source_access, dict):
         inputs = source_access.get("inputs")
-        if isinstance(inputs, list) and inputs:
-            first = inputs[0]
-            if isinstance(first, dict) and first.get("path"):
-                return str(first["path"])
-    return ""
+        if isinstance(inputs, list):
+            for item in inputs:
+                if isinstance(item, dict) and item.get("path"):
+                    return str(item["path"])
+    return None
 
 
-def first_source_hash(data: dict[str, Any]) -> str:
+def json_literal(value: Any) -> str:
+    return json.dumps("" if value is None else str(value), ensure_ascii=False)
+
+
+def strict_bool(value: Any, field: str, default: bool) -> bool:
+    if value is None:
+        return default
+    if not isinstance(value, bool):
+        raise ValueError(f"{field} must be a boolean")
+    return value
+
+
+def strict_int(value: Any, field: str, default: int, minimum: int, maximum: int) -> int:
+    if value is None:
+        return default
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field} must be an integer")
+    if not minimum <= value <= maximum:
+        raise ValueError(f"{field} must be from {minimum} to {maximum}")
+    return value
+
+
+def output_image_size(data: dict[str, Any]) -> str:
+    explicit = data.get("imageSize")
+    if explicit is not None:
+        if not isinstance(explicit, str) or not re.fullmatch(r"\d{2,4}x\d{2,4}", explicit):
+            raise ValueError("imageSize must look like 832x1024")
+        return explicit
     source_access = data.get("sourceAccess")
     if isinstance(source_access, dict):
-        inputs = source_access.get("inputs")
-        if isinstance(inputs, list) and inputs:
-            first = inputs[0]
-            if isinstance(first, dict) and first.get("sha256"):
-                return str(first["sha256"])
-    return ""
+        for item in source_access.get("inputs", []):
+            if not isinstance(item, dict):
+                continue
+            width, height = item.get("width"), item.get("height")
+            if (
+                isinstance(width, int) and not isinstance(width, bool) and width > 0
+                and isinstance(height, int) and not isinstance(height, bool) and height > 0
+            ):
+                if height > width:
+                    scaled_width = max(64, min(1024, round((1024 * width / height) / 64) * 64))
+                    return f"{scaled_width}x1024"
+                if width > height:
+                    scaled_height = max(64, min(1024, round((1024 * height / width) / 64) * 64))
+                    return f"1024x{scaled_height}"
+    return "1024x1024"
 
 
-def slot_to_prompt_slot(slot: dict[str, Any]) -> OrderedDict[str, Any]:
-    default = slot.get("defaultValue", slot.get("currentValue", ""))
-    prompt_slot = OrderedDict(
-        [
-            ("id", slot.get("id", "")),
-            ("label", slot.get("label", slot.get("id", ""))),
-            ("policy", "required" if slot.get("required") else "extensible"),
-            ("from", default),
-        ]
+def suggestion_strings(value: Any) -> list[str]:
+    simplified = simplify_suggestions(value, keep_reasons=False)
+    if not isinstance(simplified, list):
+        return []
+    return [str(item)[:120] for item in simplified if str(item)]
+
+
+def option_objects(value: Any) -> list[OrderedDict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    options: list[OrderedDict[str, Any]] = []
+    for item in value:
+        if isinstance(item, str):
+            options.append(OrderedDict([("value", item[:120]), ("label", item[:40])]))
+            continue
+        if not isinstance(item, dict):
+            continue
+        raw_value = item.get("value", item.get("label"))
+        raw_label = item.get("label", raw_value)
+        if not raw_value or not raw_label:
+            continue
+        option = OrderedDict([("value", str(raw_value)[:120]), ("label", str(raw_label)[:40])])
+        if item.get("thumbnail"):
+            option["thumbnail"] = str(item["thumbnail"])[:500]
+        payload = item.get("payload")
+        if isinstance(payload, dict):
+            option["payload"] = {
+                str(key): str(payload_value)[:4000]
+                for key, payload_value in payload.items()
+            }
+        options.append(option)
+    return options[:30]
+
+
+def is_text_only_image_select(slot: dict[str, Any]) -> bool:
+    return slot.get("slotRole") in {
+        "semantic_replacement",
+        "prompt_fragment",
+        "visual_variable",
+    }
+
+
+def is_textual_slot(slot: dict[str, Any]) -> bool:
+    return slot.get("inputKind") in TEXTUAL_KINDS or (
+        slot.get("inputKind") == "image_select" and is_text_only_image_select(slot)
     )
-    if slot.get("slotRole"):
-        prompt_slot["role"] = slot["slotRole"]
-    return prompt_slot
 
 
-def slot_to_input(slot: dict[str, Any]) -> OrderedDict[str, Any] | None:
+def slot_to_input(slot: dict[str, Any]) -> OrderedDict[str, Any]:
+    slot_id = str(slot.get("id", ""))
+    label = str(slot.get("label") or slot_id)[:40]
     input_kind = slot.get("inputKind")
-    if input_kind not in {"image_upload", "image_select", "select", "prompt"}:
-        return None
-    if input_kind in {"image_upload", "image_select"}:
+    required = strict_bool(slot.get("required"), f"slot {slot_id!r}.required", False)
+    allow_custom = strict_bool(slot.get("allowCustom"), f"slot {slot_id!r}.allowCustom", True)
+
+    if not ID_RE.fullmatch(slot_id):
+        raise ValueError(f"invalid slot id for GalleryTemplate inputSchema: {slot_id!r}")
+
+    if input_kind in {"text", "prompt"} or (input_kind == "select" and allow_custom):
+        item = OrderedDict([("type", "prompt"), ("id", slot_id), ("label", label)])
+        placeholder = slot.get("placeholder")
+        if placeholder:
+            item["placeholder"] = str(placeholder)[:120]
+        item["required"] = required
+        suggestions = suggestion_strings(slot.get("suggestions"))[:10]
+        if suggestions:
+            item["suggestions"] = suggestions
+        return item
+
+    if input_kind == "select" or (
+        input_kind == "image_select" and is_text_only_image_select(slot)
+    ):
+        options = option_objects(slot.get("suggestions"))
+        if not options:
+            raise ValueError(f"select slot {slot_id!r} requires at least one option")
         return OrderedDict(
             [
-                ("type", "image"),
-                ("id", slot.get("id", "")),
-                ("label", slot.get("label", slot.get("id", ""))),
-                ("required", bool(slot.get("required"))),
-                ("hint", slot.get("placeholder", "")),
-                ("private", bool(slot.get("private", True))),
-                ("maxCount", slot.get("maxCount", 1)),
-                ("extract", slot.get("extract", "")),
+                ("type", "select"),
+                ("id", slot_id),
+                ("label", label),
+                ("required", required),
+                ("options", options),
             ]
         )
-    item = OrderedDict(
-        [
-            ("type", "select" if input_kind == "select" else "prompt"),
-            ("id", slot.get("id", "")),
-            ("label", slot.get("label", slot.get("id", ""))),
-            ("required", bool(slot.get("required"))),
-        ]
-    )
-    if slot.get("suggestions"):
-        item["options" if input_kind == "select" else "suggestions"] = simplify_suggestions(
-            slot["suggestions"],
-            keep_reasons=False,
+
+    if input_kind in {"image_upload"}:
+        item = OrderedDict([("type", "image"), ("id", slot_id), ("label", label)])
+        hint = slot.get("placeholder") or slot.get("hint")
+        if hint:
+            item["hint"] = str(hint)[:120]
+        item["required"] = required
+        item["maxCount"] = strict_int(slot.get("maxCount"), f"slot {slot_id!r}.maxCount", 1, 1, 6)
+        validation = slot.get("validation")
+        if isinstance(validation, dict):
+            if validation.get("minWidth"):
+                item["minWidth"] = strict_int(validation["minWidth"], f"slot {slot_id!r}.validation.minWidth", 64, 64, 8192)
+            if validation.get("minHeight"):
+                item["minHeight"] = strict_int(validation["minHeight"], f"slot {slot_id!r}.validation.minHeight", 64, 64, 8192)
+        item["private"] = strict_bool(slot.get("private"), f"slot {slot_id!r}.private", False)
+        return item
+
+    if input_kind == "image_select":
+        raise ValueError(
+            f"image_select slot {slot_id!r} passes an image as a runtime reference, "
+            "which GalleryTemplate import v1 does not support"
         )
-    return item
+    raise ValueError(f"unsupported inputKind for slot {slot_id!r}: {input_kind!r}")
 
 
-def slim_slot(slot: dict[str, Any]) -> OrderedDict[str, Any]:
-    keys = [
-        "id",
-        "label",
-        "inputKind",
-        "slotRole",
-        "required",
-        "defaultValue",
-        "placeholder",
-        "suggestions",
-        "allowCustom",
-        "extract",
-        "maxCount",
-        "private",
-        "sourceOptions",
+def find_slot(label: str, default: str, slots: list[dict[str, Any]]) -> dict[str, Any]:
+    exact = [slot for slot in slots if str(slot.get("label", "")).strip() == label]
+    if len(exact) == 1:
+        return exact[0]
+    fuzzy = [
+        slot
+        for slot in slots
+        if label in str(slot.get("label", "")) or str(slot.get("label", "")) in label
     ]
-    slim = OrderedDict()
-    for key in keys:
-        if key not in slot:
-            continue
-        value = slot[key]
-        if key == "suggestions":
-            value = simplify_suggestions(value, keep_reasons=False)
-        if value in ("", [], {}, None) and key not in {"defaultValue", "suggestions"}:
-            continue
-        slim[key] = value
-    return slim
+    if len(fuzzy) == 1:
+        return fuzzy[0]
+    by_default = [slot for slot in slots if str(slot.get("defaultValue", "")) == default]
+    if len(by_default) == 1:
+        return by_default[0]
+    raise ValueError(f"cannot map template token 【{label}：{default}】 to one slot id")
 
 
-def slim_template_source(source: Any) -> Any:
+def template_constraints(template_source: Any) -> list[str]:
+    if not isinstance(template_source, dict):
+        return []
+    constraints: list[str] = []
+    locked = template_source.get("lockedConstraints")
+    if not isinstance(locked, list):
+        locked = template_source.get("locked_composition_constraints")
+    if isinstance(locked, list):
+        for item in locked:
+            if isinstance(item, dict):
+                text = item.get("value") or item.get("description")
+                if text:
+                    constraints.append(str(text).rstrip("。"))
+    preserve = template_source.get("preserve")
+    if isinstance(preserve, list) and preserve:
+        readable = "、".join(str(item).replace("_", " ") for item in preserve)
+        constraints.append(f"保留模板参考图的这些结构和风格特征：{readable}")
+    return constraints
+
+
+def compile_prompt_template(data: dict[str, Any], slots: list[dict[str, Any]]) -> str:
+    template_text = str(data.get("templateText") or data.get("editablePrompt") or "").strip()
+    if not template_text:
+        raise ValueError("templateText or editablePrompt is required to compile promptTemplate")
+    used_ids: set[str] = set()
+
+    def replace_token(match: re.Match[str]) -> str:
+        label = match.group(1).strip()
+        default = match.group(2).strip()
+        slot = find_slot(label, default, slots)
+        slot_id = str(slot["id"])
+        if not is_textual_slot(slot):
+            raise ValueError(f"template token {label!r} maps to non-text slot {slot_id!r}")
+        used_ids.add(slot_id)
+        fallback = default or slot.get("defaultValue", "")
+        return f"{{{{ {slot_id} | {json_literal(fallback)} }}}}"
+
+    prompt = TOKEN_RE.sub(replace_token, template_text)
+
+    for slot in slots:
+        slot_id = str(slot.get("id", ""))
+        input_kind = slot.get("inputKind")
+        if is_textual_slot(slot) and slot_id not in used_ids:
+            label = str(slot.get("label") or slot_id)
+            default = slot.get("defaultValue", "")
+            prompt += f" {label}：{{{{ {slot_id} | {json_literal(default)} }}}}。"
+        elif input_kind == "image_upload":
+            label = str(slot.get("label") or slot_id)
+            role = slot.get("slotRole")
+            if role == "identity_reference":
+                prompt += f" 如果用户提供了{label}，将该原图作为身份参考并保留主体特征，不要让它覆盖模板构图。"
+            else:
+                prompt += f" 如果用户提供了{label}，将该原图作为生成参考图。"
+
+    text_limits: list[str] = []
+    for slot in slots:
+        validation = slot.get("validation")
+        if not is_textual_slot(slot) or not isinstance(validation, dict):
+            continue
+        max_length = validation.get("maxLength")
+        if isinstance(max_length, int) and not isinstance(max_length, bool) and max_length > 0:
+            text_limits.append(f"{slot.get('label') or slot.get('id')}不超过{max_length}个字符")
+    if text_limits:
+        prompt += " 文案长度要求：" + "；".join(text_limits) + "。"
+
+    template_source = data.get("templateSource")
+    if isinstance(template_source, dict) and template_source.get("path"):
+        prompt += " 使用模板固定参考图作为构图和风格参考。"
+    constraints = template_constraints(template_source)
+    if constraints:
+        prompt += " 必须遵守：" + "；".join(constraints) + "。"
+    if len(prompt) > 4000:
+        raise ValueError(f"compiled promptTemplate exceeds 4000 characters: {len(prompt)}")
+    return re.sub(r"\s+", " ", prompt).strip()
+
+
+def metadata_tags(taxonomy: Any) -> list[str]:
+    if not isinstance(taxonomy, dict):
+        return []
+    tags: list[str] = []
+    for key, value in taxonomy.items():
+        if key in {"needs_review", "parentTemplateKey", "variantName"}:
+            continue
+        values = value if isinstance(value, list) else [value]
+        for item in values:
+            text = str(item).strip()
+            if text and text not in tags:
+                tags.append(text)
+    return tags
+
+
+def metadata_template_source(source: Any) -> Any:
     if not isinstance(source, dict):
         return source
-    slim = OrderedDict()
-    for key in ["id", "role", "path", "authority", "preserve", "doNotUseFor"]:
-        if key in source:
-            slim[key] = source[key]
-    constraints = source.get("locked_composition_constraints")
-    if isinstance(constraints, list) and constraints:
-        slim["lockedConstraints"] = [
-            OrderedDict(
-                (k, item[k])
-                for k in ["id", "label", "value"]
-                if isinstance(item, dict) and k in item
-            )
-            for item in constraints
-            if isinstance(item, dict)
-        ]
-    return slim
+    result = OrderedDict((key, value) for key, value in source.items() if key != "path")
+    result["referenceField"] = "referenceImage"
+    return result
 
 
-def slim_backend_hint(hint: Any) -> Any:
-    if not isinstance(hint, dict):
-        return hint
-    slim = OrderedDict()
-    if hint.get("strategy"):
-        slim["strategy"] = hint["strategy"]
-    modes = hint.get("generationModes")
-    if isinstance(modes, dict):
-        slim["generationModes"] = modes
-    return slim
+def slot_semantics(slots: list[dict[str, Any]]) -> dict[str, Any]:
+    result: OrderedDict[str, Any] = OrderedDict()
+    for slot in slots:
+        details = OrderedDict()
+        for key in ["slotRole", "defaultValue", "allowCustom", "extract", "sourceOptions"]:
+            if key in slot and slot[key] not in (None, "", []):
+                details[key] = slot[key]
+        if details:
+            result[str(slot.get("id", ""))] = details
+    return result
 
 
-def slim_edit_config(data: dict[str, Any], *, include_backend_hint: bool) -> OrderedDict[str, Any]:
-    edit_config = clean_template(
-        data,
-        "runtime",
-        data.get("analysisRef") if isinstance(data.get("analysisRef"), str) else None,
-        keep_suggestion_reasons=False,
-        keep_slot_ui=False,
-        keep_mock_user_input=False,
-    )
-    slim = OrderedDict()
-    for key in ["templateText", "editablePrompt", "allowFullRewrite"]:
-        if key in edit_config:
-            slim[key] = edit_config[key]
-    if "slots" in edit_config and isinstance(edit_config["slots"], list):
-        slim["slots"] = [slim_slot(slot) for slot in edit_config["slots"] if isinstance(slot, dict)]
-    if "templateSource" in edit_config:
-        slim["templateSource"] = slim_template_source(edit_config["templateSource"])
-    if include_backend_hint and "backendHint" in edit_config:
-        slim["backendHint"] = slim_backend_hint(edit_config["backendHint"])
-    return slim
-
-
-def build_meme_template(
-    data: dict[str, Any],
-    source_file: str,
-    *,
-    include_legacy: bool,
-    include_backend_hint: bool,
-) -> OrderedDict[str, Any]:
+def build_gallery_template(data: dict[str, Any]) -> OrderedDict[str, Any]:
     template_id = str(data.get("templateId") or "")
-    key = slugify(template_id, "meme-template")
-    title = str(data.get("title") or template_id or "未命名模板")
-    source_path = first_source_path(data)
-    source_hash = first_source_hash(data)
-    slots = data.get("slots") if isinstance(data.get("slots"), list) else []
-    prompt_slots = [slot_to_prompt_slot(slot) for slot in slots if isinstance(slot, dict)]
-    inputs = [item for slot in slots if isinstance(slot, dict) for item in [slot_to_input(slot)] if item]
-    edit_config = slim_edit_config(data, include_backend_hint=include_backend_hint)
+    key = slugify(template_id)
+    title = str(data.get("title") or template_id or "未命名模板")[:80]
+    description = str(data.get("summary") or data.get("description") or "")[:300] or None
+    source = source_path(data)
+    slots = [slot for slot in data.get("slots", []) if isinstance(slot, dict)]
+    if len(slots) > 20:
+        raise ValueError("GalleryTemplate inputSchema supports at most 20 inputs")
+    ids = [str(slot.get("id", "")) for slot in slots]
+    if len(ids) != len(set(ids)):
+        raise ValueError("slot ids must be unique")
+
+    input_schema = [slot_to_input(slot) for slot in slots]
+    prompt_template = compile_prompt_template(data, slots)
+    taxonomy = data.get("taxonomy") if isinstance(data.get("taxonomy"), dict) else {}
+    needs_review = taxonomy.get("needs_review") if taxonomy else ["taxonomy 未提供或未确认"]
+    metadata = OrderedDict(
+        [
+            ("tags", metadata_tags(taxonomy)),
+            ("version", str(data.get("schemaVersion") or "1.0.0")),
+        ]
+    )
+    if taxonomy:
+        if taxonomy.get("category"):
+            metadata["category"] = taxonomy["category"]
+        if taxonomy.get("templateMechanism"):
+            metadata["templateMechanism"] = taxonomy["templateMechanism"]
+        metadata["taxonomy"] = taxonomy
+    if data.get("templateSource"):
+        metadata["templateSource"] = metadata_template_source(data["templateSource"])
+    semantics = slot_semantics(slots)
+    if semantics:
+        metadata["inputSemantics"] = semantics
+    if isinstance(needs_review, list) and needs_review:
+        metadata["needsReview"] = "；".join(str(item) for item in needs_review)
 
     record = OrderedDict(
         [
-            ("version", 1),
             ("key", key),
             ("title", title),
-            ("description", data.get("summary", "")),
-            (
-                "taxonomy",
-                OrderedDict(
-                    [
-                        ("category", ""),
-                        ("templateMechanism", ""),
-                        ("scenes", []),
-                        ("topics", []),
-                        ("styles", []),
-                        ("emotions", []),
-                        ("useCases", []),
-                        ("series", []),
-                        ("parentTemplateKey", ""),
-                        ("variantName", ""),
-                        ("needs_review", ["taxonomy"]),
-                    ]
-                ),
-            ),
-            (
-                "assets",
-                OrderedDict(
-                    [
-                        ("templateImage", source_path),
-                        ("cover", source_path),
-                        ("exampleWorks", []),
-                    ]
-                ),
-            ),
-            ("editConfig", edit_config),
-            (
-                "ingestion",
-                OrderedDict(
-                    [
-                        ("sourceId", template_id),
-                        ("sourcePath", source_path),
-                        ("sourceSha256", source_hash),
-                        ("sourceArtifact", source_file),
-                        ("status", "needs_human_review"),
-                        ("notes", ["Converted from image-edit-template.json; review taxonomy before import."]),
-                    ]
-                ),
-            ),
+            ("description", description),
+            ("cover", source),
+            ("referenceImage", source),
+            ("imageSize", output_image_size(data)),
+            ("imageN", 1),
+            ("inputSchema", input_schema),
+            ("preprocessSteps", []),
+            ("promptTemplate", prompt_template),
+            ("metadata", metadata),
         ]
     )
-    if include_legacy:
-        record["inputs"] = inputs
-        record["prompt"] = OrderedDict([("master", data.get("templateText", "")), ("slots", prompt_slots)])
-        record["modes"] = OrderedDict(
-            [
-                (
-                    "hifi",
-                    OrderedDict(
-                        [
-                            ("enabled", True),
-                            ("useTemplateImage", bool(source_path)),
-                            ("note", "legacy compatibility field; editConfig is the default editor payload."),
-                        ]
-                    ),
-                ),
-                (
-                    "free",
-                    OrderedDict(
-                        [
-                            ("enabled", False),
-                            ("mustKeep", []),
-                            ("canChange", ""),
-                            ("baseDescription", ""),
-                            ("examples", []),
-                        ]
-                    ),
-                ),
-            ]
-        )
-        record["generationFit"] = OrderedDict(
-            [
-                ("hifi", "usable"),
-                ("free", "usable"),
-                ("reason", "Converted from image-edit-template; review taxonomy and generation fit before import."),
-            ]
-        )
-        record["output"] = OrderedDict([("size", "1024x1024"), ("n", 1)])
+    validate_record(record)
+    errors = validate_gallery_record(record)
+    if errors:
+        raise ValueError("GalleryTemplate validation failed: " + "; ".join(errors))
     return record
+
+
+def validate_record(record: dict[str, Any]) -> None:
+    if not KEY_RE.fullmatch(str(record.get("key", ""))):
+        raise ValueError(f"invalid key: {record.get('key')!r}")
+    if not record.get("title") or len(str(record["title"])) > 80:
+        raise ValueError("title must contain 1-80 characters")
+    if not record.get("promptTemplate") or len(str(record["promptTemplate"])) > 4000:
+        raise ValueError("promptTemplate must contain 1-4000 characters")
+    inputs = record.get("inputSchema")
+    if not isinstance(inputs, list) or len(inputs) > 20:
+        raise ValueError("inputSchema must be an array with at most 20 items")
+    ids = [item.get("id") for item in inputs if isinstance(item, dict)]
+    if len(ids) != len(set(ids)):
+        raise ValueError("inputSchema ids must be unique")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Convert image-edit-template.json into backend meme-template.json."
+        description="Compile image-edit-template.json into GalleryTemplate import JSON v1."
     )
     parser.add_argument("input", type=Path, help="Path to image-edit-template.json")
     parser.add_argument(
@@ -309,32 +425,17 @@ def main() -> int:
         type=Path,
         help="Output path. Defaults to meme-template.json in the same directory.",
     )
-    parser.add_argument(
-        "--include-legacy",
-        action="store_true",
-        help="Include legacy inputs/prompt/modes/generationFit/output blocks.",
-    )
-    parser.add_argument(
-        "--include-backend-hint",
-        action="store_true",
-        help="Include backendHint generation policy in editConfig.",
-    )
     parser.add_argument("--indent", type=int, default=2, help="JSON indentation")
     args = parser.parse_args()
 
     input_path = args.input.resolve()
     output_path = (args.output or input_path.with_name("meme-template.json")).resolve()
-    data = load_json(input_path)
-    meme_template = build_meme_template(
-        data,
-        input_path.name,
-        include_legacy=args.include_legacy,
-        include_backend_hint=args.include_backend_hint,
-    )
-    write_json(output_path, meme_template, args.indent)
+    record = build_gallery_template(load_json(input_path))
+    write_json(output_path, record, args.indent)
     print(f"input: {input_path}")
     print(f"output: {output_path}")
-    print("status: needs_human_review")
+    print("contract: GalleryTemplateImport v1")
+    print(f"needs_review: {bool(record.get('metadata', {}).get('needsReview'))}")
     return 0
 
 
