@@ -10,7 +10,7 @@
   - 支持生成 `templateText`、`editablePrompt`、`allowFullRewrite`、文本/图片槽位、候选替换项、`mockUserInput` 和 `backendHint`。
   - 支持用户只改槽位，也支持用户整段删除、重写提示词。
   - 支持用户上传图或选择图作为 `identity_reference`、`edit_target`、`style_reference` 或 `composition_reference`。
-  - 仍保留后台批量入库和 legacy prompt/stability 工具，但它们不是默认主路径。
+  - 支持后台批量入库、审核页和真实生成测试。
 
 ## 安装
 
@@ -154,12 +154,10 @@ index.md
 meme-template.json
 batch-manifest.json
 review.html
-prompt-pack.json
-stability-testset.json
 output/
 ```
 
-`prompt-pack.json`、`stability-testset.json` 和 `output/` 只在 legacy/debug 或用户显式要求时创建。
+`output/` 只在用户明确要求真实生成测试时创建。
 
 ## 维护和更新
 
@@ -174,12 +172,6 @@ python C:\Users\<username>\.codex\skills\.system\skill-creator\scripts\quick_val
 
 ```powershell
 python skills\meme-template-analyzer\scripts\test_skill_content_contract.py
-```
-
-运行 legacy 稳定性 validator 单测：
-
-```powershell
-python skills\meme-template-analyzer\scripts\test_validate_stability_testset.py
 ```
 
 新增 Skill 时继续使用这个结构：

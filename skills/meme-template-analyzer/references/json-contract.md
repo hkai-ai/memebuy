@@ -1,6 +1,6 @@
 # JSON Contract
 
-本文件用于 `image-edit-template`、debug、legacy prompt pack 和 compare 场景。新默认主产物是 `image-edit-template.json`；`prompt-pack.json` 只用于 legacy/debug。
+本文件用于 `image-edit-template`、debug、真实生成结果和 compare 场景。默认主产物是 `image-edit-template.json` 和编译后的 `meme-template.json`。
 
 ## 语言约定
 
@@ -17,8 +17,6 @@
     "image_edit_template": "image-edit-template.json",
     "meme_template": "meme-template.json",
     "batch_manifest": "batch-manifest.json",
-    "prompt_pack": "prompt-pack.json",
-    "stability_testset": "stability-testset.json",
     "manifest": "index.md"
   }
 }
@@ -30,8 +28,6 @@
 - `image-edit-template` 需要保留完整分析链路时，默认额外写 `image-edit-analysis.json`，不要把完整 `analysis` 塞进主文件。
 - `template`、`template-library-entry` 默认写 `meme-template.json` 和 `index.md`。
 - `batch` 默认写 `meme-template.json`、`batch-manifest.json` 和 `index.md`。
-- legacy `render-prompt-pack`、debug prompt pipeline 才写 `prompt-pack.json`。
-- legacy `stability-testset` 才写 `stability-testset.json`。
 
 ## Image Edit Template Object
 
@@ -122,7 +118,7 @@ python skills/meme-template-analyzer/scripts/convert_image_edit_to_meme_template
 - 扩展存储：`metadata`
 
 顶层 Schema 设置 `additionalProperties: false`，不要输出 `version`、`taxonomy`、`assets`、
-`editConfig`、`ingestion`、`exampleWorks` 或 legacy 块。完整规则见
+`editConfig`、`ingestion` 或 `exampleWorks`。完整规则见
 `references/gallery-authoring-contract.md`；转换后运行：
 
 ```bash
@@ -347,7 +343,7 @@ python skills/meme-template-analyzer/scripts/validate_gallery_template.py artifa
 
 ## 分析对象
 
-这些对象用于 `image-edit-analysis.json`、debug 输出或 legacy prompt pack 内嵌结构，不默认暴露为前端必填字段。只有单文件归档或用户明确要求时，才放入 `image-edit-template.json.analysis`。
+这些对象用于 `image-edit-analysis.json` 或 debug 输出，不默认暴露为前端必填字段。只有单文件归档或用户明确要求时，才放入 `image-edit-template.json.analysis`。
 
 ### Template Object
 
@@ -486,38 +482,6 @@ python skills/meme-template-analyzer/scripts/validate_gallery_template.py artifa
 ```
 
 `business_exposure` 区分该槽是否应该进入前端 `slots[]` 或后台 `prompt.slots[]`。只有 `core` 默认进入业务表单；`constraint_only` 和 `debug_only` 只用于约束、QA 或 debug。
-
-## Prompt Pack Object 是 legacy/debug 结构
-
-`Prompt Pack Object 是 legacy/debug 结构`。只有显式请求 `render-prompt-pack`、旧 prompt pipeline、调试中间产物或旧稳定性测试时使用。新图片编辑模板不要默认创建 `prompt-pack.json`。
-
-```json
-{
-  "schema_version": "legacy-1.2",
-  "artifact_type": "meme_prompt_pack",
-  "created_at": "ISO-8601 timestamp",
-  "source_access": {},
-  "vlm_recognition": {},
-  "normalized_input": {},
-  "meme_template": {},
-  "co_variation_constraints": [],
-  "fusion_model": {},
-  "reference_requirements": {},
-  "slot_bindings": [],
-  "prompt_templates": {
-    "base": "",
-    "legacy_variant_a": "",
-    "legacy_variant_b": ""
-  },
-  "rendered_prompts": {
-    "base": {
-      "label": "base_template",
-      "prompt": ""
-    }
-  },
-  "postprocessing": {}
-}
-```
 
 ## Image Generation Results Object
 

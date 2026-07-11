@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-11",
-  "notes": "Refactor SKILL.md into a concise router and move slot/visual design, reference authority, prompt validation, generation testing, and batch/review details into focused first-level references.",
+  "notes": "Remove retired compatibility workflows while retaining current meme analysis, GalleryTemplate authoring and real generation testing.",
   "tracked_files": [
     "SKILL.md",
     "README.md",
@@ -19,14 +19,11 @@
     "references/generation-testing.md",
     "references/batch-and-review.md",
     "references/json-contract.md",
-    "references/stability-testset-contract.md",
     "assets/batch-workbench.html",
     "scripts/clean_image_edit_template.py",
     "scripts/convert_image_edit_to_meme_template.py",
     "scripts/validate_gallery_template.py",
     "scripts/test_gallery_template_conversion.py",
-    "scripts/test_skill_content_contract.py",
-    "scripts/validate_stability_testset.py",
-    "scripts/test_validate_stability_testset.py"
+    "scripts/test_skill_content_contract.py"
   ]
 }
