@@ -1,0 +1,8 @@
+{
+  "templateKey": "dog-with-pearl-earring",
+  "editablePrompt": "把主体改成一只神情淡定的橘猫；保持维米尔《戴珍珠耳环的少女》戏仿的侧身回眸近景肖像、白色头巾和单颗珍珠耳环。",
+  "slotValues": {
+    "subject": "神情淡定的橘猫"
+  },
+  "subjectReferenceAssetId": "asset_usr_01j9catportrait"
+}

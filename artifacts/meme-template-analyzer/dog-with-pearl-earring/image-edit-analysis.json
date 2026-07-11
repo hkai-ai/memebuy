@@ -1,0 +1,289 @@
+{
+  "schemaVersion": "1.0",
+  "artifactType": "image_edit_analysis",
+  "createdAt": "2026-07-11T00:00:00+08:00",
+  "sourceTemplate": "image-edit-template.json",
+  "templateId": "dog-with-pearl-earring",
+  "title": "戴珍珠耳环的狗",
+  "analysis": {
+    "visual_observations": [
+      "一只棕白短毛狗在室内侧身坐着，头部回望镜头。",
+      "狗头裹着白色头巾，右侧可见一只拟人耳朵和单颗垂坠珍珠耳环。",
+      "画面为竖幅近景肖像，窗边柔光从左侧照入，背景为浅色室内。",
+      "没有叠加文字；右下角有不完整的小型署名水印。"
+    ],
+    "distinctive_feature_bundle": [
+      "侧身回眸的三分之四脸近景",
+      "白色头巾",
+      "单颗垂坠珍珠耳环",
+      "柔和窗边光线",
+      "狗脸与拟人耳部细节的并置"
+    ],
+    "content_function": "meme_template",
+    "reference_discovery": {
+      "reference_status": "probable",
+      "reference_type": "artwork",
+      "primary_reference": "约翰内斯·维米尔《戴珍珠耳环的少女》（Girl with a Pearl Earring）",
+      "evidence": [
+        "头巾、单颗珍珠耳环、侧身回眸和柔和侧光构成与原画高度一致的组合。",
+        "公开 meme 资料将该图称为 Dog With a Pearl Earring，并明确说明其戏仿维米尔原画。"
+      ],
+      "counter_evidence": [
+        "源图采用现代室内照片背景和狗的拟人耳朵，并非直接复制原画的服饰或暗背景。"
+      ],
+      "none_evidence": [],
+      "human_review_required": false,
+      "review_reasons": []
+    },
+    "interpretation_hypotheses": [
+      {
+        "kind": "external_reference",
+        "claim": "该图是以狗替换维米尔《戴珍珠耳环的少女》人物主体的名画戏仿。",
+        "explains": [
+          "头巾、珍珠耳环、回眸姿势、柔光和竖幅肖像同时出现"
+        ],
+        "unexplained": [
+          "现代室内背景的具体来源"
+        ],
+        "assumptions": [
+          "创作者有意引用该名画的视觉符号"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "kind": "intrinsic_visual_joke",
+        "claim": "笑点来自狗被加上人类耳朵、头巾和珠宝后的严肃拟人肖像反差。",
+        "explains": [
+          "狗脸与人耳、首饰的荒诞拼接",
+          "侧目表情的反应图潜力"
+        ],
+        "unexplained": [
+          "为何恰好使用单颗珍珠、头巾和名画式回眸"
+        ],
+        "assumptions": [],
+        "confidence": 0.79
+      },
+      {
+        "kind": "standalone_image",
+        "claim": "该图只是宠物时尚摆拍，没有外部文化参照。",
+        "explains": [
+          "室内宠物肖像与时尚饰品"
+        ],
+        "unexplained": [
+          "回眸、白头巾、单颗珍珠耳环和柔光的高度特异组合"
+        ],
+        "assumptions": [
+          "所有名画相似特征均为偶然"
+        ],
+        "confidence": 0.03
+      }
+    ],
+    "formula_reflection_review": {
+      "distinctive_bundle_explained": true,
+      "alternative_hypotheses_compared": true,
+      "generic_description_risk": "low",
+      "reference_anchors_identified": [
+        "侧身回眸近景",
+        "白色头巾",
+        "单颗珍珠耳环",
+        "柔和侧光"
+      ],
+      "unknown_as_none_risk": "low",
+      "passed": true,
+      "review_reasons": []
+    },
+    "confidence": {
+      "visual_observation": 0.98,
+      "reference_identification": 0.97,
+      "context_understanding": 0.9,
+      "meme_formula": 0.93,
+      "slot_design": 0.91
+    },
+    "meme_formula": {
+      "abstract_formula": "将【动物主体】嵌入《戴珍珠耳环的少女》的识别性回眸肖像，使庄重名画气质与宠物拟人化产生反差。",
+      "core_variables": [
+        {
+          "id": "subject",
+          "role_in_formula": "替换原画人物的动物主体",
+          "source_value": "棕白短毛狗"
+        }
+      ],
+      "default_rendering_details": [
+        "白色头巾",
+        "单颗珍珠耳环",
+        "柔和窗边光",
+        "竖幅回眸近景"
+      ],
+      "why_this_is_the_joke": "观者先读到熟悉的名画肖像符号，随后发现主体是带拟人耳朵与首饰的狗；庄重肖像与荒诞宠物替换形成第二读。"
+    },
+    "reading_model": {
+      "first_read": "一幅带头巾和珍珠耳环的回眸肖像。",
+      "second_read": "主体是狗，并带有拟人耳朵，构成对维米尔名画的宠物化戏仿。",
+      "reading_order": [
+        "珍珠耳环和头巾",
+        "回眸姿势与光线",
+        "狗的鼻口与毛发",
+        "拟人耳部细节"
+      ],
+      "misdirection_or_reinterpretation": "熟悉名画的优雅符号先建立庄重期待，动物主体随后反转期待。",
+      "role_mapping": [
+        "名画少女 -> 宠物主体",
+        "珍珠耳环与头巾 -> 不可缺失的文化识别锚点"
+      ],
+      "failure_modes": [
+        "去除头巾或珍珠耳环会弱化名画识别。",
+        "改为正面、全身或强烈卡通风格会破坏回眸肖像公式。"
+      ]
+    },
+    "co_variation_constraints": [
+      {
+        "constraint_id": "subject_identity_vs_portrait_pose",
+        "type": "spatial_binding",
+        "source_slot": "subject_reference",
+        "dependent_slot": "subject",
+        "dimensions": [
+          "silhouette",
+          "pose",
+          "expression"
+        ],
+        "sync_rule": "上传图可影响动物身份特征，但生成结果必须把该身份重映射到侧身回眸近景，而不是复制上传图的原姿势。",
+        "failure_if_unsynced": "上传图覆盖模板姿势时，名画戏仿不再可识别。",
+        "qa_check": "替换后的动物仍呈侧身回眸，且保有可识别的毛色、轮廓或表情。"
+      }
+    ],
+    "fusion_model": {
+      "has_fused_subject": true,
+      "fusion_type": "body_object_fusion",
+      "fused_slots": [
+        {
+          "slot_id": "subject",
+          "role": "动物主体",
+          "current_value": "棕白短毛狗",
+          "fusion_role": "source"
+        },
+        {
+          "slot_id": "human_ear_and_earring",
+          "role": "拟人耳部与珍珠耳环",
+          "current_value": "人耳与单颗珍珠耳环",
+          "fusion_role": "dependent"
+        }
+      ],
+      "fusion_dimensions": [
+        "shape",
+        "silhouette",
+        "position",
+        "semantic_role"
+      ],
+      "replacement_sensitivity": "high",
+      "subject_replaceability": "constrained",
+      "requires_remap_if_subject_changes": true,
+      "remap_targets_if_changed": [
+        "耳部位置与耳环悬挂点",
+        "头巾遮挡关系",
+        "动物脸部朝向"
+      ],
+      "why_it_matters": "耳朵和珍珠耳环贴合动物头部的关系是拟人化荒诞感与名画识别的共同支点。",
+      "qa_check": "替换主体后，人耳、头巾和耳环必须自然贴合头部，耳环仍为单颗且清晰可见。"
+    },
+    "slot_minimization_review": {
+      "kept_as_core_slots": [
+        "subject",
+        "subject_reference（可选）"
+      ],
+      "demoted_to_constraints_or_rendering": [
+        "头巾、珍珠耳环、回眸姿势、竖幅裁切、窗边柔光、室内背景"
+      ],
+      "reasoning": "用户最自然的创作意图是替换宠物身份；名画姿势与服饰配件属于文化识别锚点，开放后会破坏公式。",
+      "business_slot_count": 2
+    },
+    "slot_reflection_review": {
+      "candidate_scan": {
+        "semantic": [
+          "动物主体"
+        ],
+        "text": [],
+        "visual_variables": [
+          "头巾颜色",
+          "耳环样式",
+          "光线",
+          "背景"
+        ],
+        "composition": [
+          "回眸角度",
+          "竖幅近景裁切"
+        ],
+        "image_references": [
+          "可选主体参考图"
+        ],
+        "constraints": [
+          "单颗珍珠耳环",
+          "白色头巾",
+          "柔和侧光"
+        ]
+      },
+      "exposed_slots": [
+        "subject",
+        "subject_reference"
+      ],
+      "locked_or_demoted_candidates": [
+        {
+          "candidate": "头巾颜色",
+          "decision": "locked_invariant",
+          "reason": "白色头巾是当前模板与名画连接的重要线索。"
+        },
+        {
+          "candidate": "耳环样式",
+          "decision": "locked_invariant",
+          "reason": "单颗垂坠珍珠耳环是模板标题和文化参照的核心。"
+        },
+        {
+          "candidate": "背景与窗边光",
+          "decision": "constraint_only",
+          "reason": "用于维持安静肖像气质，不应分散用户的主要替换意图。"
+        },
+        {
+          "candidate": "回眸姿势和竖幅裁切",
+          "decision": "locked_invariant",
+          "reason": "决定名画式阅读顺序与识别度。"
+        }
+      ],
+      "missing_obvious_slots": [],
+      "coverage_requirements": [
+        "至少验证一次不同动物主体能维持回眸、头巾和单颗珍珠耳环。"
+      ]
+    },
+    "locked_composition_constraints": [
+      "竖幅近景三分之四侧身回眸",
+      "白色头巾覆盖头部上方",
+      "单颗垂坠珍珠耳环位于可见耳侧",
+      "柔和窗边侧光和浅色安静室内背景"
+    ],
+    "variable_slots": [
+      {
+        "slot_id": "subject",
+        "category": "subject",
+        "business_exposure": "core",
+        "formula_variable_ref": "subject",
+        "role": "替换名画人物的动物主体",
+        "current_value": "棕白短毛狗",
+        "lock_level": "editable",
+        "examples": [
+          "柯基犬",
+          "橘猫",
+          "兔子"
+        ],
+        "downstream_hint": "替换动物时重映射耳部、头巾遮挡和回眸脸部朝向。",
+        "identity_binding": {
+          "bind_full_appearance": false,
+          "bind_silhouette": true,
+          "bind_label": false,
+          "bind_color": true,
+          "bind_pose": false,
+          "bind_expression": true,
+          "bind_semantic_role": true,
+          "notes": "姿势由模板固定；身份参考图仅补充外观线索。"
+        }
+      }
+    ]
+  }
+}

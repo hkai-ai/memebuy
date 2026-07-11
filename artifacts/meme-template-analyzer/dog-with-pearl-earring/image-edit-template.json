@@ -1,0 +1,192 @@
+{
+  "schemaVersion": "1.0",
+  "artifactType": "image_edit_template",
+  "createdAt": "2026-07-11T00:00:00+08:00",
+  "sourceAccess": {
+    "inputs": [
+      {
+        "path": "./source.png",
+        "role": "template_reference",
+        "width": 736,
+        "height": 981
+      }
+    ],
+    "limitations": [
+      "未验证最初创作作者；文化参照和传播语境依据公开 meme 资料识别。"
+    ],
+    "analysisConfidence": 0.9
+  },
+  "templateId": "dog-with-pearl-earring",
+  "title": "戴珍珠耳环的狗",
+  "summary": "以维米尔《戴珍珠耳环的少女》为构图锚点的拟人狗狗回眸反应图模板。",
+  "imageSize": "768x1024",
+  "taxonomy": {
+    "category": "reaction_image",
+    "templateMechanism": "classical-art-parody",
+    "tags": [
+      "狗狗",
+      "珍珠耳环",
+      "名画戏仿",
+      "回眸",
+      "reaction"
+    ],
+    "needs_review": []
+  },
+  "templateSource": {
+    "role": "template_reference",
+    "path": "./source.png",
+    "authority": [
+      "composition_authority",
+      "style_authority"
+    ],
+    "identity_authority": "none",
+    "preserve": [
+      "vertical_portrait_crop",
+      "three_quarter_over_shoulder_glance",
+      "white_headscarf",
+      "single_pearl_earring",
+      "soft_window_light",
+      "neutral_indoor_background"
+    ],
+    "lockedConstraints": [
+      {
+        "id": "vermeer_parody_pose",
+        "value": "保持侧身回眸、近景竖幅肖像与柔和窗边光线，不能改为正面自拍或全身照。"
+      },
+      {
+        "id": "pearl_earring_anchor",
+        "value": "保留白色头巾、单颗垂坠珍珠耳环和拟人耳部细节，作为《戴珍珠耳环的少女》戏仿的识别锚点。"
+      }
+    ]
+  },
+  "userSubjectInput": {
+    "default": "棕白短毛狗",
+    "text": "主体语义可替换为其他宠物或动物；若上传主体图，仅保留身份线索。",
+    "authority": "semantic_authority"
+  },
+  "templateText": "将画面主体替换为【主体：棕白短毛狗】；保持维米尔《戴珍珠耳环的少女》戏仿的侧身回眸近景肖像、白色头巾和单颗珍珠耳环。",
+  "editablePrompt": "将画面主体替换为棕白短毛狗；保持维米尔《戴珍珠耳环的少女》戏仿的侧身回眸近景肖像、白色头巾和单颗珍珠耳环。",
+  "allowFullRewrite": true,
+  "slots": [
+    {
+      "id": "subject",
+      "label": "主体",
+      "inputKind": "select",
+      "slotRole": "semantic_replacement",
+      "required": true,
+      "defaultValue": "棕白短毛狗",
+      "currentValue": "棕白短毛狗",
+      "placeholder": "输入想要回眸的动物",
+      "suggestions": [
+        "柯基犬",
+        "橘猫",
+        "腊肠犬",
+        "兔子",
+        "狐狸"
+      ],
+      "allowCustom": true,
+      "bindsToTemplateText": true,
+      "templateToken": "【主体：棕白短毛狗】",
+      "extract": "",
+      "maxCount": 1,
+      "private": false,
+      "sourceOptions": [],
+      "validation": {
+        "minLength": 1,
+        "maxLength": 30,
+        "allowedMimeTypes": []
+      }
+    },
+    {
+      "id": "subject_reference",
+      "label": "主体参考图",
+      "inputKind": "image_upload",
+      "slotRole": "identity_reference",
+      "required": false,
+      "defaultValue": "",
+      "placeholder": "可选：上传宠物照片以保留毛色、轮廓和表情特征",
+      "suggestions": [],
+      "allowCustom": false,
+      "bindsToTemplateText": false,
+      "extract": "提取宠物的物种、毛色、轮廓、耳形和可识别表情；仅作为身份参考，不得改变模板的回眸姿势、头巾、耳环或镜头构图。",
+      "maxCount": 1,
+      "private": true,
+      "sourceOptions": [
+        "upload",
+        "recent_upload",
+        "asset_library"
+      ],
+      "validation": {
+        "allowedMimeTypes": [
+          "image/png",
+          "image/jpeg",
+          "image/webp"
+        ],
+        "minWidth": 256,
+        "minHeight": 256
+      }
+    }
+  ],
+  "imageRefs": [
+    {
+      "id": "template_source",
+      "path": "./source.png",
+      "role": "template_reference",
+      "authority": [
+        "composition_authority",
+        "style_authority"
+      ]
+    }
+  ],
+  "backendHint": {
+    "strategy": "compose_edit_instruction",
+    "inputSummary": "模板图决定竖幅回眸肖像、头巾、珍珠耳环、窗边光与室内背景；主体文字或上传图只决定动物身份。",
+    "exampleInstruction": "参考模板图，将主体替换为橘猫，保持侧身回眸、白头巾和单颗珍珠耳环。",
+    "generationModes": {
+      "reference_aware_prompt": {
+        "default": true,
+        "templateSourcePolicy": {
+          "role": "template_reference",
+          "authority": [
+            "composition_authority",
+            "style_authority"
+          ],
+          "mustPreserve": [
+            "vertical_portrait_crop",
+            "three_quarter_over_shoulder_glance",
+            "white_headscarf",
+            "single_pearl_earring",
+            "soft_window_light"
+          ]
+        },
+        "userInputPolicy": {
+          "text": "按文字替换动物主体。",
+          "image_upload": "只提取身份线索，不覆盖模板构图。",
+          "default": "使用默认棕白短毛狗。"
+        }
+      },
+      "prompt_mode": {
+        "alias": "text_only_prompt",
+        "promptMustInclude": [
+          "vertical portrait crop",
+          "three-quarter over-shoulder glance",
+          "single pearl earring",
+          "soft window light"
+        ],
+        "promptMustAvoid": [
+          "front-facing selfie",
+          "full-body shot",
+          "multiple earrings"
+        ]
+      }
+    },
+    "imageReferencePolicy": [
+      "模板图提供构图和风格权威。",
+      "主体参考图仅提供身份权威。"
+    ],
+    "notes": [
+      "用户原图直通生成；不创建 vision preprocess step。"
+    ]
+  },
+  "analysisRef": "image-edit-analysis.json"
+}

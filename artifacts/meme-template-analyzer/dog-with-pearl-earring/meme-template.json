@@ -1,0 +1,119 @@
+{
+  "key": "dog-with-pearl-earring",
+  "title": "戴珍珠耳环的狗",
+  "description": "以维米尔《戴珍珠耳环的少女》为构图锚点的拟人狗狗回眸反应图模板。",
+  "cover": "./source.png",
+  "referenceImage": "./source.png",
+  "imageSize": "768x1024",
+  "imageN": 1,
+  "inputSchema": [
+    {
+      "type": "prompt",
+      "id": "subject",
+      "label": "主体",
+      "placeholder": "输入想要回眸的动物",
+      "required": true,
+      "suggestions": [
+        "柯基犬",
+        "橘猫",
+        "腊肠犬",
+        "兔子",
+        "狐狸"
+      ]
+    },
+    {
+      "type": "image",
+      "id": "subject_reference",
+      "label": "主体参考图",
+      "hint": "可选：上传宠物照片以保留毛色、轮廓和表情特征",
+      "required": false,
+      "maxCount": 1,
+      "minWidth": 256,
+      "minHeight": 256,
+      "private": true
+    }
+  ],
+  "preprocessSteps": [],
+  "promptTemplate": "将画面主体替换为{{ subject | \"棕白短毛狗\" }}；保持维米尔《戴珍珠耳环的少女》戏仿的侧身回眸近景肖像、白色头巾和单颗珍珠耳环。 如果用户提供了主体参考图，将该原图作为身份参考并保留主体特征，不要让它覆盖模板构图。 文案长度要求：主体不超过30个字符。 使用模板固定参考图作为构图和风格参考。 必须遵守：保持侧身回眸、近景竖幅肖像与柔和窗边光线，不能改为正面自拍或全身照；保留白色头巾、单颗垂坠珍珠耳环和拟人耳部细节，作为《戴珍珠耳环的少女》戏仿的识别锚点；保留模板参考图的这些结构和风格特征：vertical portrait crop、three quarter over shoulder glance、white headscarf、single pearl earring、soft window light、neutral indoor background。",z
+  "metadata": {
+    "tags": [
+      "reaction_image",
+      "classical-art-parody",
+      "狗狗",
+      "珍珠耳环",
+      "名画戏仿",
+      "回眸",
+      "reaction"
+    ],
+    "version": "1.0",
+    "category": "reaction_image",
+    "templateMechanism": "classical-art-parody",
+    "taxonomy": {
+      "category": "reaction_image",
+      "templateMechanism": "classical-art-parody",
+      "tags": [
+        "狗狗",
+        "珍珠耳环",
+        "名画戏仿",
+        "回眸",
+        "reaction"
+      ],
+      "needs_review": []
+    },
+    "templateSource": {
+      "role": "template_reference",
+      "authority": [
+        "composition_authority",
+        "style_authority"
+      ],
+      "identity_authority": "none",
+      "preserve": [
+        "vertical_portrait_crop",
+        "three_quarter_over_shoulder_glance",
+        "white_headscarf",
+        "single_pearl_earring",
+        "soft_window_light",
+        "neutral_indoor_background"
+      ],
+      "lockedConstraints": [
+        {
+          "id": "vermeer_parody_pose",
+          "value": "保持侧身回眸、近景竖幅肖像与柔和窗边光线，不能改为正面自拍或全身照。"
+        },
+        {
+          "id": "pearl_earring_anchor",
+          "value": "保留白色头巾、单颗垂坠珍珠耳环和拟人耳部细节，作为《戴珍珠耳环的少女》戏仿的识别锚点。"
+        }
+      ],
+      "referenceField": "referenceImage"
+    },
+    "referenceContext": {
+      "status": "probable",
+      "type": "artwork",
+      "primaryReference": "约翰内斯·维米尔《戴珍珠耳环的少女》（Girl with a Pearl Earring）",
+      "anchors": [
+        "侧身回眸近景",
+        "白色头巾",
+        "单颗珍珠耳环",
+        "柔和侧光"
+      ]
+    },
+    "inputSemantics": {
+      "subject": {
+        "slotRole": "semantic_replacement",
+        "defaultValue": "棕白短毛狗",
+        "allowCustom": true
+      },
+      "subject_reference": {
+        "slotRole": "identity_reference",
+        "allowCustom": false,
+        "extract": "提取宠物的物种、毛色、轮廓、耳形和可识别表情；仅作为身份参考，不得改变模板的回眸姿势、头巾、耳环或镜头构图。",
+        "sourceOptions": [
+          "upload",
+          "recent_upload",
+          "asset_library"
+        ]
+      }
+    }
+  }
+}
