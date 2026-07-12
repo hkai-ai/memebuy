@@ -1,58 +1,71 @@
 import { useEffect, useMemo, useState } from "react";
+import { Navigate, NavLink, Route, Routes, matchPath, useLocation, useNavigate } from "react-router-dom";
 import type { AdminSettings, BatchConfig, GroupConfig, JobRecord, JobStatus, ResultFile } from "../shared/types";
 import { api } from "./api";
 
-type Tab = "workspace" | "jobs" | "results";
 const statusLabel: Record<JobStatus, string> = { queued: "排队中", running: "执行中", succeeded: "已完成", needs_review: "待审核", failed: "失败", cancelled: "已取消", interrupted: "已中断" };
 
 function tagsFrom(value: string) { return [...new Set(value.split(/[,，]/).map((item) => item.trim()).filter(Boolean))]; }
+function assetFolder(relativePath: string) { const index = relativePath.lastIndexOf("/"); return index < 0 ? "" : relativePath.slice(0, index); }
+function folderLabel(folder: string) { return folder || "根目录"; }
 function duration(job: JobRecord) {
   const start = new Date(job.startedAt ?? job.createdAt).getTime(); const end = job.finishedAt ? new Date(job.finishedAt).getTime() : Date.now();
   const seconds = Math.max(0, Math.floor((end - start) / 1000)); return seconds < 60 ? `${seconds} 秒` : `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`;
 }
 
 function App() {
-  const [tab, setTab] = useState<Tab>("workspace");
+  const location = useLocation();
+  const navigate = useNavigate();
   const [batches, setBatches] = useState<BatchConfig[]>([]);
-  const [batchId, setBatchId] = useState("");
   const [jobs, setJobs] = useState<JobRecord[]>([]);
   const [settings, setSettings] = useState<AdminSettings>({ concurrency: 1 });
   const [notice, setNotice] = useState("正在连接本地服务…");
   const [error, setError] = useState("");
-  const [resultJobId, setResultJobId] = useState("");
+  const [loaded, setLoaded] = useState(false);
 
+  const batchId = matchPath({ path: "/batches/:batchId", end: true }, location.pathname)?.params.batchId ?? "";
+  const resultJobId = matchPath({ path: "/results/:jobId", end: true }, location.pathname)?.params.jobId ?? "";
   const batch = batches.find((item) => item.id === batchId);
-  const refreshBatches = async (preferredId?: string) => { const data = await api.batches(); setBatches(data); setBatchId(preferredId ?? batchId ?? data[0]?.id ?? ""); };
+  const setBatchId = (id: string) => navigate(id ? `/batches/${encodeURIComponent(id)}` : "/batches/new");
+  const refreshBatches = async (preferredId?: string) => { const data = await api.batches(); setBatches(data); if (preferredId) setBatchId(preferredId); };
   const refreshJobs = async () => setJobs(await api.jobs());
   const perform = async <T,>(action: () => Promise<T>, success?: string): Promise<T | undefined> => {
     setError(""); try { const result = await action(); if (success) setNotice(success); return result; }
     catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); return undefined; }
   };
 
-  useEffect(() => { void Promise.all([api.batches(), api.jobs(), api.settings()]).then(([batchData, jobData, settingData]) => { setBatches(batchData); setBatchId(batchData[0]?.id ?? ""); setJobs(jobData); setSettings(settingData); setNotice("本地服务已连接"); }).catch((reason) => setError(`无法连接本地 API：${reason.message}`)); }, []);
+  useEffect(() => { void Promise.all([api.batches(), api.jobs(), api.settings()]).then(([batchData, jobData, settingData]) => { setBatches(batchData); setJobs(jobData); setSettings(settingData); setNotice("本地服务已连接"); }).catch((reason) => setError(`无法连接本地 API：${reason.message}`)).finally(() => setLoaded(true)); }, []);
   useEffect(() => {
     const active = jobs.filter((job) => job.status === "queued" || job.status === "running");
     const streams = active.map((job) => { const stream = new EventSource(`/api/jobs/${job.id}/events`); stream.onmessage = (event) => { const payload = JSON.parse(event.data); setJobs((current) => current.map((item) => item.id === payload.job.id ? payload.job : item)); }; stream.onerror = () => stream.close(); return stream; });
     return () => streams.forEach((stream) => stream.close());
   }, [jobs.map((job) => `${job.id}:${job.status}`).join("|")]);
 
-  const updateBatch = (updated: BatchConfig) => { setBatches((current) => current.map((item) => item.id === updated.id ? updated : item)); setBatchId(updated.id); };
-  const showResult = (id: string) => { setResultJobId(id); setTab("results"); };
+  const updateBatch = (updated: BatchConfig) => { setBatches((current) => current.map((item) => item.id === updated.id ? updated : item)); if (batchId !== updated.id) setBatchId(updated.id); };
+  const showResult = (id: string) => navigate(`/results/${encodeURIComponent(id)}`);
+  const defaultBatchPath = batches[0] ? `/batches/${encodeURIComponent(batches[0].id)}` : "/batches/new";
 
   return <div className="app-shell">
     <header className="topbar">
       <div className="brand"><span className="brand-mark">M</span><div><strong>Meme 业务管理台</strong><small>本地批量分析与审核</small></div></div>
       <nav aria-label="主导航">
-        <button className={tab === "workspace" ? "active" : ""} onClick={() => setTab("workspace")}>素材与批次</button>
-        <button className={tab === "jobs" ? "active" : ""} onClick={() => setTab("jobs")}>任务中心 <span className="count">{jobs.filter((job) => job.status === "queued" || job.status === "running").length}</span></button>
-        <button className={tab === "results" ? "active" : ""} onClick={() => setTab("results")}>结果审核</button>
+        <NavLink to={batchId ? `/batches/${encodeURIComponent(batchId)}` : defaultBatchPath}>素材与批次</NavLink>
+        <NavLink to="/jobs">任务中心 <span className="count">{jobs.filter((job) => job.status === "queued" || job.status === "running").length}</span></NavLink>
+        <NavLink to={resultJobId ? `/results/${encodeURIComponent(resultJobId)}` : "/results"}>结果审核</NavLink>
       </nav>
       <div className="local-badge"><span /> localhost</div>
     </header>
     {(error || notice) && <div className={`toast ${error ? "danger" : ""}`} role="status">{error || notice}<button onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
-    {tab === "workspace" && <Workspace batches={batches} batch={batch} batchId={batchId} setBatchId={setBatchId} updateBatch={updateBatch} refresh={() => refreshBatches()} perform={perform} onJobsChanged={refreshJobs} />}
-    {tab === "jobs" && <Jobs jobs={jobs} settings={settings} perform={perform} refresh={refreshJobs} onSettings={setSettings} showResult={showResult} />}
-    {tab === "results" && <Results jobs={jobs} selectedId={resultJobId} setSelectedId={setResultJobId} perform={perform} />}
+    <Routes>
+      <Route path="/" element={<Navigate to="/batches" replace />} />
+      <Route path="/batches" element={loaded ? <Navigate to={defaultBatchPath} replace /> : null} />
+      <Route path="/batches/new" element={<Workspace batches={batches} batchId="" setBatchId={setBatchId} updateBatch={updateBatch} refresh={() => refreshBatches()} perform={perform} onJobsChanged={refreshJobs} />} />
+      <Route path="/batches/:batchId" element={loaded && !batch ? <Navigate to={defaultBatchPath} replace /> : <Workspace batches={batches} batch={batch} batchId={batchId} setBatchId={setBatchId} updateBatch={updateBatch} refresh={() => refreshBatches()} perform={perform} onJobsChanged={refreshJobs} />} />
+      <Route path="/jobs" element={<Jobs jobs={jobs} settings={settings} perform={perform} refresh={refreshJobs} onSettings={setSettings} showResult={showResult} />} />
+      <Route path="/results" element={<Results jobs={jobs} selectedId="" setSelectedId={(id) => navigate(`/results/${encodeURIComponent(id)}`, { replace: true })} perform={perform} />} />
+      <Route path="/results/:jobId" element={<Results jobs={jobs} selectedId={resultJobId} setSelectedId={(id) => navigate(`/results/${encodeURIComponent(id)}`)} perform={perform} />} />
+      <Route path="*" element={<Navigate to="/batches" replace />} />
+    </Routes>
   </div>;
 }
 
@@ -65,15 +78,27 @@ interface WorkspaceProps {
 function Workspace({ batches, batch, batchId, setBatchId, updateBatch, refresh, perform, onJobsChanged }: WorkspaceProps) {
   const [sourceFolder, setSourceFolder] = useState(""); const [batchName, setBatchName] = useState(""); const [importPath, setImportPath] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set()); const [groupId, setGroupId] = useState(""); const [search, setSearch] = useState(""); const [filter, setFilter] = useState("all");
+  const [folderFilter, setFolderFilter] = useState("all");
   const [newGroup, setNewGroup] = useState("");
   const [defaultCategory, setDefaultCategory] = useState(""); const [defaultTags, setDefaultTags] = useState(""); const [defaultMode, setDefaultMode] = useState<BatchConfig["defaults"]["generationMode"]>("template");
-  useEffect(() => { setSelected(new Set()); setGroupId(batch?.groups[0]?.id ?? ""); }, [batchId]);
+  useEffect(() => { setSelected(new Set()); setGroupId(batch?.groups[0]?.id ?? ""); setFolderFilter("all"); }, [batchId]);
   useEffect(() => { setDefaultCategory(batch?.defaults.category ?? ""); setDefaultTags(batch?.defaults.tags.join(", ") ?? ""); setDefaultMode(batch?.defaults.generationMode ?? "template"); }, [batchId, batch?.updatedAt]);
   const group = batch?.groups.find((item) => item.id === groupId);
+  const folders = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const image of batch?.images ?? []) { const folder = assetFolder(image.relativePath); counts.set(folder, (counts.get(folder) ?? 0) + 1); }
+    return [...counts.entries()].sort(([a], [b]) => a.localeCompare(b, "zh-CN"));
+  }, [batch?.images]);
   const visible = useMemo(() => (batch?.images ?? []).filter((image) => {
     const matchesSearch = `${image.fileName} ${image.relativePath}`.toLowerCase().includes(search.toLowerCase());
-    return matchesSearch && (filter === "all" || (filter === "unassigned" ? !image.groupId : image.groupId === filter));
-  }), [batch, search, filter]);
+    const matchesGroup = filter === "all" || (filter === "unassigned" ? !image.groupId : image.groupId === filter);
+    return matchesSearch && matchesGroup && (folderFilter === "all" || assetFolder(image.relativePath) === folderFilter);
+  }), [batch, search, filter, folderFilter]);
+  const folderSections = useMemo(() => {
+    const sections = new Map<string, typeof visible>();
+    for (const image of visible) { const folder = assetFolder(image.relativePath); sections.set(folder, [...(sections.get(folder) ?? []), image]); }
+    return [...sections.entries()];
+  }, [visible]);
 
   const pick = async () => { const result = await perform(() => api.pickDirectory()); if (result?.path) { setSourceFolder(result.path); if (!batchName) setBatchName(result.path.split(/[\\/]/).pop() ?? "新批次"); } };
   const create = async () => { const result = await perform(() => api.createBatch({ name: batchName, sourceFolder }), "批次已创建并完成素材扫描"); if (result) { await refresh(); setBatchId(result.id); setSourceFolder(""); setBatchName(""); } };
@@ -113,9 +138,9 @@ function Workspace({ batches, batch, batchId, setBatchId, updateBatch, refresh, 
     </aside>
     <section className="asset-panel">
       <div className="panel-toolbar"><div><h1>{batch.name}</h1><p title={batch.sourceFolder}>{batch.sourceFolder}</p></div><div className="toolbar-actions"><button className="primary" onClick={runAll}>批量生成</button><button onClick={() => setSelected(new Set(visible.map((item) => item.id)))}>全选可见</button><button onClick={() => setSelected(new Set())}>清空</button></div></div>
-      <div className="filters"><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜索文件名或路径" /><select value={filter} onChange={(e) => setFilter(e.target.value)}><option value="all">全部素材</option><option value="unassigned">未分组</option>{batch.groups.map((item) => <option value={item.id} key={item.id}>{item.groupName}</option>)}</select></div>
+      <div className="filters"><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜索文件名或路径" /><select value={folderFilter} onChange={(e) => setFolderFilter(e.target.value)} aria-label="素材文件夹"><option value="all">全部文件夹（{folders.length}）</option>{folders.map(([folder, count]) => <option value={folder} key={folder || "root"}>{folderLabel(folder)}（{count}）</option>)}</select><select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="素材分组"><option value="all">全部素材</option><option value="unassigned">未分组</option>{batch.groups.map((item) => <option value={item.id} key={item.id}>{item.groupName}</option>)}</select></div>
       {selected.size > 0 && <div className="selection-bar"><strong>已选 {selected.size} 张</strong><button className="primary" disabled={!group} onClick={() => assign(group?.id)}>加入当前分组</button><button onClick={() => assign(undefined)}>移出分组</button></div>}
-      <div className="asset-grid">{visible.map((image) => { const assigned = batch.groups.find((item) => item.id === image.groupId); return <button key={image.id} className={`asset-card ${selected.has(image.id) ? "selected" : ""}`} onClick={() => setSelected((current) => { const next = new Set(current); next.has(image.id) ? next.delete(image.id) : next.add(image.id); return next; })}><div className="checkmark">{selected.has(image.id) ? "✓" : ""}</div><img loading="lazy" src={`/api/files?path=${encodeURIComponent(image.sourcePath)}`} alt={image.fileName} /><div><strong title={image.fileName}>{image.fileName}</strong><small>{assigned?.groupName ?? "未分组"}</small></div></button>; })}</div>
+      <div className="asset-folders">{folderSections.map(([folder, images]) => <section className="asset-folder" key={folder || "root"}><div className="asset-folder-heading"><span className="folder-icon">⌑</span><strong title={folderLabel(folder)}>{folderLabel(folder)}</strong><em>{images.length} 张</em><button onClick={() => setSelected((current) => new Set([...current, ...images.map((image) => image.id)]))}>选择此文件夹</button></div><div className="asset-grid">{images.map((image) => { const assigned = batch.groups.find((item) => item.id === image.groupId); return <button key={image.id} className={`asset-card ${selected.has(image.id) ? "selected" : ""}`} onClick={() => setSelected((current) => { const next = new Set(current); next.has(image.id) ? next.delete(image.id) : next.add(image.id); return next; })}><div className="checkmark">{selected.has(image.id) ? "✓" : ""}</div><img loading="lazy" src={`/api/files?path=${encodeURIComponent(image.sourcePath)}`} alt={image.fileName} /><div><strong title={image.fileName}>{image.fileName}</strong><small>{assigned?.groupName ?? "未分组"}</small></div></button>; })}</div></section>)}</div>
       {!visible.length && <div className="empty-inline">没有符合条件的图片</div>}
     </section>
     <aside className="config-panel">{group ? <GroupEditor key={`${batch.id}-${group.id}-${group.imageIds.length}`} batch={batch} group={group} updateBatch={updateBatch} perform={perform} run={run} /> : <div className="empty-inline">创建或选择一个分组后配置任务</div>}</aside>
