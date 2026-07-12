@@ -1,0 +1,12 @@
+{
+  "name": "memebuy-skills",
+  "private": true,
+  "packageManager": "pnpm@10.8.0",
+  "scripts": {
+    "dev": "pnpm --filter @memebuy/meme-admin dev",
+    "build": "pnpm --filter @memebuy/meme-admin build",
+    "start": "pnpm --filter @memebuy/meme-admin start",
+    "test": "pnpm --filter @memebuy/meme-admin test",
+    "typecheck": "pnpm --filter @memebuy/meme-admin typecheck"
+  }
+}

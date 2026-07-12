@@ -64,6 +64,17 @@ scripts\check-skill-sync.ps1 -SkillName meme-template-analyzer
 - 把 Agent 草稿编译成严格 GalleryTemplateImport JSON。
 - 批量分析文件夹并生成一个模板一个后台入库 JSON。
 
+## 本地业务管理台
+
+仓库提供 `apps/meme-admin`，方便业务人员在浏览器中管理批次、素材分组、标签分类、任务状态和生成结果。管理台会直接调用本机 `codex exec --json`，并强制使用仓库内的 `meme-template-analyzer` 工作版本。
+
+```powershell
+pnpm install
+pnpm dev
+```
+
+打开 `http://127.0.0.1:15173`。本地 API 使用 `127.0.0.1:14174`；两者都只监听 localhost，不用于 Cloudflare 或公网部署。无需运行服务时，仍可继续使用 `skills/meme-template-analyzer/assets/batch-workbench.html` 静态整理台。
+
 ## 支持输入
 
 可以给 Codex 提供：

@@ -10,5 +10,6 @@ node_modules/
 dist/
 build/
 coverage/
+.meme-admin/
 
 artifacts/

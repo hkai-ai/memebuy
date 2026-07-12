@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.21.0",
+  "version": "0.22.1",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
-  "updated_at": "2026-07-11",
-  "notes": "Add cultural-reference discovery, competing interpretations, formula-premise review, semantic DRAFT gates and sidecar validation.",
+  "updated_at": "2026-07-12",
+  "notes": "Use five-digit localhost ports 15173 and 14174 for the local meme admin workflow.",
   "tracked_files": [
     "SKILL.md",
     "README.md",

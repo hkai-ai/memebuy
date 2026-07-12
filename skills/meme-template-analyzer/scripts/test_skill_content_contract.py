@@ -221,8 +221,8 @@ def main() -> None:
     assert any(item["type"] == "select" for item in sample["inputSchema"])
     assert any(item["type"] == "prompt" for item in sample["inputSchema"])
 
-    assert manifest["version"] == "0.21.0"
-    assert manifest["updated_at"] == "2026-07-11"
+    assert manifest["version"] == "0.22.1"
+    assert manifest["updated_at"] == "2026-07-12"
     for tracked in manifest["tracked_files"]:
         if not (ROOT / tracked).exists():
             raise AssertionError(f"skill-manifest.json tracks missing file: {tracked}")

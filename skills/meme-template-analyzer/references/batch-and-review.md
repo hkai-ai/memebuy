@@ -26,13 +26,23 @@
 
 ## Batch Review Workbench
 
-用户要求“批量整理台”“素材分组”时使用 `assets/batch-workbench.html`。它是 Chrome/Edge 静态工具，通过 File System Access API 选择素材目录并写回：
+用户要求“批量整理台”“素材分组”“批量生成管理”或“查看任务状态”时，优先使用仓库内 `apps/meme-admin` 本地业务管理台。它支持：
+
+- 扫描素材目录，建立批次并按组管理图片。
+- 配置分类、标签、模板机制、参考角色和生成模式。
+- 把图片复制到分组目录，不移动或删除源文件。
+- 按分组调用 `codex exec --json`，展示队列、阶段、日志、validator、取消和失败重试。
+- 查看 JSON、Markdown、生成图并打开结果目录。
+
+管理台继续写回：
 
 - 根目录 `batch-workspace.json`
 - 根目录 `batch-manifest.json`
 - 每组目录 `group-config.json`
 
-用户可配置 `status`、`referenceConfig`、`referenceDependencyLevel`、`testModeRecommendation`、tags 和 notes。工具默认只写 JSON；复制到分组目录需要用户点击，不移动或删除源文件。
+管理台通过 `pnpm dev` 启动，只监听 localhost。它必须显式调用仓库内 skill，不能默认使用同名全局副本，也不能开放任意 shell 命令、生产部署或外部入库。
+
+只需离线整理、不希望启动 Node 服务时，继续使用 `assets/batch-workbench.html`。它是 Chrome/Edge 静态工具，通过 File System Access API 选择素材目录并写回同样的兼容 JSON。用户可配置 `status`、`referenceConfig`、`referenceDependencyLevel`、`testModeRecommendation`、tags 和 notes；复制到分组目录需要用户点击。
 
 后续分析必须优先读取用户确认的 `referenceConfig`，不要重新猜测图片用途。
 

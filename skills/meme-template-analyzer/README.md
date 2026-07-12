@@ -400,7 +400,16 @@ file:///C:/Code/memebuy/artifacts/meme-template-analyzer/<目录>/review.html
 
 ## batch-review-workbench 批量整理台
 
-当图片较多、自动化无法可靠判断模板分组时，先单独调用批量整理台。工具文件：
+当图片较多、需要业务人员批量配置并查看生成任务时，优先使用仓库内本地业务管理台：
+
+```powershell
+pnpm install
+pnpm dev
+```
+
+打开 `http://127.0.0.1:15173`。页面支持素材扫描、分组、分类与标签、参考角色、生成模式、按组排队、任务状态、取消重试、validator 和结果预览。本地 API 使用 `127.0.0.1:14174`，会固定调用仓库内 skill，不依赖同名全局副本。
+
+只需要离线整理或不希望启动服务时，使用静态工具：
 
 ```text
 skills/meme-template-analyzer/assets/batch-workbench.html
