@@ -11,6 +11,8 @@
 - 批量另写 `batch-manifest.json`，不把 source hash 和追踪状态塞进入库 JSON。
 - taxonomy 未完成人审时写非空 `metadata.needsReview`，导入状态为 `DRAFT`；否则默认 `PUBLISHED`。
 - 每个模板单独通过 validator 后才上传。
+- 只有用户明确要求最终 JSON/后端交付时才进入 OSS 收尾；普通批量分析不上传。
+- 最终交付按 `oss-handoff.md` 输出独立 handoff 目录，不覆盖本地路径版模板。
 
 ## 批量语义预审
 

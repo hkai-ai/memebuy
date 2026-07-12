@@ -9,8 +9,9 @@
 
 ## 文件与职责
 
-一个模板输出一个 `meme-template.json`。它必须直接符合 `GalleryTemplateImport` Schema，
-由导入脚本执行：Schema 校验 -> 上传本地图到 OSS -> URL 回填 -> 按 `key` upsert。
+一个模板输出一个 `meme-template.json`。它必须直接符合 `GalleryTemplateImport` Schema。
+默认产物使用本地图片路径；用户明确要求最终交付时，本仓库按 `oss-handoff.md` 上传 OSS 并输出
+URL 版纯 JSON，之后由后端项目按 `key` upsert。
 
 `image-edit-template.json` 是 Agent 的分析与编辑草稿，不是入库文件。二者通过
 `scripts/convert_image_edit_to_meme_template.py` 确定性转换。
@@ -49,8 +50,8 @@
 | `templateSource`、`taxonomy`、槽位语义 | `metadata` |
 | `ingestion`、source hash、追踪状态 | 不入库，写 `import-report.json` |
 
-`cover` 是列表展示图；`referenceImage` 是生成时固定参考图。默认可指向同一个本地文件，
-导入脚本只上传一次并复用 URL，但契约允许二者不同。
+`cover` 是列表展示图；`referenceImage` 是生成时固定参考图。本地产物默认可指向同一个文件；
+OSS 收尾脚本只上传一次并复用 URL。最终交付 JSON 中二者为指定 assets 域名下的 HTTPS URL。
 
 ## promptTemplate
 
@@ -121,7 +122,7 @@
 - 一个模板一个 JSON 文件，不再输出顶层 `templates[]` 聚合文件供导入。
 - `batch-manifest.json` 只用于 Agent 批次追踪，不进入 GalleryTemplate 表。
 - 每张源图使用独立目录，JSON 中图片路径相对当前 JSON 文件解析。
-- 导入脚本负责 OSS 上传、hash 去重、按 key upsert 和 `import-report.json`。
+- OSS 收尾脚本负责上传、hash 去重与 URL 回填；后端项目负责按 key upsert 和数据库导入报告。
 - Agent 输出后运行：
 
 ```bash

@@ -25,6 +25,7 @@ def main() -> None:
     prompt_validation = read("references/prompt-and-validation.md")
     generation_testing = read("references/generation-testing.md")
     batch_review = read("references/batch-and-review.md")
+    oss_handoff = read("references/oss-handoff.md")
     readme = read("README.md")
     business_doc = (REPO_ROOT / "docs" / "梗图模板业务使用说明.md").read_text(encoding="utf-8")
     taxonomy_doc = (REPO_ROOT / "docs" / "梗图模板库分类逻辑说明.md").read_text(encoding="utf-8")
@@ -47,6 +48,8 @@ def main() -> None:
         "用户原图默认直通生成",
         "validate_gallery_template.py",
         "一个模板一个",
+        "authoring-handoff",
+        "oss-handoff.md",
     ]:
         require(skill, needle, "SKILL.md")
 
@@ -155,8 +158,19 @@ def main() -> None:
         "review.html",
         "semanticReviewStatus",
         "needs_research",
+        "最终 JSON",
     ]:
         require(batch_review, needle, "batch-and-review.md")
+
+    for needle in [
+        "pnpm gallery:finalize",
+        "ALIYUN_OSS_ASSETS_DOMAIN",
+        "metadata.needsReview",
+        "SHA-256",
+        "handoff",
+        "不得读取、打印、复制或写入 AK/SK",
+    ]:
+        require(oss_handoff, needle, "oss-handoff.md")
 
     for needle in [
         "additionalProperties: false",
@@ -221,7 +235,7 @@ def main() -> None:
     assert any(item["type"] == "select" for item in sample["inputSchema"])
     assert any(item["type"] == "prompt" for item in sample["inputSchema"])
 
-    assert manifest["version"] == "0.22.1"
+    assert manifest["version"] == "0.23.0"
     assert manifest["updated_at"] == "2026-07-12"
     for tracked in manifest["tracked_files"]:
         if not (ROOT / tracked).exists():

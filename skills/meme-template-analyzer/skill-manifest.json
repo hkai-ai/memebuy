@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.22.1",
+  "version": "0.23.0",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-12",
-  "notes": "Use five-digit localhost ports 15173 and 14174 for the local meme admin workflow.",
+  "notes": "Add explicit OSS handoff mode with resumable uploads, remote URL validation, and pure JSON batch output.",
   "tracked_files": [
     "SKILL.md",
     "README.md",
@@ -19,12 +19,15 @@
     "references/prompt-and-validation.md",
     "references/generation-testing.md",
     "references/batch-and-review.md",
+    "references/oss-handoff.md",
     "references/json-contract.md",
     "assets/batch-workbench.html",
     "scripts/clean_image_edit_template.py",
     "scripts/convert_image_edit_to_meme_template.py",
     "scripts/validate_gallery_template.py",
     "scripts/validate_semantic_analysis.py",
+    "scripts/finalize_gallery_batch.mjs",
+    "scripts/test_finalize_gallery_batch.mjs",
     "scripts/test_gallery_template_conversion.py",
     "scripts/test_skill_content_contract.py"
   ]

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from urllib.parse import urlparse
 from pathlib import Path
@@ -16,6 +17,11 @@ ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{0,39}$")
 SIZE_RE = re.compile(r"^\d{2,4}x\d{2,4}$")
 PLACEHOLDER_RE = re.compile(r"{{\s*(.*?)\s*}}")
 PATH_TERM_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{0,39}(?:\.[a-zA-Z][a-zA-Z0-9_-]{0,39})*$")
+OSS_OBJECT_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+    r"\.(?:png|jpe?g|webp|gif|avif)$",
+    re.IGNORECASE,
+)
 ROOT_KEYS = {
     "key", "title", "description", "cover", "referenceImage", "imageSize",
     "imageN", "stageKey", "promptTemplate", "inputSchema", "preprocessSteps", "metadata",
@@ -320,13 +326,76 @@ def validate(data: Any) -> list[str]:
     return errors
 
 
-def validate_artifact_paths(data: Any, base_dir: Path) -> list[str]:
+def normalize_domain(value: str | None) -> str:
+    domain = (value or "").strip().lower().rstrip(".")
+    if not domain:
+        return ""
+    try:
+        parsed = urlparse(f"//{domain}")
+        port = parsed.port
+    except ValueError:
+        return ""
+    if parsed.hostname != domain or port is not None or any(char in domain for char in "/?#@"):
+        return ""
+    return domain
+
+
+def normalize_key_prefix(value: str | None) -> str:
+    cleaned = (value or "").strip().strip("/")
+    return f"{cleaned}/" if cleaned else ""
+
+
+def validate_remote_asset_url(
+    field: str,
+    value: str,
+    assets_domain: str,
+    key_prefix: str,
+) -> list[str]:
+    parsed = urlparse(value)
+    errors: list[str] = []
+    if parsed.scheme != "https":
+        errors.append(f"{field} remote URL must use https")
+    if not assets_domain:
+        errors.append(f"{field} remote URL validation requires a valid assets domain")
+    elif (parsed.hostname or "").lower() != assets_domain or parsed.port is not None:
+        errors.append(f"{field} remote URL host must be {assets_domain}")
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        errors.append(f"{field} remote URL must not contain credentials, query, or fragment")
+    expected_prefix = f"/{key_prefix}gallery/templates/"
+    if not parsed.path.startswith(expected_prefix):
+        errors.append(f"{field} remote URL path must start with {expected_prefix}")
+    elif not OSS_OBJECT_RE.fullmatch(parsed.path[len(expected_prefix):]):
+        errors.append(f"{field} remote URL object name must be a UUID v4 plus a supported image extension")
+    return errors
+
+
+def validate_artifact_paths(
+    data: Any,
+    base_dir: Path,
+    asset_mode: str = "either",
+    assets_domain: str | None = None,
+    key_prefix: str = "",
+) -> list[str]:
     if not isinstance(data, dict):
         return []
     errors: list[str] = []
+    normalized_domain = normalize_domain(assets_domain)
+    normalized_prefix = normalize_key_prefix(key_prefix)
     for field in ["cover", "referenceImage"]:
         value = data.get(field)
-        if not isinstance(value, str) or not value or urlparse(value).scheme:
+        if not isinstance(value, str) or not value:
+            continue
+        parsed = urlparse(value)
+        if parsed.scheme:
+            if asset_mode == "local":
+                errors.append(f"{field} must be a local file path in local mode")
+            elif parsed.scheme not in {"http", "https"}:
+                errors.append(f"{field} URL scheme is not supported: {parsed.scheme}")
+            else:
+                errors.extend(validate_remote_asset_url(field, value, normalized_domain, normalized_prefix))
+            continue
+        if asset_mode == "remote":
+            errors.append(f"{field} must be a remote URL in remote mode")
             continue
         path = (base_dir / value).resolve()
         if not path.is_file():
@@ -340,11 +409,20 @@ def validate_artifact_paths(data: Any, base_dir: Path) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate GalleryTemplate import JSON v1.")
     parser.add_argument("files", nargs="+", type=Path)
+    parser.add_argument("--asset-mode", choices=["either", "local", "remote"], default="either")
+    parser.add_argument("--assets-domain", default=os.environ.get("ALIYUN_OSS_ASSETS_DOMAIN", ""))
+    parser.add_argument("--key-prefix", default=os.environ.get("ALIYUN_OSS_KEY_PREFIX", ""))
     args = parser.parse_args()
     failed = False
     for path in args.files:
         data = json.loads(path.read_text(encoding="utf-8"))
-        errors = validate(data) + validate_artifact_paths(data, path.parent)
+        errors = validate(data) + validate_artifact_paths(
+            data,
+            path.parent,
+            asset_mode=args.asset_mode,
+            assets_domain=args.assets_domain,
+            key_prefix=args.key_prefix,
+        )
         if errors:
             failed = True
             print(f"FAIL {path}")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 from copy import deepcopy
 from pathlib import Path
 
@@ -10,7 +11,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from convert_image_edit_to_meme_template import build_gallery_template  # noqa: E402
-from validate_gallery_template import validate  # noqa: E402
+from validate_gallery_template import validate, validate_artifact_paths  # noqa: E402
 from validate_semantic_analysis import validate_analysis  # noqa: E402
 
 
@@ -206,6 +207,40 @@ def main() -> None:
     invalid_payload = deepcopy(record)
     invalid_payload["promptTemplate"] = "{{ laser_color.missing | \"粉色\" }}"
     assert any("undefined select payload field" in error for error in validate(invalid_payload))
+
+    with tempfile.TemporaryDirectory() as temp:
+        base_dir = Path(temp)
+        (base_dir / "source.png").write_bytes(b"image")
+        local_record = deepcopy(record)
+        local_record["cover"] = "source.png"
+        local_record["referenceImage"] = "source.png"
+        assert not validate_artifact_paths(local_record, base_dir, asset_mode="local")
+        assert any(
+            "must be a remote URL" in error
+            for error in validate_artifact_paths(local_record, base_dir, asset_mode="remote")
+        )
+
+        remote_record = deepcopy(record)
+        remote_record["cover"] = "https://assets.memebuy.cn/dev/gallery/templates/123e4567-e89b-42d3-a456-426614174000.webp"
+        remote_record["referenceImage"] = remote_record["cover"]
+        assert not validate_artifact_paths(
+            remote_record,
+            base_dir,
+            asset_mode="remote",
+            assets_domain="assets.memebuy.cn",
+            key_prefix="dev/",
+        )
+        remote_record["cover"] = "file:///tmp/source.png"
+        assert any(
+            "scheme is not supported" in error
+            for error in validate_artifact_paths(
+                remote_record,
+                base_dir,
+                asset_mode="remote",
+                assets_domain="assets.memebuy.cn",
+                key_prefix="dev/",
+            )
+        )
 
     bad_source = fixture()
     bad_source["slots"][0]["required"] = "false"

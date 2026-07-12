@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://memebuy.internal/schemas/gallery-template-import.json",
   "title": "GalleryTemplateImport",
-  "description": "批量导入 memebuy 后端 GalleryTemplate 表的单模板文件契约。图片字段给本地路径，导入脚本上传 OSS 后回填为 *Url 列。topicId / status / sortOrder 由运维/脚本在导入时决定，不在本文件里产出。",
+  "description": "批量导入 memebuy 后端 GalleryTemplate 表的单模板文件契约。本地产物的图片字段使用本地路径；OSS 最终交付产物使用指定 assets 域名下的 HTTPS URL。topicId / status / sortOrder 由后端导入时决定，不在本文件里产出。",
   "type": "object",
   "additionalProperties": false,
   "required": ["key", "title", "promptTemplate", "inputSchema"],
@@ -25,11 +25,11 @@
     },
     "cover": {
       "type": ["string", "null"],
-      "description": "封面图【本地文件路径】。导入脚本传 OSS 后回填到 DB 列 coverUrl。"
+      "description": "封面图。本地产物使用相对当前 JSON 的文件路径；最终交付产物使用指定 assets 域名下的 HTTPS URL，后端写入 coverUrl。"
     },
     "referenceImage": {
       "type": ["string", "null"],
-      "description": "模板自带参考图【本地文件路径】，作为生成的固定参考图（DB 列 templateImageUrl）。注意：这是模板级的一张固定图，与 inputSchema 里的 image 输入槽（终端用户上传）完全无关。"
+      "description": "模板自带固定参考图。本地产物使用相对当前 JSON 的文件路径；最终交付产物使用指定 assets 域名下的 HTTPS URL，后端写入 templateImageUrl。它与 inputSchema 的终端用户 image 输入槽无关。"
     },
     "imageSize": {
       "type": "string",

@@ -62,7 +62,7 @@ scripts\check-skill-sync.ps1 -SkillName meme-template-analyzer
 - 为文本槽生成 3-8 个候选替换项。
 - 按需生成 `mockUserInput`，方便前端预览。
 - 把 Agent 草稿编译成严格 GalleryTemplateImport JSON。
-- 批量分析文件夹并生成一个模板一个后台入库 JSON。
+- 批量分析文件夹；用户明确要求最终交付时上传 OSS，并生成一个模板一个纯 JSON。
 
 ## 本地业务管理台
 
@@ -144,8 +144,9 @@ mock 应包含 `slotValues`、`imageSelections`、`renderedTemplateText` 和 `re
 ```
 
 批量流程包含批量预审、自动聚类、metadata taxonomy、source hash 和可选审核页。每个
-`meme-template.json` 先过 Schema 校验，再由导入脚本上传本地图到 OSS、回填 URL，并按
-`key` upsert；追踪信息进入 `import-report.json`，不进入 GalleryTemplate 表。
+`meme-template.json` 先过 Schema 校验。普通流程保留本地图片路径；用户明确要求最终交付时，
+运行 `pnpm gallery:finalize <input> --output <handoff-dir>` 上传 OSS 并回填 URL。handoff 目录整体
+交给后端项目按 `key` upsert；数据库追踪信息不进入 GalleryTemplate JSON。
 
 ## 输出格式
 
