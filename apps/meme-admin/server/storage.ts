@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { readdir, readFile, rename, writeFile } from "node:fs/promises";
+import { readdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { classifyImageAsset } from "../shared/assets.js";
 import type { AdminSettings, BatchConfig, JobRecord } from "../shared/types.js";
+import { forEachConcurrent, sha256File } from "./file-utils.js";
 import { ensureDir } from "./paths.js";
 
 export class Storage {
@@ -17,6 +19,19 @@ export class Storage {
 
   async init() {
     await Promise.all([ensureDir(this.batchesDir), ensureDir(this.jobsDir), ensureDir(path.join(this.root, "logs"))]);
+    for (const batch of await this.listBatches()) {
+      let changed = false;
+      await forEachConcurrent(batch.images, 4, async (image) => {
+        if (!image.origin) { image.origin = classifyImageAsset(image.relativePath, image.fileName); changed = true; }
+        if (!image.modifiedAt || image.fileSize === undefined) {
+          try { const fileStat = await stat(image.sourcePath); image.modifiedAt = fileStat.mtime.toISOString(); image.fileSize = fileStat.size; changed = true; } catch { /* Keep missing legacy files readable. */ }
+        }
+        if (!image.contentSha256) {
+          try { image.contentSha256 = await sha256File(image.sourcePath); changed = true; } catch { /* Keep missing legacy files readable. */ }
+        }
+      });
+      if (changed) await this.saveBatch(batch);
+    }
     for (const job of await this.listJobs()) {
       if (job.status === "running") {
         job.status = "interrupted";

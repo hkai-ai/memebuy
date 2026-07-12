@@ -64,7 +64,7 @@ app.post<{ Body: { path: string } }>("/api/batches/import", async (request) => {
 });
 app.post<{ Params: { id: string } }>("/api/batches/:id/rescan", async (request) => {
   const batch = await requireBatch(request.params.id); const previous = new Map(batch.images.map((item) => [item.sourcePath, item]));
-  batch.images = (await scanImages(batch.sourceFolder)).map((image) => ({ ...image, groupId: previous.get(image.sourcePath)?.groupId }));
+  batch.images = (await scanImages(batch.sourceFolder, batch.images)).map((image) => ({ ...image, groupId: previous.get(image.sourcePath)?.groupId }));
   for (const group of batch.groups) group.imageIds = group.imageIds.filter((id) => batch.images.some((image) => image.id === id));
   touch(batch); await storage.saveBatch(batch); await exportCompatibilityFiles(batch); return batch;
 });

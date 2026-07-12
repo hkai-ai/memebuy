@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, NavLink, Route, Routes, matchPath, useLocation, useNavigate } from "react-router-dom";
-import type { AdminSettings, BatchConfig, GroupConfig, JobRecord, JobStatus, ResultFile } from "../shared/types";
+import { compareImageAssets, deduplicateImageAssets, imageAssetFolder, imageAssetOrigin, sourceImageIdsForFolders } from "../shared/assets";
+import type { AdminSettings, BatchConfig, GroupConfig, ImageAssetSort, JobRecord, JobStatus, ResultFile } from "../shared/types";
 import { api } from "./api";
 
 const statusLabel: Record<JobStatus, string> = { queued: "排队中", running: "执行中", succeeded: "已完成", needs_review: "待审核", failed: "失败", cancelled: "已取消", interrupted: "已中断" };
+const originLabel = { source: "原图 · Source", generated: "生成图 · Output", other: "其他" } as const;
 
 function tagsFrom(value: string) { return [...new Set(value.split(/[,，]/).map((item) => item.trim()).filter(Boolean))]; }
-function assetFolder(relativePath: string) { const index = relativePath.lastIndexOf("/"); return index < 0 ? "" : relativePath.slice(0, index); }
 function folderLabel(folder: string) { return folder || "根目录"; }
 function duration(job: JobRecord) {
   const start = new Date(job.startedAt ?? job.createdAt).getTime(); const end = job.finishedAt ? new Date(job.finishedAt).getTime() : Date.now();
@@ -118,34 +119,58 @@ interface WorkspaceProps {
 
 function Workspace({ batches, batch, batchId, setBatchId, updateBatch, refresh, perform, onJobsChanged }: WorkspaceProps) {
   const [sourceFolder, setSourceFolder] = useState(""); const [batchName, setBatchName] = useState(""); const [importPath, setImportPath] = useState("");
-  const [selected, setSelected] = useState<Set<string>>(new Set()); const [groupId, setGroupId] = useState(""); const [search, setSearch] = useState(""); const [filter, setFilter] = useState("all");
-  const [folderFilter, setFolderFilter] = useState("all");
+  const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set()); const [groupId, setGroupId] = useState(""); const [search, setSearch] = useState(""); const [filter, setFilter] = useState("all");
+  const [folderFilter, setFolderFilter] = useState("all"); const [showOutput, setShowOutput] = useState(false); const [showDuplicates, setShowDuplicates] = useState(false); const [assetSort, setAssetSort] = useState<ImageAssetSort>("time_desc");
   const [newGroup, setNewGroup] = useState("");
   const [defaultCategory, setDefaultCategory] = useState(""); const [defaultTags, setDefaultTags] = useState(""); const [defaultMode, setDefaultMode] = useState<BatchConfig["defaults"]["generationMode"]>("template");
-  useEffect(() => { setSelected(new Set()); setGroupId(batch?.groups[0]?.id ?? ""); setFolderFilter("all"); }, [batchId]);
+  useEffect(() => { setSelectedFolders(new Set()); setGroupId(batch?.groups[0]?.id ?? ""); setFolderFilter("all"); setShowOutput(false); setShowDuplicates(false); }, [batchId]);
   useEffect(() => { setDefaultCategory(batch?.defaults.category ?? ""); setDefaultTags(batch?.defaults.tags.join(", ") ?? ""); setDefaultMode(batch?.defaults.generationMode ?? "template"); }, [batchId, batch?.updatedAt]);
   const group = batch?.groups.find((item) => item.id === groupId);
+  const groupNameById = useMemo(() => new Map((batch?.groups ?? []).map((item) => [item.id, item.groupName])), [batch?.groups]);
+  const deduplicatedImages = useMemo(() => deduplicateImageAssets(batch?.images ?? []), [batch?.images]);
+  const displayImages = showDuplicates ? batch?.images ?? [] : deduplicatedImages;
+  const duplicateCount = (batch?.images.length ?? 0) - deduplicatedImages.length;
+  const originCounts = useMemo(() => {
+    const counts = { source: 0, generated: 0, other: 0 };
+    for (const image of displayImages) counts[imageAssetOrigin(image)] += 1;
+    return counts;
+  }, [displayImages]);
+  const folderAssetsByName = useMemo(() => {
+    const assets = new Map<string, typeof displayImages>();
+    for (const image of displayImages) { const folder = imageAssetFolder(image.relativePath); const current = assets.get(folder); if (current) current.push(image); else assets.set(folder, [image]); }
+    return assets;
+  }, [displayImages]);
   const folders = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const image of batch?.images ?? []) { const folder = assetFolder(image.relativePath); counts.set(folder, (counts.get(folder) ?? 0) + 1); }
-    return [...counts.entries()].sort(([a], [b]) => a.localeCompare(b, "zh-CN"));
-  }, [batch?.images]);
-  const visible = useMemo(() => (batch?.images ?? []).filter((image) => {
+    return [...folderAssetsByName.entries()].map(([folder, images]) => [folder, images.length] as const).sort(([a], [b]) => a.localeCompare(b, "zh-CN"));
+  }, [folderAssetsByName]);
+  const visible = useMemo(() => displayImages.filter((image) => {
     const matchesSearch = `${image.fileName} ${image.relativePath}`.toLowerCase().includes(search.toLowerCase());
     const matchesGroup = filter === "all" || (filter === "unassigned" ? !image.groupId : image.groupId === filter);
-    return matchesSearch && matchesGroup && (folderFilter === "all" || assetFolder(image.relativePath) === folderFilter);
-  }), [batch, search, filter, folderFilter]);
+    const matchesOutputVisibility = showOutput || imageAssetOrigin(image) !== "generated";
+    return matchesSearch && matchesGroup && matchesOutputVisibility && (folderFilter === "all" || imageAssetFolder(image.relativePath) === folderFilter);
+  }), [displayImages, search, filter, folderFilter, showOutput]);
   const folderSections = useMemo(() => {
     const sections = new Map<string, typeof visible>();
-    for (const image of visible) { const folder = assetFolder(image.relativePath); sections.set(folder, [...(sections.get(folder) ?? []), image]); }
-    return [...sections.entries()];
-  }, [visible]);
+    for (const image of visible) { const folder = imageAssetFolder(image.relativePath); sections.set(folder, [...(sections.get(folder) ?? []), image]); }
+    const entries = [...sections.entries()].map(([folder, images]) => [folder, images.sort((a, b) => compareImageAssets(a, b, assetSort))] as const);
+    return entries.sort(([folderA, imagesA], [folderB, imagesB]) => {
+      if (assetSort === "name_asc") return folderA.localeCompare(folderB, "zh-CN");
+      const latest = (images: typeof visible) => Math.max(...images.map((image) => Date.parse(image.modifiedAt ?? "")).filter(Number.isFinite), 0);
+      const timeOrder = latest(imagesA) - latest(imagesB);
+      return timeOrder ? (assetSort === "time_desc" ? -timeOrder : timeOrder) : folderA.localeCompare(folderB, "zh-CN");
+    });
+  }, [visible, assetSort]);
 
   const pick = async () => { const result = await perform(() => api.pickDirectory()); if (result?.path) { setSourceFolder(result.path); if (!batchName) setBatchName(result.path.split(/[\\/]/).pop() ?? "新批次"); } };
   const create = async () => { const result = await perform(() => api.createBatch({ name: batchName, sourceFolder }), "批次已创建并完成素材扫描"); if (result) { await refresh(); setBatchId(result.id); setSourceFolder(""); setBatchName(""); } };
   const importBatch = async () => { const result = await perform(() => api.importBatch(importPath), "旧版整理文件已导入"); if (result) { await refresh(); setBatchId(result.id); } };
   const addGroup = async () => { if (!batch) return; const result = await perform(() => api.addGroup(batch.id, newGroup), "分组已创建"); if (result) { updateBatch(result); setGroupId(result.groups.at(-1)?.id ?? ""); setNewGroup(""); } };
-  const assign = async (target?: string) => { if (!batch || !selected.size) return; const result = await perform(() => api.assign(batch.id, target, [...selected]), target ? "图片已加入分组" : "图片已移出分组"); if (result) { updateBatch(result); setSelected(new Set()); } };
+  const assign = async (target?: string) => {
+    if (!batch || !selectedFolders.size) return;
+    const imageIds = sourceImageIdsForFolders(batch.images, selectedFolders);
+    const result = await perform(() => api.assign(batch.id, target, imageIds), target ? "文件夹原图已加入分组" : "文件夹原图已移出分组");
+    if (result) { updateBatch(result); setSelectedFolders(new Set()); }
+  };
   const run = async () => { if (!batch || !group) return; const result = await perform(() => api.createJob(batch.id, group.id), "任务已加入队列"); if (result) { await onJobsChanged(); } };
   const runAll = async () => {
     if (!batch) return;
@@ -178,10 +203,10 @@ function Workspace({ batches, batch, batchId, setBatchId, updateBatch, refresh, 
       <button className="primary full" onClick={runAll}>批量生成全部分组</button>
     </aside>
     <section className="asset-panel">
-      <div className="panel-toolbar"><div><h1>{batch.name}</h1><p title={batch.sourceFolder}>{batch.sourceFolder}</p></div><div className="toolbar-actions"><button className="primary" onClick={runAll}>批量生成</button><button onClick={() => setSelected(new Set(visible.map((item) => item.id)))}>全选可见</button><button onClick={() => setSelected(new Set())}>清空</button></div></div>
-      <div className="filters"><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜索文件名或路径" /><select value={folderFilter} onChange={(e) => setFolderFilter(e.target.value)} aria-label="素材文件夹"><option value="all">全部文件夹（{folders.length}）</option>{folders.map(([folder, count]) => <option value={folder} key={folder || "root"}>{folderLabel(folder)}（{count}）</option>)}</select><select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="素材分组"><option value="all">全部素材</option><option value="unassigned">未分组</option>{batch.groups.map((item) => <option value={item.id} key={item.id}>{item.groupName}</option>)}</select></div>
-      {selected.size > 0 && <div className="selection-bar"><strong>已选 {selected.size} 张</strong><button className="primary" disabled={!group} onClick={() => assign(group?.id)}>加入当前分组</button><button onClick={() => assign(undefined)}>移出分组</button></div>}
-      <div className="asset-folders">{folderSections.map(([folder, images]) => <section className="asset-folder" key={folder || "root"}><div className="asset-folder-heading"><span className="folder-icon">⌑</span><strong title={folderLabel(folder)}>{folderLabel(folder)}</strong><em>{images.length} 张</em><button onClick={() => setSelected((current) => new Set([...current, ...images.map((image) => image.id)]))}>选择此文件夹</button></div><div className="asset-grid">{images.map((image) => { const assigned = batch.groups.find((item) => item.id === image.groupId); return <button key={image.id} className={`asset-card ${selected.has(image.id) ? "selected" : ""}`} onClick={() => setSelected((current) => { const next = new Set(current); next.has(image.id) ? next.delete(image.id) : next.add(image.id); return next; })}><div className="checkmark">{selected.has(image.id) ? "✓" : ""}</div><img loading="lazy" src={`/api/files?path=${encodeURIComponent(image.sourcePath)}`} alt={image.fileName} /><div><strong title={image.fileName}>{image.fileName}</strong><small>{assigned?.groupName ?? "未分组"}</small></div></button>; })}</div></section>)}</div>
+      <div className="panel-toolbar"><div><h1>{batch.name}</h1><p title={batch.sourceFolder}>{batch.sourceFolder}</p></div><div className="toolbar-actions"><button className="primary" onClick={runAll}>批量生成</button><button onClick={() => setSelectedFolders(new Set(folderSections.filter(([, images]) => images.some((image) => imageAssetOrigin(image) === "source")).map(([folder]) => folder)))}>全选可见文件夹</button><button onClick={() => setSelectedFolders(new Set())}>清空</button></div></div>
+      <div className="filters"><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜索文件名或路径" /><select value={assetSort} onChange={(e) => setAssetSort(e.target.value as ImageAssetSort)} aria-label="素材排序"><option value="time_desc">时间：最新优先</option><option value="time_asc">时间：最早优先</option><option value="name_asc">名称：A–Z</option></select><select value={folderFilter} onChange={(e) => setFolderFilter(e.target.value)} aria-label="素材文件夹"><option value="all">全部文件夹（{folders.length}）</option>{folders.map(([folder, count]) => <option value={folder} key={folder || "root"}>{folderLabel(folder)}（{count}）</option>)}</select><select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="素材分组"><option value="all">全部分组</option><option value="unassigned">未分组</option>{batch.groups.map((item) => <option value={item.id} key={item.id}>{item.groupName}</option>)}</select><label className="checkbox output-toggle"><input type="checkbox" checked={showOutput} onChange={(e) => setShowOutput(e.target.checked)} />显示 output（{originCounts.generated}）</label><label className="checkbox output-toggle"><input type="checkbox" checked={showDuplicates} onChange={(e) => setShowDuplicates(e.target.checked)} />显示重复项（{duplicateCount}）</label></div>
+      {selectedFolders.size > 0 && <div className="selection-bar"><strong>已选 {selectedFolders.size} 个文件夹</strong><span>分析时仅使用原图 Source</span><button className="primary" disabled={!group} onClick={() => assign(group?.id)}>加入当前分组</button><button onClick={() => assign(undefined)}>移出分组</button></div>}
+      <div className="asset-folders">{folderSections.map(([folder, images]) => { const folderAssets = folderAssetsByName.get(folder) ?? []; const sourceCount = folderAssets.filter((image) => imageAssetOrigin(image) === "source").length; const generatedCount = folderAssets.filter((image) => imageAssetOrigin(image) === "generated").length; const isSelected = selectedFolders.has(folder); const toggleFolder = () => { if (!sourceCount) return; setSelectedFolders((current) => { const next = new Set(current); next.has(folder) ? next.delete(folder) : next.add(folder); return next; }); }; return <section className={`asset-folder ${isSelected ? "selected" : ""}`} key={folder || "root"}><div className="asset-folder-heading"><label className={`folder-select ${!sourceCount ? "disabled" : ""}`}><input type="checkbox" checked={isSelected} disabled={!sourceCount} onChange={toggleFolder} /><span className="folder-icon">⌑</span><strong title={folderLabel(folder)}>{folderLabel(folder)}</strong></label><em>{folderAssets.length} 张</em>{sourceCount > 0 ? <em className="origin-count source">{sourceCount} 原图</em> : <em className="origin-count missing">无原图</em>}{generatedCount > 0 && <em className="origin-count generated">{generatedCount} 生成图</em>}<button disabled={!sourceCount} onClick={toggleFolder}>{isSelected ? "取消选择" : "选择此文件夹"}</button></div><div className="asset-grid">{images.map((image) => { const origin = imageAssetOrigin(image); return <div key={image.id} className="asset-card"><span className={`asset-origin ${origin}`}>{originLabel[origin]}</span><img loading="lazy" src={`/api/files?path=${encodeURIComponent(image.sourcePath)}`} alt={`${originLabel[origin]}：${image.fileName}`} /><div><strong title={image.fileName}>{image.fileName}</strong><small>{origin === "source" ? image.groupId ? groupNameById.get(image.groupId) ?? "未分组" : "未分组" : "仅预览，不参与分析"}</small></div></div>; })}</div></section>; })}</div>
       {!visible.length && <div className="empty-inline">没有符合条件的图片</div>}
     </section>
     <aside className="config-panel">{group ? <GroupEditor key={`${batch.id}-${group.id}-${group.imageIds.length}`} batch={batch} group={group} updateBatch={updateBatch} perform={perform} run={run} /> : <div className="empty-inline">创建或选择一个分组后配置任务</div>}</aside>

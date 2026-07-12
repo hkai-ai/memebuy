@@ -2,6 +2,8 @@ export type GenerationMode = "template" | "generation_test";
 export type GroupStatus = "ready_for_template" | "needs_review" | "skipped";
 export type JobStatus = "queued" | "running" | "succeeded" | "needs_review" | "failed" | "cancelled" | "interrupted";
 export type JobPhase = "preparing" | "analyzing" | "validating" | "finalizing";
+export type ImageAssetOrigin = "source" | "generated" | "other";
+export type ImageAssetSort = "time_desc" | "time_asc" | "name_asc";
 
 export interface ReferenceConfig {
   template_reference: boolean;
@@ -17,6 +19,10 @@ export interface ImageAsset {
   relativePath: string;
   fileName: string;
   shortHash: string;
+  origin?: ImageAssetOrigin;
+  modifiedAt?: string;
+  fileSize?: number;
+  contentSha256?: string;
   groupId?: string;
 }
 

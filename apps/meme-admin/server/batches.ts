@@ -1,28 +1,38 @@
 import { createHash, randomUUID } from "node:crypto";
 import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { classifyImageAsset } from "../shared/assets.js";
 import type { BatchConfig, GroupConfig, ImageAsset } from "../shared/types.js";
+import { forEachConcurrent, sha256File } from "./file-utils.js";
 import { ensureDir, safeSlug } from "./paths.js";
 
 const IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
-export async function scanImages(root: string): Promise<ImageAsset[]> {
+export async function scanImages(root: string, previousImages: ImageAsset[] = []): Promise<ImageAsset[]> {
   const rootStat = await stat(root);
   if (!rootStat.isDirectory()) throw new Error("素材路径不是文件夹");
   const images: ImageAsset[] = [];
+  const files: string[] = [];
+  const previousByPath = new Map(previousImages.map((image) => [image.sourcePath.toLowerCase(), image]));
   async function walk(current: string) {
     for (const entry of await readdir(current, { withFileTypes: true })) {
       if (entry.name.startsWith(".")) continue;
       const absolute = path.join(current, entry.name);
       if (entry.isDirectory()) await walk(absolute);
-      else if (entry.isFile() && IMAGE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
-        const relativePath = path.relative(root, absolute).replaceAll("\\", "/");
-        const shortHash = createHash("sha256").update(absolute.toLowerCase()).digest("hex").slice(0, 10);
-        images.push({ id: `img-${shortHash}`, sourcePath: absolute, relativePath, fileName: entry.name, shortHash });
-      }
+      else if (entry.isFile() && IMAGE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) files.push(absolute);
     }
   }
   await walk(root);
+  await forEachConcurrent(files, 4, async (absolute) => {
+    const relativePath = path.relative(root, absolute).replaceAll("\\", "/");
+    const fileName = path.basename(absolute);
+    const shortHash = createHash("sha256").update(absolute.toLowerCase()).digest("hex").slice(0, 10);
+    const fileStat = await stat(absolute);
+    const modifiedAt = fileStat.mtime.toISOString();
+    const previous = previousByPath.get(absolute.toLowerCase());
+    const contentSha256 = previous?.contentSha256 && previous.modifiedAt === modifiedAt && previous.fileSize === fileStat.size ? previous.contentSha256 : await sha256File(absolute);
+    images.push({ id: `img-${shortHash}`, sourcePath: absolute, relativePath, fileName, shortHash, origin: classifyImageAsset(relativePath, fileName), modifiedAt, fileSize: fileStat.size, contentSha256 });
+  });
   return images.sort((a, b) => a.relativePath.localeCompare(b.relativePath, "zh-CN"));
 }
 
@@ -50,9 +60,12 @@ export async function organizeGroup(batch: BatchConfig, group: GroupConfig): Pro
   const inputDir = path.join(batch.outputFolder, "groups", safeSlug(group.groupName), "input");
   await ensureDir(inputDir);
   const copied: string[] = [];
+  const seenContent = new Set<string>();
   for (const imageId of group.imageIds) {
     const image = batch.images.find((item) => item.id === imageId);
     if (!image) continue;
+    if (image.contentSha256 && seenContent.has(image.contentSha256)) continue;
+    if (image.contentSha256) seenContent.add(image.contentSha256);
     const target = path.join(inputDir, `${image.shortHash}-${path.basename(image.fileName)}`);
     try { await copyFile(image.sourcePath, target, 1); } catch (error: any) { if (error?.code !== "EEXIST") throw error; }
     copied.push(target);
@@ -93,7 +106,8 @@ export async function readCompatibilityFile(filePath: string, projectRoot: strin
     const sourcePath = path.resolve(image.sourcePath ?? image.organizedPath ?? "");
     const relativePath = image.relativePath ?? path.basename(sourcePath);
     const shortHash = image.shortHash ?? image.sourceSha256?.slice(0, 10) ?? createHash("sha256").update(sourcePath).digest("hex").slice(0, 10);
-    return { id: image.id ?? image.imageId ?? `img-${shortHash}-${index}`, sourcePath, relativePath, fileName: image.fileName ?? path.basename(sourcePath), shortHash };
+    const fileName = image.fileName ?? path.basename(sourcePath);
+    return { id: image.id ?? image.imageId ?? `img-${shortHash}-${index}`, sourcePath, relativePath, fileName, shortHash, origin: image.origin ?? classifyImageAsset(relativePath, fileName), modifiedAt: image.modifiedAt, fileSize: image.fileSize, contentSha256: image.contentSha256 ?? image.sourceSha256 };
   });
   const batch = createBatch(projectRoot, data.batchId ?? path.basename(filePath, ".json"), sourceFolder, images);
   const rawGroups = isSingleGroupConfig ? [{ groupName: data.groupName, config: data, images: images.map((image) => ({ imageId: image.id })) }] : (data.groups ?? []);
