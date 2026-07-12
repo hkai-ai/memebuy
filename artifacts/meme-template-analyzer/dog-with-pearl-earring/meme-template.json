@@ -34,7 +34,7 @@
     }
   ],
   "preprocessSteps": [],
-  "promptTemplate": "将画面主体替换为{{ subject | \"棕白短毛狗\" }}；保持维米尔《戴珍珠耳环的少女》戏仿的侧身回眸近景肖像、白色头巾和单颗珍珠耳环。 如果用户提供了主体参考图，将该原图作为身份参考并保留主体特征，不要让它覆盖模板构图。 文案长度要求：主体不超过30个字符。 使用模板固定参考图作为构图和风格参考。 必须遵守：保持侧身回眸、近景竖幅肖像与柔和窗边光线，不能改为正面自拍或全身照；保留白色头巾、单颗垂坠珍珠耳环和拟人耳部细节，作为《戴珍珠耳环的少女》戏仿的识别锚点；保留模板参考图的这些结构和风格特征：vertical portrait crop、three quarter over shoulder glance、white headscarf、single pearl earring、soft window light、neutral indoor background。",z
+  "promptTemplate": "将画面主体替换为{{ subject | \"棕白短毛狗\" }}；保持维米尔《戴珍珠耳环的少女》戏仿的侧身回眸近景肖像、白色头巾和单颗珍珠耳环。 如果用户提供了主体参考图，将该原图作为身份参考并保留主体特征，不要让它覆盖模板构图。 文案长度要求：主体不超过30个字符。 使用模板固定参考图作为构图和风格参考。 必须遵守：保持侧身回眸、近景竖幅肖像与柔和窗边光线，不能改为正面自拍或全身照；保留白色头巾、单颗垂坠珍珠耳环和拟人耳部细节，作为《戴珍珠耳环的少女》戏仿的识别锚点；保留模板参考图的这些结构和风格特征：vertical portrait crop、three quarter over shoulder glance、white headscarf、single pearl earring、soft window light、neutral indoor background。",
   "metadata": {
     "tags": [
       "reaction_image",

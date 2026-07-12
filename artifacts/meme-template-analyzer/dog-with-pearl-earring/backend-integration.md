@@ -1,142 +1,150 @@
-# 模板 Prompt 编辑与生成接口对齐
+# 仅用 `meme-template.json` 的 Prompt 编辑与生成对齐
 
-## 目标
+## 结论
 
-用户先选择模板，在前端编辑模板描述和槽位值；后端使用 LLM 将用户意图与模板硬约束合并为最终生图指令，再将最终指令和参考图片发送给图像生成服务。
+**够用。** 前后端只需要共享 `meme-template.json`；不依赖 `image-edit-template.json`。
 
-`image-edit-template.json` 是前端编辑配置的来源；`meme-template.json` 用于模板后台入库和服务端兜底编译。前端不要直接把 `promptTemplate` 当成可编辑器内容。
+`meme-template.json` 已经包含完整的运行时信息：
 
-## 数据与职责
+| 字段 | 用途 |
+| --- | --- |
+| `key` | 模板的稳定 ID；生成请求只传它，不传整份模板 |
+| `promptTemplate` | 模板图片的完整文字描述；也是前端编辑器初始文本 |
+| `inputSchema` | 可快速替换的 slot，以及上传图控件定义 |
+| `referenceImage` | 模板参考图；导入后应为 OSS/CDN URL |
+| `metadata.templateSource` | 参考图的构图与风格权限、硬约束 |
+| `metadata.inputSemantics` | slot 的身份/语义权限和默认值 |
 
-| 数据 | 生产方 | 消费方 | 职责 |
-| --- | --- | --- | --- |
-| `image-edit-template.json` | 模板作者/后台 | 前端、生成 API | 编辑器初始文案、槽位、模板约束与图片权限 |
-| `templateText` | 模板 | 前端 | 含 `【槽位：默认值】` 的可视化快捷编辑稿 |
-| `editablePrompt` | 模板/用户 | 前端、LLM 编排层 | 用户可以自由修改的整段自然语言提示词 |
-| `slots` / `slotValues` | 模板/用户 | 前端、LLM 编排层 | 快速替换的结构化值；便于校验、回显和分析 |
-| `referenceImage` | 模板后台 | 图像生成服务 | 固定构图、镜头、风格与文化识别锚点 |
-| `subjectReference` | 用户 | 图像生成服务 | 可选，仅提供主体身份线索，不得覆盖模板构图 |
-| `finalPrompt` | LLM 编排层 | 图像生成服务 | 已合并用户意图与模板硬约束的最终文本指令 |
+`cover` 只用于列表展示；生成时使用 `referenceImage`。
 
-## 端到端流程
+## 用户流程
 
 ```mermaid
 sequenceDiagram
   participant U as 用户
   participant F as 前端
-  participant B as 生成后端
+  participant B as 后端
   participant L as LLM 编排层
   participant I as 图像生成服务
 
-  U->>F: 选择模板并修改提示词/槽位
-  F->>B: 提交 editablePrompt、slotValues、可选主体图
-  B->>L: 传入用户意图与模板硬约束
-  L-->>B: 返回 finalPrompt 和结构化检查结果
-  B->>I: 发送 finalPrompt、模板参考图、可选主体参考图
-  I-->>B: 返回生成图片
-  B-->>F: 返回图片、finalPrompt 和任务状态
+  F->>B: 获取 meme-template.json
+  B-->>F: 模板详情（含已解析的参考图 URL）
+  U->>F: 修改 prompt 或点击 slot 快捷替换
+  F->>B: templateKey、userPrompt、slotValues、可选主体图
+  B->>B: 按 templateKey 重新读取可信模板
+  B->>L: 用户意图 + promptTemplate + 硬约束
+  L-->>B: finalPrompt + preservedConstraints
+  B->>I: finalPrompt + referenceImage + 可选主体图
+  I-->>B: 生成图片
+  B-->>F: 图片、任务状态
 ```
 
-## 前端实现
+## 前端：从 `promptTemplate` 渲染编辑器
 
-1. 请求模板详情，加载 `image-edit-template.json` 等价的 API 数据。
-2. 用 `templateText` 渲染“快捷替换”的可视化 token；点击 token 后按对应 `slot.id` 更新值。
-3. 同步更新 `editablePrompt`，但允许用户直接编辑整段文本。
-4. 用户点击生成时，提交：
-   - `templateKey`
-   - `editablePrompt`：以用户最后编辑版本为准
-   - `slotValues`：用于快速替换回显和后端校验
-   - `subjectReferenceAssetId`：可选，先上传后得到 asset id
-5. 前端不负责把模板约束拼到 prompt，也不将本地 `source.png` 路径传给浏览器；后端根据 `templateKey` 查询模板资产 URL 和锁定约束。
+### 1. 解析 slot
 
-### 编辑冲突规则
+`promptTemplate` 使用受限占位符语法：
 
-- 用户直接编辑了 `editablePrompt` 后，仍保留 `slotValues` 供 UI 回显；不要用槽位值覆盖用户整段文本。
-- 当用户通过槽位编辑时，可只替换 prompt 中对应的当前 token/默认值；找不到可安全替换的位置时，更新 `slotValues`，并提示用户检查整段 prompt。
-- 前端可提示锁定项，但不要隐藏或禁止用户整段编辑；最终由 LLM 编排层恢复模板的硬约束。
+```text
+{{ subject | "棕白短毛狗" }}
+```
 
-## 生成 API 合约
+前端解析规则：
 
-建议端点：`POST /api/template-generations`
+1. `subject` 必须能在 `inputSchema[].id` 中找到。
+2. `"棕白短毛狗"` 是 slot 的显示默认值；也可优先使用 `metadata.inputSemantics.subject.defaultValue`。
+3. 将该片段渲染为可点击的 slot chip，例如 `【主体：棕白短毛狗】`。
+4. 用户从建议项选择“橘猫”时，更新 `slotValues.subject`，并将编辑器的对应文本替换为“橘猫”。
+5. 用户可以直接编辑整段文字；编辑器不需要也不应该改写原始模板硬约束。
 
-请求 schema：
+`inputSchema` 中的 `type: "prompt"` 渲染为文本/建议项；`type: "image"` 渲染为上传控件。这个模板的 `subject_reference` 是可选身份参考图。
+
+### 2. 编辑器状态
 
 ```ts
-type CreateTemplateGenerationRequest = {
+type PromptEditorState = {
   templateKey: string;
-  editablePrompt: string;
+  userPrompt: string; // 用户当前看到并编辑的全文
   slotValues: Record<string, string>;
   subjectReferenceAssetId?: string;
 };
 ```
 
-成功响应：
+首次进入时：
+
+- `userPrompt`：把 `promptTemplate` 的占位符替换为默认值后的文本；
+- `slotValues`：从 `metadata.inputSemantics` 的默认值建立；
+- 用户每次直接改全文，只更新 `userPrompt`；
+- 用户通过 chip 改 slot，则同时更新 `slotValues` 和 `userPrompt`。
+
+`slotValues` 仅用于快捷编辑、回显和给 LLM 的结构化提示；**`userPrompt` 是用户最终意图的唯一文本来源**。两者不一致时，后端以 `userPrompt` 为主。
+
+## 前端到后端的生成请求
+
+建议端点：`POST /api/template-generations`
 
 ```ts
-type CreateTemplateGenerationResponse = {
-  generationId: string;
-  status: "queued" | "processing" | "succeeded" | "failed";
-  normalizedPrompt?: string;
-  finalPrompt?: string;
-  imageUrls?: string[];
-  error?: {
-    code: string;
-    message: string;
-  };
+type CreateTemplateGenerationRequest = {
+  templateKey: string;
+  userPrompt: string;
+  slotValues: Record<string, string>;
+  subjectReferenceAssetId?: string;
 };
 ```
 
-`normalizedPrompt` 是 LLM 整理后的用户意图摘要，`finalPrompt` 是实际传给图像模型的完整指令。生产环境建议仅在鉴权用户可见的任务详情接口中返回 `finalPrompt`。
+前端只传 `templateKey`，不要传 `referenceImage`、`lockedConstraints` 或完整 `meme-template.json`，避免用户篡改模板权限和硬约束。上传图先通过资产 API 获得 `subjectReferenceAssetId`。
 
-## 后端编排流程
+## 后端生成流程
 
-1. 按 `templateKey` 读取已入库的 `meme-template.json` 等价模板记录。
-2. 校验 `editablePrompt` 长度、`slotValues` 的 key 是否属于模板、上传资产是否属于当前用户。
-3. 读取模板硬约束：`metadata.templateSource.preserve` 和 `lockedConstraints`。
-4. 调用 LLM 编排层，输入用户 prompt、slot 值、模板的锁定构图和图片权限。
-5. 校验 LLM 返回：不得遗漏任一硬约束，不得将用户主体图提升为构图参考。
-6. 调用图像生成服务：
-   - 模板 `referenceImage`：构图与风格参考；
-   - 可选用户主体图：身份参考；
-   - `finalPrompt`：最终文字指令。
-7. 记录 `normalizedPrompt`、`finalPrompt`、模板版本、生成参数和结果 URL，便于复现和排障。
+1. 使用 `templateKey` 从数据库读取**可信的** `meme-template.json` 记录。
+2. 校验 `slotValues` 的 key 必须属于 `inputSchema`；校验 `subjectReferenceAssetId` 属于当前用户且类型符合 `image` 输入。
+3. 将 `promptTemplate`、`metadata.templateSource.lockedConstraints`、`metadata.templateSource.preserve`、`metadata.inputSemantics` 和用户提交的 `userPrompt` 传给 LLM 编排层。
+4. LLM 输出 `finalPrompt`；后端验证其 `preservedConstraints` 覆盖所有硬约束。
+5. 调用图像生成服务：
+   - `referenceImage`：模板图，拥有构图与风格权威；
+   - `subjectReferenceAssetId` 对应图片（可选）：仅拥有身份权威；
+   - `finalPrompt`：已合成的文字指令。
+6. 保存模板版本、`userPrompt`、`finalPrompt`、图片资产 ID、模型参数和生成结果，支持复现与审计。
 
-## LLM 编排输入与输出
+## LLM 编排契约
 
-LLM 不负责自由创作模板，而是把用户编辑意图安全地合入模板。它必须：
+LLM 的工作是合并，不是重做模板。它必须：
 
-- 保留模板硬约束；
-- 将用户输入视为主体/语义修改，不改变模板构图；
-- 处理用户 prompt 与 slot 值不一致时，以用户 `editablePrompt` 为主，并把 slot 值作为补充上下文；
-- 产出 JSON，便于后端解析与校验。
+- 把 `userPrompt` 视为用户想改什么；
+- 以 `promptTemplate` 补足完整模板语境；
+- 无条件保留 `lockedConstraints`；
+- 将用户主体图限制为身份参考，不能把它当作构图参考；
+- 返回严格 JSON。
 
-建议 LLM 输出：
+期望输出：
 
 ```json
 {
-  "normalizedPrompt": "将主体替换为橘猫，保留名画戏仿肖像特征。",
-  "finalPrompt": "...",
-  "preservedConstraints": ["..."],
+  "normalizedPrompt": "将主体替换为一只神情淡定的橘猫，保留名画戏仿肖像。",
+  "finalPrompt": "实际发给图像模型的完整指令",
+  "preservedConstraints": ["每条硬约束"],
   "warnings": []
 }
 ```
 
-若 `preservedConstraints` 与模板硬约束不完全覆盖，后端应拒绝该 LLM 输出、自动重试，或进入后端兜底拼接逻辑。
+若 `preservedConstraints` 没有覆盖模板的全部 `lockedConstraints`，后端必须拒绝该结果并重试，或使用后端兜底拼接，不可直接生成。
 
-## 图片参考权限
+## 图片权限
 
-| 图片 | 权限 | 允许影响 | 不允许影响 |
+| 图片 | 来源 | 可以影响 | 不可以影响 |
 | --- | --- | --- | --- |
-| 模板 `referenceImage` | 构图与风格 | 回眸姿势、竖幅裁切、头巾、耳环、光线、背景节奏 | 用户主体身份 |
-| 用户 `subjectReference` | 身份 | 品种、毛色、轮廓、耳形、表情 | 镜头、姿势、排布、模板图风格 |
+| `referenceImage` | 模板 | 构图、回眸姿势、竖幅裁切、头巾、耳环、光线、背景节奏 | 用户主体身份 |
+| `subjectReferenceAssetId` | 用户，可选 | 品种、毛色、轮廓、耳形、表情 | 镜头、姿势、排布、模板风格 |
 
-## 错误处理与审计
+## 资产 URL 约定
 
-- 未找到模板：`TEMPLATE_NOT_FOUND`
-- slot 不属于模板：`INVALID_SLOT_VALUE`
-- prompt 为空或超长：`INVALID_EDITABLE_PROMPT`
-- 用户上传资产无权限：`ASSET_FORBIDDEN`
-- LLM 输出不满足硬约束：`PROMPT_COMPOSITION_FAILED`
-- 图像服务失败：`IMAGE_GENERATION_FAILED`
+本地模板文件里的 `referenceImage: "./source.png"` 只适用于导入前。导入服务上传模板图后，数据库/API 返回给前端和生成服务的模板记录必须将 `referenceImage` 解析为受控的 OSS/CDN URL。不要让浏览器或生成服务解析本地相对路径。
 
-不要把 LLM 或图像服务的原始错误直接暴露给用户；在服务端保存关联 id 和原始响应以便排障。
+## 错误码
+
+- `TEMPLATE_NOT_FOUND`：模板不存在或不可用。
+- `INVALID_SLOT_VALUE`：slot 不属于该模板或值不合法。
+- `INVALID_USER_PROMPT`：`userPrompt` 为空或超长。
+- `ASSET_FORBIDDEN`：用户无权使用上传资产。
+- `PROMPT_COMPOSITION_FAILED`：LLM 输出缺失硬约束或无法解析。
+- `IMAGE_GENERATION_FAILED`：图像服务生成失败。

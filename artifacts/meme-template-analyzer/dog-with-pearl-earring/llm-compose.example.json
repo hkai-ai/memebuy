@@ -1,7 +1,7 @@
 {
   "templateKey": "dog-with-pearl-earring",
   "userIntent": {
-    "editablePrompt": "把主体改成一只神情淡定的橘猫；保持维米尔《戴珍珠耳环的少女》戏仿的侧身回眸近景肖像、白色头巾和单颗珍珠耳环。",
+    "userPrompt": "把主体改成一只神情淡定的橘猫；保持维米尔《戴珍珠耳环的少女》戏仿的侧身回眸近景肖像、白色头巾和单颗珍珠耳环。",
     "slotValues": {
       "subject": "神情淡定的橘猫"
     }
