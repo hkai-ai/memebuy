@@ -19,7 +19,7 @@ function App() {
   const [batches, setBatches] = useState<BatchConfig[]>([]);
   const [jobs, setJobs] = useState<JobRecord[]>([]);
   const [settings, setSettings] = useState<AdminSettings>({ concurrency: 1 });
-  const [notice, setNotice] = useState("正在连接本地服务…");
+  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
 
@@ -34,7 +34,7 @@ function App() {
     catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); return undefined; }
   };
 
-  useEffect(() => { void Promise.all([api.batches(), api.jobs(), api.settings()]).then(([batchData, jobData, settingData]) => { setBatches(batchData); setJobs(jobData); setSettings(settingData); setNotice("本地服务已连接"); }).catch((reason) => setError(`无法连接本地 API：${reason.message}`)).finally(() => setLoaded(true)); }, []);
+  useEffect(() => { void Promise.all([api.batches(), api.jobs(), api.settings()]).then(([batchData, jobData, settingData]) => { setBatches(batchData); setJobs(jobData); setSettings(settingData); }).catch((reason) => setError(`无法连接本地 API：${reason.message}`)).finally(() => setLoaded(true)); }, []);
   useEffect(() => {
     const active = jobs.filter((job) => job.status === "queued" || job.status === "running");
     const streams = active.map((job) => { const stream = new EventSource(`/api/jobs/${job.id}/events`); stream.onmessage = (event) => { const payload = JSON.parse(event.data); setJobs((current) => current.map((item) => item.id === payload.job.id ? payload.job : item)); }; stream.onerror = () => stream.close(); return stream; });
