@@ -12,6 +12,7 @@ function duration(job: JobRecord) {
   const start = new Date(job.startedAt ?? job.createdAt).getTime(); const end = job.finishedAt ? new Date(job.finishedAt).getTime() : Date.now();
   const seconds = Math.max(0, Math.floor((end - start) / 1000)); return seconds < 60 ? `${seconds} 秒` : `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`;
 }
+function formatDate(value: string) { return new Date(value).toLocaleString("zh-CN", { dateStyle: "medium", timeStyle: "short" }); }
 
 function App() {
   const location = useLocation();
@@ -43,13 +44,12 @@ function App() {
 
   const updateBatch = (updated: BatchConfig) => { setBatches((current) => current.map((item) => item.id === updated.id ? updated : item)); if (batchId !== updated.id) setBatchId(updated.id); };
   const showResult = (id: string) => navigate(`/results/${encodeURIComponent(id)}`);
-  const defaultBatchPath = batches[0] ? `/batches/${encodeURIComponent(batches[0].id)}` : "/batches/new";
 
   return <div className="app-shell">
     <header className="topbar">
       <div className="brand"><span className="brand-mark">M</span><div><strong>Meme 业务管理台</strong><small>本地批量分析与审核</small></div></div>
       <nav aria-label="主导航">
-        <NavLink to={batchId ? `/batches/${encodeURIComponent(batchId)}` : defaultBatchPath}>素材与批次</NavLink>
+        <NavLink to="/batches">素材与批次 <span className="count">{batches.length}</span></NavLink>
         <NavLink to="/jobs">任务中心 <span className="count">{jobs.filter((job) => job.status === "queued" || job.status === "running").length}</span></NavLink>
         <NavLink to={resultJobId ? `/results/${encodeURIComponent(resultJobId)}` : "/results"}>结果审核</NavLink>
       </nav>
@@ -58,15 +58,56 @@ function App() {
     {(error || notice) && <div className={`toast ${error ? "danger" : ""}`} role="status">{error || notice}<button onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
     <Routes>
       <Route path="/" element={<Navigate to="/batches" replace />} />
-      <Route path="/batches" element={loaded ? <Navigate to={defaultBatchPath} replace /> : null} />
+      <Route path="/batches" element={loaded ? <BatchList batches={batches} jobs={jobs} openBatch={setBatchId} /> : null} />
       <Route path="/batches/new" element={<Workspace batches={batches} batchId="" setBatchId={setBatchId} updateBatch={updateBatch} refresh={() => refreshBatches()} perform={perform} onJobsChanged={refreshJobs} />} />
-      <Route path="/batches/:batchId" element={loaded && !batch ? <Navigate to={defaultBatchPath} replace /> : <Workspace batches={batches} batch={batch} batchId={batchId} setBatchId={setBatchId} updateBatch={updateBatch} refresh={() => refreshBatches()} perform={perform} onJobsChanged={refreshJobs} />} />
+      <Route path="/batches/:batchId" element={loaded && !batch ? <Navigate to="/batches" replace /> : <Workspace batches={batches} batch={batch} batchId={batchId} setBatchId={setBatchId} updateBatch={updateBatch} refresh={() => refreshBatches()} perform={perform} onJobsChanged={refreshJobs} />} />
       <Route path="/jobs" element={<Jobs jobs={jobs} settings={settings} perform={perform} refresh={refreshJobs} onSettings={setSettings} showResult={showResult} />} />
       <Route path="/results" element={<Results jobs={jobs} selectedId="" setSelectedId={(id) => navigate(`/results/${encodeURIComponent(id)}`, { replace: true })} perform={perform} />} />
       <Route path="/results/:jobId" element={<Results jobs={jobs} selectedId={resultJobId} setSelectedId={(id) => navigate(`/results/${encodeURIComponent(id)}`)} perform={perform} />} />
       <Route path="*" element={<Navigate to="/batches" replace />} />
     </Routes>
   </div>;
+}
+
+function BatchList({ batches, jobs, openBatch }: { batches: BatchConfig[]; jobs: JobRecord[]; openBatch: (id: string) => void }) {
+  const [search, setSearch] = useState("");
+  const visible = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    if (!keyword) return batches;
+    return batches.filter((batch) => `${batch.name} ${batch.id} ${batch.sourceFolder}`.toLowerCase().includes(keyword));
+  }, [batches, search]);
+  const totalImages = batches.reduce((sum, batch) => sum + batch.images.length, 0);
+  const totalGroups = batches.reduce((sum, batch) => sum + batch.groups.length, 0);
+  const activeJobs = jobs.filter((job) => job.status === "queued" || job.status === "running").length;
+
+  return <main className="page batch-list-page">
+    <div className="page-heading batch-list-heading"><div><span className="eyebrow">BATCH LIBRARY</span><h1>批次列表</h1><p>集中查看素材批次的整理进度与任务状态。</p></div><button className="primary large" onClick={() => openBatch("")}>＋ 新建批次</button></div>
+    <section className="batch-overview" aria-label="批次概览">
+      <div><span>批次</span><strong>{batches.length}</strong></div><div><span>素材总数</span><strong>{totalImages}</strong></div><div><span>分组总数</span><strong>{totalGroups}</strong></div><div><span>进行中任务</span><strong>{activeJobs}</strong></div>
+    </section>
+    <div className="batch-list-tools"><label><span className="sr-only">搜索批次</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜索批次名称、ID 或素材目录" /></label><span>共 {visible.length} 个批次</span></div>
+    {!!visible.length && <div className="batch-table-wrap"><table className="batch-table">
+      <thead><tr><th>批次</th><th>素材目录</th><th>素材</th><th>分组</th><th>整理进度</th><th>任务状态</th><th>更新时间</th><th><span className="sr-only">操作</span></th></tr></thead>
+      <tbody>{visible.map((batch) => {
+        const batchJobs = jobs.filter((job) => job.batchId === batch.id);
+        const active = batchJobs.filter((job) => job.status === "queued" || job.status === "running").length;
+        const review = batchJobs.filter((job) => job.status === "needs_review").length;
+        const assigned = batch.images.filter((image) => image.groupId).length;
+        const progress = batch.images.length ? Math.round(assigned / batch.images.length * 100) : 0;
+        return <tr key={batch.id} onClick={() => openBatch(batch.id)}>
+          <td><div className="batch-name-cell"><span className="batch-initial">{batch.name.trim().slice(0, 1).toUpperCase() || "B"}</span><div><strong>{batch.name}</strong><code>{batch.id}</code></div></div></td>
+          <td><span className="batch-table-path" title={batch.sourceFolder}>{batch.sourceFolder}</span></td>
+          <td><strong className="table-number">{batch.images.length}</strong></td>
+          <td><strong className="table-number">{batch.groups.length}</strong></td>
+          <td><div className="table-progress"><span>{assigned}/{batch.images.length}</span><div className="batch-progress-track"><i style={{ width: `${progress}%` }} /></div></div></td>
+          <td><span className={`batch-state ${active ? "active" : review ? "review" : ""}`}>{active ? `${active} 个进行中` : review ? `${review} 个待审核` : batchJobs.length ? "已完成" : "暂无任务"}</span></td>
+          <td><time dateTime={batch.updatedAt}>{formatDate(batch.updatedAt)}</time></td>
+          <td><button className="table-action" onClick={(event) => { event.stopPropagation(); openBatch(batch.id); }}>进入 <span aria-hidden="true">→</span></button></td>
+        </tr>;
+      })}</tbody>
+    </table></div>}
+    {!visible.length && <div className="batch-list-empty"><span>⌕</span><h2>{batches.length ? "没有匹配的批次" : "还没有批次"}</h2><p>{batches.length ? "换个名称、ID 或目录关键字试试。" : "创建第一个批次，开始扫描和整理素材。"}</p>{!batches.length && <button className="primary" onClick={() => openBatch("")}>新建批次</button>}</div>}
+  </main>;
 }
 
 interface WorkspaceProps {
