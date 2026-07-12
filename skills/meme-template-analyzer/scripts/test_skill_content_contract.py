@@ -20,6 +20,7 @@ def main() -> None:
     json_contract = read("references/json-contract.md")
     gallery_contract = read("references/gallery-authoring-contract.md")
     slot_design = read("references/slot-and-visual-design.md")
+    cultural_reference = read("references/cultural-reference-discovery.md")
     reference_authority = read("references/reference-authority.md")
     prompt_validation = read("references/prompt-and-validation.md")
     generation_testing = read("references/generation-testing.md")
@@ -40,6 +41,8 @@ def main() -> None:
         "请求路由",
         "Reference 导航",
         "默认单图流程",
+        "formula_reflection_review",
+        "validate_semantic_analysis.py",
         "编译与验证",
         "用户原图默认直通生成",
         "validate_gallery_template.py",
@@ -73,12 +76,30 @@ def main() -> None:
     assert len(skill.splitlines()) <= 250, "SKILL.md should stay concise; move details to references"
     for reference in [
         "slot-and-visual-design.md",
+        "cultural-reference-discovery.md",
         "reference-authority.md",
         "prompt-and-validation.md",
         "generation-testing.md",
         "batch-and-review.md",
     ]:
         require(skill, reference, "SKILL.md")
+
+    for needle in [
+        "distinctive_feature_bundle",
+        "interpretation_hypotheses",
+        "external_reference",
+        "intrinsic_visual_joke",
+        "standalone_image",
+        "confirmed",
+        "probable",
+        "suspected",
+        "unknown",
+        "none",
+        "formula_reflection_review",
+        "generic_description_risk",
+        "content_function",
+    ]:
+        require(cultural_reference, needle, "cultural-reference-discovery.md")
 
     for needle in [
         "semantic_merge_review",
@@ -132,6 +153,8 @@ def main() -> None:
         "DRAFT",
         "PUBLISHED",
         "review.html",
+        "semanticReviewStatus",
+        "needs_research",
     ]:
         require(batch_review, needle, "batch-and-review.md")
 
@@ -198,7 +221,7 @@ def main() -> None:
     assert any(item["type"] == "select" for item in sample["inputSchema"])
     assert any(item["type"] == "prompt" for item in sample["inputSchema"])
 
-    assert manifest["version"] == "0.20.0"
+    assert manifest["version"] == "0.21.0"
     assert manifest["updated_at"] == "2026-07-11"
     for tracked in manifest["tracked_files"]:
         if not (ROOT / tracked).exists():

@@ -32,6 +32,8 @@ index.md
 
 完整分析、自检和 QA 依据默认放入 `image-edit-analysis.json`，不要塞进主 `image-edit-template.json`。历史产物过长时可清洗：
 
+分析必须先完成文化参照发现：分离视觉事实与解释，比较外部参照、图片内生笑点和独立图片三类假设，再通过 `formula_reflection_review` 确认公式。`unknown` 表示疑似有出处但无法确认，不能当成 `none`；疑似游戏、动漫、地域或小圈层梗应检索或进入 DRAFT 人审。
+
 ```bash
 python skills/meme-template-analyzer/scripts/clean_image_edit_template.py artifacts/meme-template-analyzer/<id>/image-edit-template.json
 ```
@@ -481,6 +483,7 @@ python C:\Users\<username>\.codex\skills\.system\skill-creator\scripts\quick_val
 - `SKILL.md`: 主要运行说明。
 - `skill-manifest.json`: 版本和 tracked-file 元数据。
 - `references/json-contract.md`: `image-edit-template.json`、分析和生成结果 JSON schema。
+- `references/cultural-reference-discovery.md`: 文化参照发现、多假设竞争、非梗识别和公式前提审计。
 - `references/gallery-authoring-contract.md`: GalleryTemplate 映射和批量入库规则。
 - `references/gallery-template-import.schema.json`: 后端严格导入 Schema 副本。
 - `references/gallery-template-import.sample.json`: prompt/select/image 全特性样例。

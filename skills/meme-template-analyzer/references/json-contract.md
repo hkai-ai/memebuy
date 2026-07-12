@@ -94,6 +94,45 @@
 }
 ```
 
+分析 sidecar 的 `analysis` 在 `meme_formula` 前必须包含文化参照发现链路：
+
+```json
+{
+  "visual_observations": [],
+  "distinctive_feature_bundle": [],
+  "content_function": "meme_template | reaction_image | cute_pet | aesthetic_image | ordinary_photo | original_visual_joke | unknown",
+  "reference_discovery": {
+    "reference_status": "confirmed | probable | suspected | none | unknown",
+    "reference_type": "artwork | film | television | game | anime | celebrity | advertisement | internet_meme | regional_culture | none | unknown",
+    "primary_reference": "",
+    "evidence": [],
+    "counter_evidence": [],
+    "none_evidence": [],
+    "human_review_required": false,
+    "review_reasons": []
+  },
+  "interpretation_hypotheses": [],
+  "formula_reflection_review": {
+    "distinctive_bundle_explained": true,
+    "alternative_hypotheses_compared": true,
+    "generic_description_risk": "low",
+    "reference_anchors_identified": [],
+    "unknown_as_none_risk": "low",
+    "passed": true,
+    "review_reasons": []
+  },
+  "confidence": {
+    "visual_observation": 0.0,
+    "reference_identification": 0.0,
+    "context_understanding": 0.0,
+    "meme_formula": 0.0,
+    "slot_design": 0.0
+  }
+}
+```
+
+`interpretation_hypotheses` 至少覆盖 `external_reference`、`intrinsic_visual_joke`、`standalone_image` 三类。完整规则见 `references/cultural-reference-discovery.md`。转换器只把精简 `referenceContext` 和审核原因写入 Gallery metadata，不把完整推理链入库。
+
 清洗历史过长产物时，使用仓库脚本：
 
 ```bash

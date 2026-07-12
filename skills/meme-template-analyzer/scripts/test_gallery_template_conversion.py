@@ -11,6 +11,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from convert_image_edit_to_meme_template import build_gallery_template  # noqa: E402
 from validate_gallery_template import validate  # noqa: E402
+from validate_semantic_analysis import validate_analysis  # noqa: E402
 
 
 ROOT = SCRIPT_DIR.parent
@@ -70,6 +71,46 @@ def fixture() -> dict:
             "styles": ["复古"],
             "needs_review": ["taxonomy"],
         },
+        "semanticReview": semantic_fixture(),
+    }
+
+
+def semantic_fixture() -> dict:
+    return {
+        "visual_observations": ["动物主体", "单颗珍珠耳环", "头巾", "越肩回眸"],
+        "distinctive_feature_bundle": ["头巾", "单颗珍珠耳环", "越肩回眸"],
+        "content_function": "meme_template",
+        "reference_discovery": {
+            "reference_status": "probable",
+            "reference_type": "artwork",
+            "primary_reference": "《戴珍珠耳环的少女》",
+            "evidence": ["三个识别锚点同时出现"],
+            "counter_evidence": [],
+            "none_evidence": [],
+            "human_review_required": False,
+            "review_reasons": [],
+        },
+        "interpretation_hypotheses": [
+            {"kind": "external_reference", "claim": "名画戏仿", "explains": ["头巾"], "unexplained": [], "assumptions": [], "confidence": 0.95},
+            {"kind": "intrinsic_visual_joke", "claim": "动物拟人化", "explains": ["动物配饰"], "unexplained": ["组合来源"], "assumptions": [], "confidence": 0.6},
+            {"kind": "standalone_image", "claim": "普通萌宠照", "explains": ["动物"], "unexplained": ["名画锚点"], "assumptions": [], "confidence": 0.1},
+        ],
+        "formula_reflection_review": {
+            "distinctive_bundle_explained": True,
+            "alternative_hypotheses_compared": True,
+            "generic_description_risk": "low",
+            "reference_anchors_identified": ["头巾", "单颗珍珠耳环", "越肩回眸"],
+            "unknown_as_none_risk": "low",
+            "passed": True,
+            "review_reasons": [],
+        },
+        "confidence": {
+            "visual_observation": 0.98,
+            "reference_identification": 0.95,
+            "context_understanding": 0.8,
+            "meme_formula": 0.94,
+            "slot_design": 0.9,
+        },
     }
 
 
@@ -106,6 +147,8 @@ def main() -> None:
     assert record["inputSchema"][1]["options"][0] == {"value": "粉色", "label": "粉色"}
     assert record["inputSchema"][2]["type"] == "image"
     assert record["metadata"]["needsReview"] == "taxonomy"
+    assert record["metadata"]["referenceContext"]["status"] == "probable"
+    assert record["metadata"]["referenceContext"]["primaryReference"] == "《戴珍珠耳环的少女》"
     assert "path" not in record["metadata"]["templateSource"]
     assert record["metadata"]["templateSource"]["referenceField"] == "referenceImage"
 
@@ -113,6 +156,25 @@ def main() -> None:
     without_taxonomy.pop("taxonomy")
     draft_record = build_gallery_template(without_taxonomy)
     assert draft_record["metadata"]["needsReview"] == "taxonomy 未提供或未确认"
+
+    suspected = fixture()
+    suspected["taxonomy"]["needs_review"] = []
+    suspected["semanticReview"]["reference_discovery"].update(
+        {
+            "reference_status": "suspected",
+            "reference_type": "game",
+            "primary_reference": "未确认的游戏角色梗",
+            "human_review_required": True,
+            "review_reasons": ["疑似小众游戏梗，出处未确认"],
+        }
+    )
+    suspected_record = build_gallery_template(suspected)
+    assert suspected_record["metadata"]["needsReview"] == "疑似小众游戏梗，出处未确认"
+
+    assert not validate_analysis(semantic_fixture())
+    incomplete_semantics = semantic_fixture()
+    incomplete_semantics["interpretation_hypotheses"] = incomplete_semantics["interpretation_hypotheses"][:1]
+    assert any("missing kinds" in error for error in validate_analysis(incomplete_semantics))
 
     broken_semantics = json.loads(json.dumps(record, ensure_ascii=False))
     broken_semantics["metadata"]["inputSemantics"]["missing_slot"] = {

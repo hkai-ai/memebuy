@@ -341,6 +341,42 @@ def slot_semantics(slots: list[dict[str, Any]]) -> dict[str, Any]:
     return result
 
 
+def semantic_analysis(data: dict[str, Any]) -> dict[str, Any]:
+    candidate = data.get("_semanticAnalysis") or data.get("semanticReview")
+    if isinstance(candidate, dict) and isinstance(candidate.get("analysis"), dict):
+        return candidate["analysis"]
+    return candidate if isinstance(candidate, dict) else {}
+
+
+def semantic_review_metadata(data: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
+    analysis = semantic_analysis(data)
+    discovery = analysis.get("reference_discovery") if isinstance(analysis.get("reference_discovery"), dict) else {}
+    reflection = analysis.get("formula_reflection_review") if isinstance(analysis.get("formula_reflection_review"), dict) else {}
+    status = str(discovery.get("reference_status") or "").strip()
+    if not status:
+        return None, []
+    context = OrderedDict([("status", status)])
+    for source_key, target_key in [("reference_type", "type"), ("primary_reference", "primaryReference")]:
+        value = discovery.get(source_key)
+        if value not in (None, "", []):
+            context[target_key] = value
+    anchors = reflection.get("reference_anchors_identified")
+    if isinstance(anchors, list) and anchors:
+        context["anchors"] = anchors
+    reasons: list[str] = []
+    for reason in discovery.get("review_reasons", []):
+        text = str(reason).strip()
+        if text and text not in reasons:
+            reasons.append(text)
+    if status in {"unknown", "suspected"} and not reasons:
+        reasons.append(f"文化参照状态为 {status}，需要人工确认")
+    if reflection.get("passed") is False:
+        reasons.append("meme 公式前提审计未通过")
+    if reflection.get("generic_description_risk") == "high":
+        reasons.append("当前解释存在高泛化复述风险")
+    return context, reasons
+
+
 def build_gallery_template(data: dict[str, Any]) -> OrderedDict[str, Any]:
     template_id = str(data.get("templateId") or "")
     key = slugify(template_id)
@@ -358,6 +394,12 @@ def build_gallery_template(data: dict[str, Any]) -> OrderedDict[str, Any]:
     prompt_template = compile_prompt_template(data, slots)
     taxonomy = data.get("taxonomy") if isinstance(data.get("taxonomy"), dict) else {}
     needs_review = taxonomy.get("needs_review") if taxonomy else ["taxonomy 未提供或未确认"]
+    if not isinstance(needs_review, list):
+        needs_review = [str(needs_review)] if needs_review else []
+    reference_context, semantic_reasons = semantic_review_metadata(data)
+    for reason in semantic_reasons:
+        if reason not in needs_review:
+            needs_review.append(reason)
     metadata = OrderedDict(
         [
             ("tags", metadata_tags(taxonomy)),
@@ -372,6 +414,8 @@ def build_gallery_template(data: dict[str, Any]) -> OrderedDict[str, Any]:
         metadata["taxonomy"] = taxonomy
     if data.get("templateSource"):
         metadata["templateSource"] = metadata_template_source(data["templateSource"])
+    if reference_context:
+        metadata["referenceContext"] = reference_context
     semantics = slot_semantics(slots)
     if semantics:
         metadata["inputSemantics"] = semantics
@@ -430,7 +474,14 @@ def main() -> int:
 
     input_path = args.input.resolve()
     output_path = (args.output or input_path.with_name("meme-template.json")).resolve()
-    record = build_gallery_template(load_json(input_path))
+    data = load_json(input_path)
+    analysis_ref = data.get("analysisRef")
+    if isinstance(analysis_ref, str) and analysis_ref.strip():
+        analysis_path = (input_path.parent / analysis_ref).resolve()
+        if not analysis_path.is_file():
+            raise ValueError(f"analysisRef does not exist: {analysis_ref}")
+        data["_semanticAnalysis"] = load_json(analysis_path)
+    record = build_gallery_template(data)
     write_json(output_path, record, args.indent)
     print(f"input: {input_path}")
     print(f"output: {output_path}")

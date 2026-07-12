@@ -12,6 +12,18 @@
 - taxonomy 未完成人审时写非空 `metadata.needsReview`，导入状态为 `DRAFT`；否则默认 `PUBLISHED`。
 - 每个模板单独通过 validator 后才上传。
 
+## 批量语义预审
+
+每张图片先写 `referenceStatus` 和 `semanticReviewStatus`，再决定是否进入模板编译：
+
+- `auto_ready`：`confirmed/probable` 且公式审计通过。
+- `standalone_ready`：`none` 且 `content_function` 明确，可按萌宠、反应图或普通图片处理。
+- `needs_research`：`unknown/suspected`，允许联网时检索，否则进入人审。
+- `needs_human_review`：候选接近、圈层文化、地域语境或公式审计未通过。
+- `skip_template`：视觉事实不稳定，或用户没有要求把普通图片模板化。
+
+`unknown/suspected`、`formula_reflection_review.passed: false` 或 `generic_description_risk: high` 必须写入 `metadata.needsReview` 并保持 `DRAFT`。Gallery validator `PASS` 只表示入库结构合法，不代表语义审核完成。
+
 ## Batch Review Workbench
 
 用户要求“批量整理台”“素材分组”时使用 `assets/batch-workbench.html`。它是 Chrome/Edge 静态工具，通过 File System Access API 选择素材目录并写回：

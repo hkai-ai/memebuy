@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-11",
-  "notes": "Remove retired compatibility workflows while retaining current meme analysis, GalleryTemplate authoring and real generation testing.",
+  "notes": "Add cultural-reference discovery, competing interpretations, formula-premise review, semantic DRAFT gates and sidecar validation.",
   "tracked_files": [
     "SKILL.md",
     "README.md",
@@ -14,6 +14,7 @@
     "references/gallery-template-import.schema.json",
     "references/gallery-template-import.sample.json",
     "references/slot-and-visual-design.md",
+    "references/cultural-reference-discovery.md",
     "references/reference-authority.md",
     "references/prompt-and-validation.md",
     "references/generation-testing.md",
@@ -23,6 +24,7 @@
     "scripts/clean_image_edit_template.py",
     "scripts/convert_image_edit_to_meme_template.py",
     "scripts/validate_gallery_template.py",
+    "scripts/validate_semantic_analysis.py",
     "scripts/test_gallery_template_conversion.py",
     "scripts/test_skill_content_contract.py"
   ]
