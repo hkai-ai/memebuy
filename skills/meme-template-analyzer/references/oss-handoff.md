@@ -16,6 +16,7 @@
 4. 已经是当前 assets 域名、环境前缀和 `gallery/templates/` 路径下的 HTTPS URL 时复用。
 5. 将回填后的模板写入独立 handoff 目录，再以 remote 模式验证。
 6. 只交付 handoff 目录；恢复记录位于目录外，不进入后端批量导入。
+7. SDK 上传返回成功后执行对象 `HEAD`；只有真实对象存在才视为原图上传成功。
 
 执行命令：
 
@@ -50,3 +51,21 @@ pnpm gallery:finalize <input-dir> --output artifacts/meme-template-analyzer/hand
 - 恢复记录的域名或环境前缀与当前配置不同。
 
 上传失败时保留恢复记录和原始产物。修复网络或配置后重复执行同一命令，不要手工改写恢复记录。
+
+## 管理台二次检查与辅助重传
+
+管理台的“二次检查”只读取 `meme-template.json` 并对受控 URL 执行 OSS `HEAD`，不得产生写入。
+只有运营明确点击“重新上传原图”时，才允许上传 `cover`、`referenceImage` 指向的 source image。
+PUT 与 HEAD 均成功且 remote validator 通过后，使用临时文件和原子 rename 回写原
+`meme-template.json`；只合并图片 URL，不覆盖并发产生的标签修改。普通 handoff 仍不得覆盖源模板。
+
+Agent 或确定性脚本需要显式回写时使用：
+
+```bash
+node --env-file=.env skills/meme-template-analyzer/scripts/finalize_gallery_batch.mjs \
+  <input> --output <handoff-dir> --progress-file <progress.json> --write-back
+```
+
+`--write-back` 只用于已获用户确认的管理台辅助流程。未传该参数时，行为保持为输出独立 handoff。
+`--progress-file` 可选；Agent 批量任务使用它原子写入结构化上传进度，管理台只读取并通过 SSE 展示，
+不接管 OSS 上传。

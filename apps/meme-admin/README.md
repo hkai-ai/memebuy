@@ -18,6 +18,8 @@ pnpm dev
 
 浏览器访问 `http://127.0.0.1:15173`。API 只监听 `127.0.0.1:14174`。
 
+运营人员可在顶部“标签词库”维护场景、主题、风格、情绪、用途等大类，以及模板固定标签。词库保存在 `.meme-admin/tag-catalog.json`；创建分析任务时会把当时版本快照到批次目录的 `tag-catalog.snapshot.json`，供仓库内 skill 确定性读取。
+
 构建并运行生产版本：
 
 ```powershell
@@ -30,6 +32,7 @@ pnpm start
 ## 本地数据
 
 - 管理台任务与设置：`.meme-admin/`，已被 Git 忽略。
+- 运营标签词库：`.meme-admin/tag-catalog.json`，已被 Git 忽略。
 - 批次与生成结果：`artifacts/meme-template-analyzer/batches/<batch-id>/`，已被 Git 忽略。
 - 管理台继续输出 `batch-workspace.json`、`batch-manifest.json` 和每组的 `group-config.json`，可与静态整理台和 skill 批量流程互通。
 
@@ -41,4 +44,10 @@ pnpm start
 - 固定使用 `codex exec --json -s workspace-write -a never`。
 - Prompt 明确要求读取仓库内 `skills/meme-template-analyzer/SKILL.md`，不使用同名全局副本。
 - 只允许通过 API 读取批次素材目录和 `artifacts/meme-template-analyzer` 内的结果。
+- 结果审核页会二次检查 `cover/referenceImage` 对应的 OSS 对象；人工确认后可批量辅助重传 source image，
+  并在 PUT、HEAD 与 remote validator 均成功后原子更新 `meme-template.json`。
+- 分组可显式勾选“Agent 完成后上传 source image 到 OSS”；默认关闭，未勾选时 Agent 不得产生 OSS 写入。
+- Agent 上传脚本将结构化状态写入结果目录的 `.oss-progress.json`；后台只读取该文件并通过现有 SSE
+  展示上传数量、复用数量和当前阶段。
+- 标签二次编辑只替换人工补充标签，保留运营大类、模板固定标签、AI 标签与外部标签来源。
 - 一期仅支持本机单人使用，不应暴露到局域网或公网。

@@ -1,11 +1,12 @@
 import { EventEmitter } from "node:events";
-import { appendFile, readFile, readdir, stat } from "node:fs/promises";
+import { appendFile, readFile, readdir, rm, stat } from "node:fs/promises";
 import { spawn, type ChildProcess } from "node:child_process";
 import path from "node:path";
-import type { BatchConfig, GroupConfig, JobEvent, JobRecord, JobStatus, ValidatorResult } from "../shared/types.js";
+import type { BatchConfig, GroupConfig, JobEvent, JobRecord, JobStatus, TagCatalog, ValidatorResult } from "../shared/types.js";
 import { organizeGroup, exportCompatibilityFiles } from "./batches.js";
 import { ensureDir, safeSlug } from "./paths.js";
 import { Storage } from "./storage.js";
+import { selectedTags } from "./tag-catalog.js";
 
 function now() { return new Date().toISOString(); }
 
@@ -100,18 +101,26 @@ export class JobRunner extends EventEmitter {
     return { command: "codex", args };
   }
 
-  private buildPrompt(batch: BatchConfig, group: GroupConfig, resultDir: string): string {
+  private buildPrompt(batch: BatchConfig, group: GroupConfig, resultDir: string, catalog: TagCatalog, catalogSnapshot: string): string {
     const mode = group.generationMode === "generation_test" ? "批量分析并执行真实生成测试" : "批量分析并生成可入库模板，不生成真实图片";
+    const ossInstruction = group.uploadSourceImages
+      ? `用户已明确授权上传 source image。所有本地 validator 通过后，必须读取 oss-handoff.md，并执行 pnpm gallery:finalize "${resultDir}" --output "${path.join(resultDir, ".oss-handoff")}" --progress-file "${path.join(resultDir, ".oss-progress.json")}" --write-back；PUT、HEAD 或 remote validator 任一步失败都不得伪造成功。`
+      : "本任务未授权 OSS 写入；只生成本地路径版 meme-template.json，不得上传或回写远程 URL。";
+    const operatorTags = selectedTags(catalog, group.operatorTagIds ?? []).map((tag) => ({ tagId: tag.id, label: tag.label, dimension: tag.dimension, level: tag.level, source: "operator", status: "accepted" }));
+    const templateTags = selectedTags(catalog, group.templateTagIds ?? []).map((tag) => ({ tagId: tag.id, label: tag.label, dimension: tag.dimension, level: tag.level, source: "template", status: "accepted" }));
     return [
       `使用仓库内 ${path.join(this.projectRoot, "skills", "meme-template-analyzer", "SKILL.md")} 执行任务。`,
       "必须读取仓库内 skill 及其所需 references，禁止使用同名全局 skill。",
       `任务模式：${mode}。`,
       `输入目录：${path.join(batch.outputFolder, "groups", safeSlug(group.groupName), "input")}。`,
       `唯一结果目录：${resultDir}。只在此目录写本任务产物，不修改仓库代码。`,
+      `标签词库快照：${catalogSnapshot}。必须读取，并按仓库内 tagging-and-taxonomy.md 执行。`,
+      `锁定标签分配：${JSON.stringify([...operatorTags, ...templateTags])}。operator/template 标签必须原样保留，AI 不得删除、改名或覆盖。`,
       `分组配置：分类=${group.category || "待分析"}；标签=${group.tags.join("、") || "待分析"}；模板机制=${group.templateMechanism || "待分析"}。`,
       `参考配置：${JSON.stringify(group.referenceConfig)}；依赖级别=${group.referenceDependencyLevel}；建议模式=${group.testModeRecommendation}。`,
       `业务备注：${group.notes || "无"}。`,
       "必须生成 image-edit-template.json、image-edit-analysis.json、meme-template.json、index.md，并运行语义与 Gallery validator。",
+      ossInstruction,
       "如语义需要人工审核，保留 DRAFT/needsReview，不要伪造已确认状态。",
     ].join("\n");
   }
@@ -154,14 +163,18 @@ export class JobRunner extends EventEmitter {
       if (!inputs.length) throw new Error("分组中没有可执行的图片");
       await exportCompatibilityFiles(batch);
       await ensureDir(job.resultDirectory);
+      const tagCatalog = await this.storage.getTagCatalog();
+      const tagCatalogSnapshot = await this.storage.snapshotTagCatalog(batch.outputFolder);
 
       job.phase = "analyzing";
       await this.update(job, "Codex 正在分析分组素材");
       const codexArgs = ["-a", "never", "exec", "--json", "-C", this.projectRoot, "-s", "workspace-write"];
       for (const input of inputs) codexArgs.push("-i", input);
       const invocation = this.commandAndArgs(codexArgs);
+      const ossProgressFile = path.join(job.resultDirectory, ".oss-progress.json");
+      if (group.uploadSourceImages) await rm(ossProgressFile, { force: true });
       const child = spawn(invocation.command, invocation.args, { cwd: this.projectRoot, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
-      child.stdin?.end(this.buildPrompt(batch, group, job.resultDirectory));
+      child.stdin?.end(this.buildPrompt(batch, group, job.resultDirectory, tagCatalog, tagCatalogSnapshot));
       this.running.set(id, child); job.pid = child.pid; await this.storage.saveJob(job);
 
       let stdoutBuffer = "";
@@ -180,7 +193,19 @@ export class JobRunner extends EventEmitter {
       });
       child.stderr?.on("data", (chunk) => { void appendFile(this.storage.logPath(id), `${JSON.stringify({ at: now(), type: "agent", phase: "analyzing", summary: chunk.toString().trim() })}\n`, "utf8"); });
 
-      const exitCode = await new Promise<number>((resolve, reject) => { child.on("error", reject); child.on("close", (code) => resolve(code ?? 1)); });
+      let lastOssProgress = "";
+      const ossProgressTimer = group.uploadSourceImages ? setInterval(() => {
+        void readFile(ossProgressFile, "utf8").then((raw) => {
+          if (raw === lastOssProgress) return; lastOssProgress = raw;
+          const progress = JSON.parse(raw); job!.phase = "uploading";
+          const summary = progress.status === "failed" ? `OSS 原图上传失败：${progress.error ?? "未知错误"}` : `OSS 原图上传 ${progress.completedTemplates ?? 0}/${progress.totalTemplates ?? 0} · 新上传 ${progress.uploaded ?? 0} · 复用 ${progress.reused ?? 0}`;
+          return this.update(job!, summary, progress.status === "failed" ? "error" : "status", progress);
+        }).catch(() => undefined);
+      }, 500) : undefined;
+
+      let exitCode: number;
+      try { exitCode = await new Promise<number>((resolve, reject) => { child.on("error", reject); child.on("close", (code) => resolve(code ?? 1)); }); }
+      finally { if (ossProgressTimer) clearInterval(ossProgressTimer); }
       this.running.delete(id);
       await this.flush(id);
       job = (await this.storage.getJob(id)) ?? job;

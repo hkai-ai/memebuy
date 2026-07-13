@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, NavLink, Route, Routes, matchPath, useLocation, useNavigate } from "react-router-dom";
 import { compareImageAssets, deduplicateImageAssets, imageAssetFolder, imageAssetOrigin, sourceImageIdsForFolders } from "../shared/assets";
-import type { AdminSettings, BatchConfig, FolderTemplateStatus, GroupConfig, ImageAssetSort, JobRecord, JobStatus, ResultFile } from "../shared/types";
+import type { AdminSettings, BatchConfig, FolderTemplateStatus, GroupConfig, ImageAssetSort, JobRecord, JobStatus, OssAssetState, OssJobAssetStatus, ResultFile, TagCatalog, TagDefinition } from "../shared/types";
 import { api } from "./api";
 
 const statusLabel: Record<JobStatus, string> = { queued: "排队中", running: "执行中", succeeded: "已完成", needs_review: "待审核", failed: "失败", cancelled: "已取消", interrupted: "已中断" };
 const originLabel = { source: "原图 · Source", generated: "生成图 · Output", other: "其他" } as const;
+const dimensionLabel: Record<string, string> = { scene: "场景", theme: "主题", style: "风格", emotion: "情绪", use_case: "用途", mechanism: "模板机制", subject: "主体", action: "动作", visual_detail: "视觉细节" };
+const ossStateLabel: Record<OssAssetState, string> = { not_uploaded: "原图未上传", partial: "部分已上传", uploaded: "原图已上传", object_missing: "OSS 对象缺失", local_missing: "本地原图缺失", invalid: "JSON/URL 异常", config_missing: "OSS 未配置" };
 
 function tagsFrom(value: string) { return [...new Set(value.split(/[,，]/).map((item) => item.trim()).filter(Boolean))]; }
 function folderLabel(folder: string) { return folder || "根目录"; }
@@ -21,6 +23,7 @@ function App() {
   const [batches, setBatches] = useState<BatchConfig[]>([]);
   const [jobs, setJobs] = useState<JobRecord[]>([]);
   const [settings, setSettings] = useState<AdminSettings>({ concurrency: 1 });
+  const [tagCatalog, setTagCatalog] = useState<TagCatalog>({ schemaVersion: "1.0", updatedAt: "", tags: [] });
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -36,7 +39,7 @@ function App() {
     catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); return undefined; }
   };
 
-  useEffect(() => { void Promise.all([api.batches(), api.jobs(), api.settings()]).then(([batchData, jobData, settingData]) => { setBatches(batchData); setJobs(jobData); setSettings(settingData); }).catch((reason) => setError(`无法连接本地 API：${reason.message}`)).finally(() => setLoaded(true)); }, []);
+  useEffect(() => { void Promise.all([api.batches(), api.jobs(), api.settings(), api.tagCatalog()]).then(([batchData, jobData, settingData, catalogData]) => { setBatches(batchData); setJobs(jobData); setSettings(settingData); setTagCatalog(catalogData); }).catch((reason) => setError(`无法连接本地 API：${reason.message}`)).finally(() => setLoaded(true)); }, []);
   useEffect(() => {
     const active = jobs.filter((job) => job.status === "queued" || job.status === "running");
     const streams = active.map((job) => { const stream = new EventSource(`/api/jobs/${job.id}/events`); stream.onmessage = (event) => { const payload = JSON.parse(event.data); setJobs((current) => current.map((item) => item.id === payload.job.id ? payload.job : item)); }; stream.onerror = () => stream.close(); return stream; });
@@ -53,6 +56,7 @@ function App() {
         <NavLink to="/batches">素材与批次 <span className="count">{batches.length}</span></NavLink>
         <NavLink to="/jobs">任务中心 <span className="count">{jobs.filter((job) => job.status === "queued" || job.status === "running").length}</span></NavLink>
         <NavLink to={resultJobId ? `/results/${encodeURIComponent(resultJobId)}` : "/results"}>结果审核</NavLink>
+        <NavLink to="/tags">标签词库 <span className="count">{tagCatalog.tags.filter((tag) => tag.enabled).length}</span></NavLink>
       </nav>
       <div className="local-badge"><span /> localhost</div>
     </header>
@@ -60,11 +64,12 @@ function App() {
     <Routes>
       <Route path="/" element={<Navigate to="/batches" replace />} />
       <Route path="/batches" element={loaded ? <BatchList batches={batches} jobs={jobs} openBatch={setBatchId} /> : null} />
-      <Route path="/batches/new" element={<Workspace batches={batches} batchId="" setBatchId={setBatchId} updateBatch={updateBatch} refresh={() => refreshBatches()} perform={perform} onJobsChanged={refreshJobs} />} />
-      <Route path="/batches/:batchId" element={loaded && !batch ? <Navigate to="/batches" replace /> : <Workspace batches={batches} batch={batch} batchId={batchId} setBatchId={setBatchId} updateBatch={updateBatch} refresh={() => refreshBatches()} perform={perform} onJobsChanged={refreshJobs} />} />
+      <Route path="/batches/new" element={<Workspace batches={batches} batchId="" tagCatalog={tagCatalog} setBatchId={setBatchId} updateBatch={updateBatch} refresh={() => refreshBatches()} perform={perform} onJobsChanged={refreshJobs} />} />
+      <Route path="/batches/:batchId" element={loaded && !batch ? <Navigate to="/batches" replace /> : <Workspace batches={batches} batch={batch} batchId={batchId} tagCatalog={tagCatalog} setBatchId={setBatchId} updateBatch={updateBatch} refresh={() => refreshBatches()} perform={perform} onJobsChanged={refreshJobs} />} />
       <Route path="/jobs" element={<Jobs jobs={jobs} settings={settings} perform={perform} refresh={refreshJobs} onSettings={setSettings} showResult={showResult} />} />
       <Route path="/results" element={<Results jobs={jobs} selectedId="" setSelectedId={(id) => navigate(`/results/${encodeURIComponent(id)}`, { replace: true })} perform={perform} />} />
       <Route path="/results/:jobId" element={<Results jobs={jobs} selectedId={resultJobId} setSelectedId={(id) => navigate(`/results/${encodeURIComponent(id)}`)} perform={perform} />} />
+      <Route path="/tags" element={<TagCatalogPage catalog={tagCatalog} setCatalog={setTagCatalog} perform={perform} />} />
       <Route path="*" element={<Navigate to="/batches" replace />} />
     </Routes>
   </div>;
@@ -112,12 +117,12 @@ function BatchList({ batches, jobs, openBatch }: { batches: BatchConfig[]; jobs:
 }
 
 interface WorkspaceProps {
-  batches: BatchConfig[]; batch?: BatchConfig; batchId: string; setBatchId: (id: string) => void;
+  batches: BatchConfig[]; batch?: BatchConfig; batchId: string; tagCatalog: TagCatalog; setBatchId: (id: string) => void;
   updateBatch: (batch: BatchConfig) => void; refresh: () => Promise<void>;
   perform: <T>(action: () => Promise<T>, success?: string) => Promise<T | undefined>; onJobsChanged: () => Promise<void>;
 }
 
-function Workspace({ batches, batch, batchId, setBatchId, updateBatch, refresh, perform, onJobsChanged }: WorkspaceProps) {
+function Workspace({ batches, batch, batchId, tagCatalog, setBatchId, updateBatch, refresh, perform, onJobsChanged }: WorkspaceProps) {
   const [sourceFolder, setSourceFolder] = useState(""); const [batchName, setBatchName] = useState(""); const [importPath, setImportPath] = useState("");
   const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set()); const [groupId, setGroupId] = useState(""); const [search, setSearch] = useState(""); const [filter, setFilter] = useState("all");
   const [showOutput, setShowOutput] = useState(false); const [assetSort, setAssetSort] = useState<ImageAssetSort>("time_desc");
@@ -198,7 +203,7 @@ function Workspace({ batches, batch, batchId, setBatchId, updateBatch, refresh, 
       <div className="section-title"><span>批次</span><button className="icon" onClick={() => setBatchId("")} title="新建批次">＋</button></div>
       <select value={batchId} onChange={(e) => setBatchId(e.target.value)}>{batches.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
       <div className="batch-summary"><strong>{batch.images.length}</strong><span>张素材</span><strong>{batch.groups.length}</strong><span>个分组</span></div>
-      <details className="batch-defaults"><summary>新分组默认参数</summary><label>默认模式<select value={defaultMode} onChange={(e) => setDefaultMode(e.target.value as typeof defaultMode)}><option value="template">只生成模板</option><option value="generation_test">分析 + 真实出图</option></select></label><label>默认分类<input value={defaultCategory} onChange={(e) => setDefaultCategory(e.target.value)} /></label><label>默认标签<input value={defaultTags} onChange={(e) => setDefaultTags(e.target.value)} /></label><button className="full" onClick={async () => { const result = await perform(() => api.saveBatch({ ...batch, defaults: { generationMode: defaultMode, category: defaultCategory, tags: tagsFrom(defaultTags) } }), "批次默认参数已保存"); if (result) updateBatch(result); }}>保存默认参数</button></details>
+      <details className="batch-defaults"><summary>新分组默认参数</summary><label>默认模式<select value={defaultMode} onChange={(e) => setDefaultMode(e.target.value as typeof defaultMode)}><option value="template">只生成模板</option><option value="generation_test">分析 + 真实出图</option></select></label><label>旧版默认分类<input value={defaultCategory} onChange={(e) => setDefaultCategory(e.target.value)} /></label><label>旧版默认自由标签<input value={defaultTags} onChange={(e) => setDefaultTags(e.target.value)} /></label><small>新的运营大类与固定标签请到“标签词库”维护，并在分组配置中勾选。</small><button className="full" onClick={async () => { const result = await perform(() => api.saveBatch({ ...batch, defaults: { generationMode: defaultMode, category: defaultCategory, tags: tagsFrom(defaultTags) } }), "批次默认参数已保存"); if (result) updateBatch(result); }}>保存默认参数</button></details>
       <div className="section-title"><span>分组</span></div>
       <div className="group-list">{batch.groups.map((item) => <button key={item.id} className={item.id === groupId ? "active" : ""} onClick={() => setGroupId(item.id)}><span>{item.groupName}</span><em>{item.imageIds.length}</em><small>{item.status === "ready_for_template" ? "可生成" : item.status === "skipped" ? "已跳过" : "待审核"}</small></button>)}</div>
       <div className="input-action compact"><input value={newGroup} onChange={(e) => setNewGroup(e.target.value)} placeholder="新分组目录名" onKeyDown={(e) => { if (e.key === "Enter") void addGroup(); }} /><button onClick={addGroup} disabled={!newGroup}>添加</button></div>
@@ -212,7 +217,7 @@ function Workspace({ batches, batch, batchId, setBatchId, updateBatch, refresh, 
       <div className="asset-folders">{folderSections.map(([folder, images]) => { const folderAssets = folderAssetsByName.get(folder) ?? []; const sourceCount = folderAssets.filter((image) => imageAssetOrigin(image) === "source").length; const generatedCount = folderAssets.filter((image) => imageAssetOrigin(image) === "generated").length; const templateStatus = templateByFolder.get(folder); const isSelected = selectedFolders.has(folder); const toggleFolder = () => { if (!sourceCount) return; setSelectedFolders((current) => { const next = new Set(current); next.has(folder) ? next.delete(folder) : next.add(folder); return next; }); }; return <section className={`asset-folder ${isSelected ? "selected" : ""}`} key={folder || "root"}><div className="asset-folder-heading"><label className={`folder-select ${!sourceCount ? "disabled" : ""}`}><input type="checkbox" checked={isSelected} disabled={!sourceCount} onChange={toggleFolder} /><span className="folder-icon">⌑</span><strong title={folderLabel(folder)}>{folderLabel(folder)}</strong></label><em>{folderAssets.length} 张</em>{sourceCount > 0 ? <em className="origin-count source">{sourceCount} 原图</em> : <em className="origin-count missing">无原图</em>}{generatedCount > 0 && <em className="origin-count generated">{generatedCount} 生成图</em>}{templateStatus?.exists && <button className="template-present" title="点击预览 meme-template.json" onClick={() => { setSelectedFolders(new Set([folder])); setPreviewTemplate(templateStatus); }}>✓ meme-template.json</button>}<button disabled={!sourceCount} onClick={toggleFolder}>{isSelected ? "取消选择" : "选择此文件夹"}</button></div><div className="asset-grid">{images.map((image) => { const origin = imageAssetOrigin(image); return <div key={image.id} className="asset-card"><span className={`asset-origin ${origin}`}>{originLabel[origin]}</span><img loading="lazy" src={`/api/files?path=${encodeURIComponent(image.sourcePath)}`} alt={`${originLabel[origin]}：${image.fileName}`} /><div><strong title={image.fileName}>{image.fileName}</strong><small>{origin === "source" ? image.groupId ? groupNameById.get(image.groupId) ?? "未分组" : "未分组" : "仅预览，不参与分析"}</small></div></div>; })}</div></section>; })}</div>
       {!visible.length && <div className="empty-inline">没有符合条件的图片</div>}
     </section>
-    <aside className="config-panel">{selectedFolders.size ? <FolderInspector folders={[...selectedFolders]} assetsByFolder={folderAssetsByName} templateByFolder={templateByFolder} templatesLoaded={folderTemplatesLoaded} templatesError={folderTemplatesError} group={group} assign={assign} previewTemplate={previewTemplate} setPreviewTemplate={setPreviewTemplate} /> : group ? <GroupEditor key={`${batch.id}-${group.id}-${group.imageIds.length}`} batch={batch} group={group} updateBatch={updateBatch} perform={perform} run={run} /> : <div className="empty-inline">选择文件夹查看检查结果，或创建分组配置生成任务</div>}</aside>
+    <aside className="config-panel">{selectedFolders.size ? <FolderInspector folders={[...selectedFolders]} assetsByFolder={folderAssetsByName} templateByFolder={templateByFolder} templatesLoaded={folderTemplatesLoaded} templatesError={folderTemplatesError} group={group} assign={assign} previewTemplate={previewTemplate} setPreviewTemplate={setPreviewTemplate} /> : group ? <GroupEditor key={`${batch.id}-${group.id}-${group.imageIds.length}`} batch={batch} group={group} tagCatalog={tagCatalog} updateBatch={updateBatch} perform={perform} run={run} /> : <div className="empty-inline">选择文件夹查看检查结果，或创建分组配置生成任务</div>}</aside>
   </main>;
 }
 
@@ -236,24 +241,46 @@ function FolderInspector({ folders, assetsByFolder, templateByFolder, templatesL
   </div>;
 }
 
-function GroupEditor({ batch, group, updateBatch, perform, run }: { batch: BatchConfig; group: GroupConfig; updateBatch: (value: BatchConfig) => void; perform: WorkspaceProps["perform"]; run: () => Promise<void> }) {
-  const [draft, setDraft] = useState<GroupConfig>(() => structuredClone(group));
+function GroupEditor({ batch, group, tagCatalog, updateBatch, perform, run }: { batch: BatchConfig; group: GroupConfig; tagCatalog: TagCatalog; updateBatch: (value: BatchConfig) => void; perform: WorkspaceProps["perform"]; run: () => Promise<void> }) {
+  const [draft, setDraft] = useState<GroupConfig>(() => ({ ...structuredClone(group), operatorTagIds: group.operatorTagIds ?? [], templateTagIds: group.templateTagIds ?? [], uploadSourceImages: group.uploadSourceImages ?? false }));
   const patch = <K extends keyof GroupConfig>(key: K, value: GroupConfig[K]) => setDraft((current) => ({ ...current, [key]: value }));
+  const toggleTag = (key: "operatorTagIds" | "templateTagIds", id: string) => patch(key, draft[key].includes(id) ? draft[key].filter((item) => item !== id) : [...draft[key], id]);
   const save = async () => { const result = await perform(() => api.saveGroup(batch.id, draft), "分组配置已保存"); if (result) updateBatch(result); return Boolean(result); };
   const remove = async () => { if (!confirm(`确定删除分组“${group.groupName}”？素材不会被删除。`)) return; const result = await perform(() => api.deleteGroup(batch.id, group.id), "分组已删除"); if (result) updateBatch(result); };
   return <div className="editor"><div className="editor-heading"><div><span className="eyebrow">GROUP CONFIG</span><h2>分组配置</h2></div><span className={`status-dot ${draft.status}`}>{draft.status}</span></div>
     <label>分组目录名<input value={draft.groupName} onChange={(e) => patch("groupName", e.target.value)} /></label>
     <div className="field-row"><label>状态<select value={draft.status} onChange={(e) => patch("status", e.target.value as GroupConfig["status"])}><option value="ready_for_template">ready_for_template</option><option value="needs_review">needs_review</option><option value="skipped">skipped</option></select></label><label>生成模式<select value={draft.generationMode} onChange={(e) => patch("generationMode", e.target.value as GroupConfig["generationMode"])}><option value="template">只生成模板</option><option value="generation_test">分析 + 真实出图</option></select></label></div>
-    <label>分类<input value={draft.category} onChange={(e) => patch("category", e.target.value)} placeholder="reaction/money" /></label>
-    <label>标签<input value={draft.tags.join(", ")} onChange={(e) => patch("tags", tagsFrom(e.target.value))} placeholder="猫, 反应图, 没钱" /></label>
+    <fieldset className="tag-picker"><legend>运营大类</legend><p>只能从标签词库选择，AI 不会改写这些标签。</p><div>{tagCatalog.tags.filter((tag) => tag.level === "category" && (tag.enabled || draft.operatorTagIds.includes(tag.id))).map((tag) => <label className={`tag-choice ${!tag.enabled ? "disabled" : ""}`} key={tag.id}><input type="checkbox" checked={draft.operatorTagIds.includes(tag.id)} disabled={!tag.enabled && !draft.operatorTagIds.includes(tag.id)} onChange={() => toggleTag("operatorTagIds", tag.id)} /><span>{tag.label}</span><small>{dimensionLabel[tag.dimension] ?? tag.dimension}{!tag.enabled ? " · 已停用" : ""}</small></label>)}</div></fieldset>
+    <fieldset className="tag-picker"><legend>模板固定标签</legend><p>描述模板机制，生成后始终保留。</p><div>{tagCatalog.tags.filter((tag) => tag.level === "tag" && (tag.enabled || draft.templateTagIds.includes(tag.id))).map((tag) => <label className={`tag-choice ${!tag.enabled ? "disabled" : ""}`} key={tag.id}><input type="checkbox" checked={draft.templateTagIds.includes(tag.id)} disabled={!tag.enabled && !draft.templateTagIds.includes(tag.id)} onChange={() => toggleTag("templateTagIds", tag.id)} /><span>{tag.label}</span><small>{dimensionLabel[tag.dimension] ?? tag.dimension}{!tag.enabled ? " · 已停用" : ""}</small></label>)}</div></fieldset>
+    <details><summary>兼容旧版自由标签</summary><label>旧分类<input value={draft.category} onChange={(e) => patch("category", e.target.value)} placeholder="reaction/money" /></label><label>旧标签<input value={draft.tags.join(", ")} onChange={(e) => patch("tags", tagsFrom(e.target.value))} placeholder="猫, 反应图, 没钱" /></label></details>
     <label>模板机制<textarea value={draft.templateMechanism} onChange={(e) => patch("templateMechanism", e.target.value)} placeholder="描述模板成立的业务机制" /></label>
     <fieldset><legend>参考图角色</legend>{(["template_reference", "style_reference", "composition_reference", "identity_reference"] as const).map((key) => <label className="checkbox" key={key}><input type="checkbox" checked={draft.referenceConfig[key]} onChange={(e) => patch("referenceConfig", { ...draft.referenceConfig, [key]: e.target.checked })} />{key}</label>)}</fieldset>
     <div className="field-row"><label>参考依赖<select value={draft.referenceDependencyLevel} onChange={(e) => patch("referenceDependencyLevel", e.target.value as GroupConfig["referenceDependencyLevel"])}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select></label><label>测试建议<select value={draft.testModeRecommendation} onChange={(e) => patch("testModeRecommendation", e.target.value as GroupConfig["testModeRecommendation"])}><option value="reference_aware_required">reference aware required</option><option value="reference_aware_preferred">reference aware preferred</option><option value="prompt_mode_allowed">prompt mode allowed</option></select></label></div>
+    <label className="checkbox oss-agent-option"><input type="checkbox" checked={draft.uploadSourceImages} onChange={(event) => patch("uploadSourceImages", event.target.checked)} /><span><strong>Agent 完成后上传 source image 到 OSS</strong><small>显式授权 Agent 在本地 validator 通过后上传原图，并将受控 URL 回写 meme-template.json。</small></span></label>
     <label>业务备注<textarea value={draft.notes} onChange={(e) => patch("notes", e.target.value)} placeholder="需要 Agent 特别注意的内容" /></label>
     <div className="editor-actions"><button onClick={save}>保存配置</button><button onClick={async () => { if (await save()) await perform(() => api.organize(batch.id, group.id), "图片已复制到分组目录"); }}>整理到文件夹</button></div>
     <button className="primary full run-button" disabled={!group.imageIds.length || draft.status === "skipped"} onClick={async () => { if (await save()) await run(); }}>开始生成 · {group.imageIds.length} 张</button>
     <button className="danger-link" onClick={remove}>删除当前分组</button>
   </div>;
+}
+
+function TagCatalogPage({ catalog, setCatalog, perform }: { catalog: TagCatalog; setCatalog: (value: TagCatalog) => void; perform: WorkspaceProps["perform"] }) {
+  const [draft, setDraft] = useState<TagCatalog>(() => structuredClone(catalog));
+  const [form, setForm] = useState({ label: "", dimension: "scene", level: "category" as TagDefinition["level"], aliases: "", aiAssignable: true, description: "" });
+  useEffect(() => setDraft(structuredClone(catalog)), [catalog.updatedAt]);
+  const add = () => {
+    const label = form.label.trim(); if (!label) return;
+    const id = `${form.dimension}.tag-${Date.now().toString(36)}`;
+    setDraft((current) => ({ ...current, tags: [...current.tags, { id, label, dimension: form.dimension, level: form.level, aliases: tagsFrom(form.aliases), enabled: true, aiAssignable: form.aiAssignable, ...(form.description.trim() ? { description: form.description.trim() } : {}) }] }));
+    setForm((current) => ({ ...current, label: "", aliases: "", description: "" }));
+  };
+  const save = async () => { const result = await perform(() => api.saveTagCatalog({ ...draft, updatedAt: new Date().toISOString() }), "标签词库已保存，后续任务将读取新版本"); if (result) setCatalog(result); };
+  const patchTag = (id: string, values: Partial<TagDefinition>) => setDraft((current) => ({ ...current, tags: current.tags.map((tag) => tag.id === id ? { ...tag, ...values } : tag) }));
+  const groups = [...new Set(draft.tags.map((tag) => tag.dimension))];
+  return <main className="page tag-catalog-page"><div className="page-heading"><div><span className="eyebrow">TAG CATALOG</span><h1>标签词库</h1><p>运营在这里维护大类与模板固定标签；AI 只能从允许的词条中选择大类。</p></div><button className="primary large" onClick={save}>保存词库</button></div>
+    <section className="tag-create-card"><h2>新增标签</h2><div className="tag-create-grid"><label>标签名称<input value={form.label} onChange={(event) => setForm({ ...form, label: event.target.value })} placeholder="例如：节日" /></label><label>维度<select value={form.dimension} onChange={(event) => setForm({ ...form, dimension: event.target.value })}>{Object.entries(dimensionLabel).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label>层级<select value={form.level} onChange={(event) => setForm({ ...form, level: event.target.value as TagDefinition["level"] })}><option value="category">运营大类</option><option value="tag">模板固定标签</option></select></label><label>别名<input value={form.aliases} onChange={(event) => setForm({ ...form, aliases: event.target.value })} placeholder="逗号分隔" /></label><label className="checkbox"><input type="checkbox" checked={form.aiAssignable} onChange={(event) => setForm({ ...form, aiAssignable: event.target.checked })} />允许 AI 自动选择</label><label className="grow">说明<input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label><button className="primary" disabled={!form.label.trim()} onClick={add}>加入词库</button></div></section>
+    <div className="tag-catalog-groups">{groups.map((dimension) => <section key={dimension}><div className="tag-group-heading"><div><h2>{dimensionLabel[dimension] ?? dimension}</h2><span>{draft.tags.filter((tag) => tag.dimension === dimension).length} 个</span></div><code>{dimension}</code></div><div className="tag-definition-list">{draft.tags.filter((tag) => tag.dimension === dimension).map((tag) => <article className={!tag.enabled ? "disabled" : ""} key={tag.id}><div><strong>{tag.label}</strong><code>{tag.id}</code><small>{tag.level === "category" ? "运营大类" : "模板固定标签"}{tag.aiAssignable ? " · AI 可选" : " · 仅人工/模板"}</small></div><label className="checkbox"><input type="checkbox" checked={tag.aiAssignable} onChange={(event) => patchTag(tag.id, { aiAssignable: event.target.checked })} />AI 可选</label><button onClick={() => patchTag(tag.id, { enabled: !tag.enabled })}>{tag.enabled ? "停用" : "启用"}</button></article>)}</div></section>)}</div>
+  </main>;
 }
 
 function Jobs({ jobs, settings, perform, refresh, onSettings, showResult }: { jobs: JobRecord[]; settings: AdminSettings; perform: WorkspaceProps["perform"]; refresh: () => Promise<void>; onSettings: (value: AdminSettings) => void; showResult: (id: string) => void }) {
@@ -266,24 +293,65 @@ function Jobs({ jobs, settings, perform, refresh, onSettings, showResult }: { jo
 function Results({ jobs, selectedId, setSelectedId, perform }: { jobs: JobRecord[]; selectedId: string; setSelectedId: (id: string) => void; perform: WorkspaceProps["perform"] }) {
   const candidates = jobs.filter((job) => ["succeeded", "needs_review", "failed"].includes(job.status)); const selected = candidates.find((job) => job.id === selectedId) ?? candidates[0];
   const [files, setFiles] = useState<ResultFile[]>([]); const [file, setFile] = useState<ResultFile>(); const [content, setContent] = useState("");
-  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set()); const [tagInput, setTagInput] = useState("");
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set()); const [tagInput, setTagInput] = useState(""); const [manualTagInput, setManualTagInput] = useState("");
+  const [ossStatuses, setOssStatuses] = useState<Record<string, OssJobAssetStatus>>({});
+  const [ossChecking, setOssChecking] = useState(false); const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number }>();
+  const mergeOssStatuses = (values: OssJobAssetStatus[]) => setOssStatuses((current) => ({ ...current, ...Object.fromEntries(values.map((value) => [value.jobId, value])) }));
+  const refreshFiles = async () => {
+    if (!selected) return;
+    const data = await api.files(selected.id); setFiles(data);
+    const current = data.find((item) => item.absolutePath === file?.absolutePath) ?? data.find((item) => item.name === "meme-template.json") ?? data[0]; setFile(current);
+    if (current && current.kind !== "image") setContent(await fetch(`/api/files?path=${encodeURIComponent(current.absolutePath)}`).then((response) => response.text()));
+  };
   useEffect(() => { if (!selected) return; setSelectedId(selected.id); void api.files(selected.id).then((data) => { setFiles(data); const preferred = data.find((item) => item.name === "meme-template.json") ?? data[0]; setFile(preferred); }).catch(() => setFiles([])); }, [selected?.id]);
+  useEffect(() => { if (!selected) return; void api.checkOssAssets([selected.id]).then(mergeOssStatuses).catch(() => undefined); }, [selected?.id]);
   useEffect(() => { if (!file || file.kind === "image") { setContent(""); return; } void fetch(`/api/files?path=${encodeURIComponent(file.absolutePath)}`).then((response) => response.text()).then(setContent); }, [file?.absolutePath]);
+  useEffect(() => {
+    if (file?.name !== "meme-template.json" || !content) return;
+    try {
+      const data = JSON.parse(content); const assignments = Array.isArray(data?.metadata?.tagAssignments) ? data.metadata.tagAssignments : [];
+      setManualTagInput(assignments.filter((item: any) => item?.source === "operator" && item?.dimension === "manual" && item?.status === "accepted").map((item: any) => item.label).filter(Boolean).join(", "));
+    } catch { setManualTagInput(""); }
+  }, [file?.absolutePath, content]);
   const toggleChecked = (id: string) => setCheckedIds((current) => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  const actionIds = () => checkedIds.size ? [...checkedIds] : selected ? [selected.id] : [];
+  const checkOssAssets = async (onlyIds?: string[]) => {
+    const ids = onlyIds ?? actionIds(); if (!ids.length) return; setOssChecking(true);
+    try { const result = await perform(() => api.checkOssAssets(ids), `已检查 ${ids.length} 个结果的原图 OSS 状态`); if (result) mergeOssStatuses(result); }
+    finally { setOssChecking(false); }
+  };
+  const retryOssAssets = async (onlyIds?: string[]) => {
+    const ids = onlyIds ?? actionIds(); if (!ids.length || !confirm(`确认重新上传 ${ids.length} 个结果中的 source image，并在成功后更新 meme-template.json？`)) return;
+    setUploadProgress({ current: 0, total: ids.length });
+    await perform(async () => {
+      const failures: string[] = [];
+      for (let index = 0; index < ids.length; index += 1) {
+        try { const result = await api.retryOssAssets([ids[index]]); mergeOssStatuses(result.map((item) => item.status)); }
+        catch (reason) { failures.push(reason instanceof Error ? reason.message : String(reason)); }
+        setUploadProgress({ current: index + 1, total: ids.length });
+      }
+      if (failures.length) throw new Error(`${failures.length} 个结果重传失败：${failures.join("；")}`);
+      return true;
+    }, `已完成 ${ids.length} 个结果的原图重传与 JSON 更新`);
+    setUploadProgress(undefined); await refreshFiles();
+    const checked = await api.checkOssAssets(ids).catch(() => []); if (checked.length) mergeOssStatuses(checked);
+  };
   const applyTags = async () => {
     const tags = tagsFrom(tagInput); const result = await perform(() => api.addTemplateTags([...checkedIds], tags), `已为 ${checkedIds.size} 个处理结果添加标签`);
     if (!result) return;
     setTagInput(""); setCheckedIds(new Set());
-    if (selected && checkedIds.has(selected.id)) {
-      const data = await api.files(selected.id); setFiles(data);
-      const current = data.find((item) => item.absolutePath === file?.absolutePath) ?? data.find((item) => item.name === "meme-template.json") ?? data[0]; setFile(current);
-      if (current && current.kind !== "image") setContent(await fetch(`/api/files?path=${encodeURIComponent(current.absolutePath)}`).then((response) => response.text()));
-    }
+    if (selected && checkedIds.has(selected.id)) await refreshFiles();
+  };
+  const saveManualTags = async () => {
+    if (!selected) return; const tags = tagsFrom(manualTagInput);
+    const result = await perform(() => api.setManualTemplateTags(selected.id, tags), "人工标签已更新"); if (result) await refreshFiles();
   };
   if (!selected) return <main className="empty-page"><h2>暂无可审核结果</h2><p>任务完成后，产物会集中显示在这里。</p></main>;
-  const images = files.filter((item) => item.kind === "image");
-  return <main className="results-layout"><aside className="result-jobs"><div className="section-title">最近结果</div><p className="result-select-help">勾选已完成结果，可批量添加标签。</p>{candidates.map((job) => <div className={`result-job-row ${job.id === selected.id ? "active" : ""}`} key={job.id}><label title={job.status === "failed" ? "失败结果不能写入标签" : "选择结果"}><input type="checkbox" checked={checkedIds.has(job.id)} disabled={job.status === "failed"} onChange={() => toggleChecked(job.id)} /><span className="sr-only">选择 {job.groupName}</span></label><button onClick={() => setSelectedId(job.id)}><strong>{job.groupName}</strong><small>{statusLabel[job.status]}</small></button></div>)}{checkedIds.size > 0 && <div className="result-tag-editor"><strong>已选 {checkedIds.size} 个结果</strong><input value={tagInput} onChange={(event) => setTagInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && tagsFrom(tagInput).length) void applyTags(); }} placeholder="输入标签，逗号分隔" /><button className="primary full" disabled={!tagsFrom(tagInput).length} onClick={applyTags}>添加并保存标签</button><button className="full" onClick={() => setCheckedIds(new Set())}>清空选择</button></div>}</aside><section className="result-main"><div className="page-heading compact-heading"><div><span className="eyebrow">RESULT REVIEW</span><h1>{selected.groupName}</h1><p>{selected.lastEvent}</p></div><button onClick={() => perform(() => api.openFolder(selected.resultDirectory), "已打开结果文件夹")}>打开结果文件夹</button></div>
+  const images = files.filter((item) => item.kind === "image"); const selectedOss = ossStatuses[selected.id];
+  return <main className="results-layout"><aside className="result-jobs"><div className="section-title">最近结果</div><p className="result-select-help">勾选结果，可批量检查或辅助重传原图，并添加运营标签。</p>{candidates.map((job) => <div className={`result-job-row ${job.id === selected.id ? "active" : ""}`} key={job.id}><label title={job.status === "failed" ? "失败结果不能写入或上传" : "选择结果"}><input type="checkbox" checked={checkedIds.has(job.id)} disabled={job.status === "failed"} onChange={() => toggleChecked(job.id)} /><span className="sr-only">选择 {job.groupName}</span></label><button onClick={() => setSelectedId(job.id)}><strong>{job.groupName}</strong><small>{statusLabel[job.status]} · {ossStatuses[job.id] ? ossStateLabel[ossStatuses[job.id].state] : "OSS 未检查"}</small></button></div>)}{checkedIds.size > 0 && <div className="result-tag-editor"><strong>已选 {checkedIds.size} 个结果</strong><button className="full" disabled={ossChecking || Boolean(uploadProgress)} onClick={() => checkOssAssets()}>{ossChecking ? "正在检查…" : "检查原图 OSS"}</button><button className="primary full" disabled={Boolean(uploadProgress)} onClick={() => retryOssAssets()}>{uploadProgress ? `正在重传 ${uploadProgress.current}/${uploadProgress.total}` : "重新上传原图并更新 JSON"}</button><input value={tagInput} onChange={(event) => setTagInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && tagsFrom(tagInput).length) void applyTags(); }} placeholder="输入运营标签，逗号分隔" /><button className="full" disabled={!tagsFrom(tagInput).length || Boolean(uploadProgress)} onClick={applyTags}>添加并保存运营标签</button><button className="full" onClick={() => setCheckedIds(new Set())}>清空选择</button></div>}</aside><section className="result-main"><div className="page-heading compact-heading"><div><span className="eyebrow">RESULT REVIEW</span><h1>{selected.groupName}</h1><p>{selected.lastEvent}</p></div><button onClick={() => perform(() => api.openFolder(selected.resultDirectory), "已打开结果文件夹")}>打开结果文件夹</button></div>
     <div className="validation-strip">{selected.validatorResults.map((result, index) => <span className={result.passed ? "pass" : "fail"} key={`${result.file}-${index}`}>{result.validator}: {result.passed ? "PASS" : "FAIL"}</span>)}{!selected.validatorResults.length && <span>暂无 validator 结果</span>}</div>
+    <section className={`oss-asset-panel ${selectedOss?.state ?? "unchecked"}`}><div className="oss-asset-heading"><div><span className="eyebrow">SOURCE IMAGE · OSS</span><h2>{selectedOss ? ossStateLabel[selectedOss.state] : "尚未检查原图"}</h2><p>{selectedOss?.message ?? (selectedOss ? `最后检查：${new Date(selectedOss.checkedAt).toLocaleString("zh-CN")}` : "检查 JSON 图片字段和 OSS 真实对象，不会执行写入。")}</p></div><div className="oss-asset-actions"><button disabled={ossChecking || Boolean(uploadProgress)} onClick={() => checkOssAssets([selected.id])}>{ossChecking ? "检查中…" : "二次检查"}</button><button className="primary" disabled={selected.status === "failed" || Boolean(uploadProgress)} onClick={() => retryOssAssets([selected.id])}>{uploadProgress ? `重传 ${uploadProgress.current}/${uploadProgress.total}` : "重新上传原图"}</button></div></div>{selectedOss?.templates.map((template) => <article className="oss-template-status" key={template.templateFile}><div><strong>{template.templateKey ?? "未知模板"}</strong><span className={template.state}>{ossStateLabel[template.state]}</span></div>{template.message && <p>{template.message}</p>}<ul>{template.fields.map((field) => <li key={field.field}><code>{field.field}</code><span>{field.state === "uploaded" ? "OSS 对象存在" : field.state === "not_uploaded" ? "仍为本地 source image" : field.message ?? field.state}</span></li>)}</ul></article>)}</section>
+    <section className="manual-tag-panel"><div><span className="eyebrow">MANUAL TAGS</span><h2>结果二次标签</h2><p>只编辑人工补充标签，保留运营大类、模板固定标签和 AI 标签。</p></div><div><input value={manualTagInput} disabled={selected.status === "failed" || Boolean(uploadProgress)} onChange={(event) => setManualTagInput(event.target.value)} placeholder="人工标签，逗号分隔；留空可清除" /><button disabled={selected.status === "failed" || Boolean(uploadProgress)} onClick={saveManualTags}>保存人工标签</button></div></section>
     {!!images.length && <div className="result-gallery">{images.map((image) => <button key={image.absolutePath} onClick={() => setFile(image)} className={file?.absolutePath === image.absolutePath ? "active" : ""}><img src={image.url} alt={image.name} /><small>{image.relativePath}</small></button>)}</div>}
     <div className="file-review"><div className="file-list">{files.filter((item) => item.kind !== "image").map((item) => <button key={item.absolutePath} className={file?.absolutePath === item.absolutePath ? "active" : ""} onClick={() => setFile(item)}><span>{item.kind === "json" ? "{}" : "MD"}</span><div><strong>{item.name}</strong><small>{item.relativePath}</small></div></button>)}</div><div className="file-preview">{file?.kind === "image" ? <img src={file.url} alt={file.name} /> : <pre>{content || "选择文件查看内容"}</pre>}</div></div>
   </section></main>;

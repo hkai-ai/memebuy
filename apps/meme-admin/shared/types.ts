@@ -1,9 +1,41 @@
 export type GenerationMode = "template" | "generation_test";
 export type GroupStatus = "ready_for_template" | "needs_review" | "skipped";
 export type JobStatus = "queued" | "running" | "succeeded" | "needs_review" | "failed" | "cancelled" | "interrupted";
-export type JobPhase = "preparing" | "analyzing" | "validating" | "finalizing";
+export type JobPhase = "preparing" | "analyzing" | "uploading" | "validating" | "finalizing";
 export type ImageAssetOrigin = "source" | "generated" | "other";
 export type ImageAssetSort = "time_desc" | "time_asc" | "name_asc";
+export type TagLevel = "category" | "tag";
+export type TagSource = "operator" | "template" | "ai" | "external";
+export type TagStatus = "accepted" | "suggested" | "rejected";
+
+export interface TagDefinition {
+  id: string;
+  label: string;
+  dimension: string;
+  level: TagLevel;
+  aliases: string[];
+  enabled: boolean;
+  aiAssignable: boolean;
+  description?: string;
+}
+
+export interface TagCatalog {
+  schemaVersion: "1.0";
+  updatedAt: string;
+  tags: TagDefinition[];
+}
+
+export interface TagAssignment {
+  tagId?: string;
+  label: string;
+  dimension: string;
+  level: TagLevel;
+  source: TagSource;
+  status: TagStatus;
+  confidence?: number;
+  provider?: "pinterest" | "instagram" | "tumblr" | string;
+  evidence?: string;
+}
 
 export interface ReferenceConfig {
   template_reference: boolean;
@@ -37,6 +69,9 @@ export interface GroupConfig {
   category: string;
   templateMechanism: string;
   tags: string[];
+  operatorTagIds: string[];
+  templateTagIds: string[];
+  uploadSourceImages: boolean;
   notes: string;
   imageIds: string[];
 }
@@ -114,4 +149,38 @@ export interface TemplateTagUpdateResult {
   jobCount: number;
   fileCount: number;
   tags: string[];
+}
+
+export type OssAssetFieldState = "not_uploaded" | "uploaded" | "object_missing" | "local_missing" | "invalid";
+export type OssAssetState = "not_uploaded" | "partial" | "uploaded" | "object_missing" | "local_missing" | "invalid" | "config_missing";
+
+export interface OssAssetFieldStatus {
+  field: "cover" | "referenceImage";
+  state: OssAssetFieldState;
+  value?: string;
+  message?: string;
+}
+
+export interface OssTemplateAssetStatus {
+  templateFile: string;
+  templateKey?: string;
+  state: OssAssetState;
+  fields: OssAssetFieldStatus[];
+  message?: string;
+}
+
+export interface OssJobAssetStatus {
+  jobId: string;
+  state: OssAssetState;
+  templates: OssTemplateAssetStatus[];
+  checkedAt: string;
+  message?: string;
+}
+
+export interface OssAssetRetryResult {
+  jobId: string;
+  uploaded: number;
+  reused: number;
+  writtenBack: number;
+  status: OssJobAssetStatus;
 }

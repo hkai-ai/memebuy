@@ -82,6 +82,7 @@ describe("batch files", () => {
     expect((await stat(sourceFile)).isFile()).toBe(true);
     const manifest = JSON.parse(await readFile(path.join(batch.outputFolder, "batch-manifest.json"), "utf8"));
     expect(manifest.artifactType).toBe("batch_organized_manifest"); expect(manifest.groups[0].config.category).toBe("");
+    expect(manifest.groups[0].config.operatorTagIds).toEqual([]); expect(manifest.groups[0].config.templateTagIds).toEqual([]);
   });
 
   it("imports a legacy organized manifest", async () => {

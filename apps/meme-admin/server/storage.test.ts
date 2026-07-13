@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -23,5 +23,16 @@ describe("local JSON storage", () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "meme-admin-settings-")); tempRoots.push(root);
     const storage = new Storage(root); await storage.init(); expect((await storage.getSettings()).concurrency).toBe(1);
     await storage.saveSettings({ concurrency: 3 }); expect((await storage.getSettings()).concurrency).toBe(3);
+  });
+
+  it("creates, persists, and snapshots the operator tag catalog", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "meme-admin-tag-catalog-")); tempRoots.push(root);
+    const storage = new Storage(root); await storage.init();
+    const catalog = await storage.getTagCatalog(); expect(catalog.tags.some((tag) => tag.id === "scene.pet")).toBe(true);
+    catalog.tags.push({ id: "scene.holiday", label: "节日", dimension: "scene", level: "category", aliases: [], enabled: true, aiAssignable: true });
+    catalog.updatedAt = "2026-07-13T00:00:00.000Z"; await storage.saveTagCatalog(catalog);
+    const snapshot = await storage.snapshotTagCatalog(path.join(root, "artifacts", "batch"));
+    expect((await storage.getTagCatalog()).tags.some((tag) => tag.id === "scene.holiday")).toBe(true);
+    expect(JSON.parse(await readFile(snapshot, "utf8")).updatedAt).toBe("2026-07-13T00:00:00.000Z");
   });
 });

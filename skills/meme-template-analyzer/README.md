@@ -408,7 +408,9 @@ pnpm install
 pnpm dev
 ```
 
-打开 `http://127.0.0.1:15173`。页面支持素材扫描、分组、分类与标签、参考角色、生成模式、按组排队、任务状态、取消重试、validator 和结果预览。本地 API 使用 `127.0.0.1:14174`，会固定调用仓库内 skill，不依赖同名全局副本。
+打开 `http://127.0.0.1:15173`。页面支持素材扫描、分组、标签词库、分类与固定标签、参考角色、生成模式、按组排队、任务状态、取消重试、validator 和结果预览。本地 API 使用 `127.0.0.1:14174`，会固定调用仓库内 skill，不依赖同名全局副本。
+
+运营先在顶部“标签词库”维护大类与模板固定标签，再在分组中勾选。任务启动时管理台写 `tag-catalog.snapshot.json`；Skill 按 `references/tagging-and-taxonomy.md` 区分 `operator`、`template`、`ai`、`external`，并继续生成兼容搜索的 `metadata.tags`。
 
 批量模板全部通过 validator 后，如用户明确要求 OSS 最终交付，执行：
 
@@ -417,6 +419,13 @@ pnpm gallery:finalize artifacts/meme-template-analyzer/<batch> --output artifact
 ```
 
 命令不覆盖本地路径版模板；handoff 目录只包含回填 URL 后的 `<template-key>.json`。
+
+管理台结果审核页会对 `cover/referenceImage` 执行只读 OSS 二次检查。若原图未上传或对象缺失，
+运营可手动选择结果并执行“重新上传原图”；只有上传、对象 HEAD 和 remote validator 全部通过后，
+才原子回写对应 `meme-template.json`。普通 handoff 流程仍不覆盖源模板。
+
+管理台分组只有显式勾选“Agent 完成后上传 source image 到 OSS”才会把 OSS 授权写入 Agent 任务；
+该选项默认关闭。未勾选时，Agent 必须停在本地路径版模板。
 
 只需要离线整理或不希望启动服务时，使用静态工具：
 

@@ -17,6 +17,7 @@ from validate_gallery_template import validate as validate_gallery_record
 TOKEN_RE = re.compile(r"【\s*([^【】：:]+?)\s*[：:]\s*([^】]*)】")
 KEY_RE = re.compile(r"^[a-z][a-z0-9-]{1,59}$")
 ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{0,39}$")
+TAG_ID_RE = re.compile(r"^[a-z][a-z0-9._-]{1,79}$")
 TEXTUAL_KINDS = {"text", "prompt", "select"}
 
 
@@ -306,7 +307,62 @@ def compile_prompt_template(data: dict[str, Any], slots: list[dict[str, Any]]) -
     return re.sub(r"\s+", " ", prompt).strip()
 
 
-def metadata_tags(taxonomy: Any) -> list[str]:
+def normalized_tag_assignments(value: Any) -> list[OrderedDict[str, Any]]:
+    if value in (None, []):
+        return []
+    if not isinstance(value, list):
+        raise ValueError("tagAssignments must be an array")
+    assignments: list[OrderedDict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for index, raw in enumerate(value):
+        if not isinstance(raw, dict):
+            raise ValueError(f"tagAssignments[{index}] must be an object")
+        label = str(raw.get("label") or "").strip()
+        dimension = str(raw.get("dimension") or "").strip()
+        level = str(raw.get("level") or "").strip()
+        source = str(raw.get("source") or "").strip()
+        status = str(raw.get("status") or "").strip()
+        if not label or len(label) > 80:
+            raise ValueError(f"tagAssignments[{index}].label must contain 1-80 characters")
+        if not re.fullmatch(r"[a-z][a-z0-9_-]{1,39}", dimension):
+            raise ValueError(f"tagAssignments[{index}].dimension is invalid")
+        if level not in {"category", "tag"}:
+            raise ValueError(f"tagAssignments[{index}].level is invalid")
+        if source not in {"operator", "template", "ai", "external"}:
+            raise ValueError(f"tagAssignments[{index}].source is invalid")
+        if status not in {"accepted", "suggested", "rejected"}:
+            raise ValueError(f"tagAssignments[{index}].status is invalid")
+        if source in {"operator", "template"} and status != "accepted":
+            raise ValueError(f"tagAssignments[{index}] locked source must be accepted")
+        tag_id = str(raw.get("tagId") or "").strip()
+        if tag_id and not TAG_ID_RE.fullmatch(tag_id):
+            raise ValueError(f"tagAssignments[{index}].tagId is invalid")
+        confidence = raw.get("confidence")
+        if confidence is not None and (source != "ai" or isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1):
+            raise ValueError(f"tagAssignments[{index}].confidence is only valid for ai from 0 to 1")
+        provider = str(raw.get("provider") or "").strip()
+        if source == "external" and not provider:
+            raise ValueError(f"tagAssignments[{index}].provider is required for external source")
+        key = (source, tag_id or label.casefold())
+        if key in seen:
+            continue
+        seen.add(key)
+        assignment = OrderedDict()
+        if tag_id:
+            assignment["tagId"] = tag_id
+        assignment.update([("label", label), ("dimension", dimension), ("level", level), ("source", source), ("status", status)])
+        if confidence is not None:
+            assignment["confidence"] = confidence
+        if provider:
+            assignment["provider"] = provider[:80]
+        evidence = str(raw.get("evidence") or "").strip()
+        if evidence:
+            assignment["evidence"] = evidence[:300]
+        assignments.append(assignment)
+    return assignments
+
+
+def metadata_tags(taxonomy: Any, assignments: list[OrderedDict[str, Any]] | None = None) -> list[str]:
     if not isinstance(taxonomy, dict):
         return []
     tags: list[str] = []
@@ -318,6 +374,10 @@ def metadata_tags(taxonomy: Any) -> list[str]:
             text = str(item).strip()
             if text and text not in tags:
                 tags.append(text)
+    for assignment in assignments or []:
+        text = str(assignment.get("label") or "").strip()
+        if assignment.get("status") == "accepted" and text and text not in tags:
+            tags.append(text)
     return tags
 
 
@@ -393,6 +453,7 @@ def build_gallery_template(data: dict[str, Any]) -> OrderedDict[str, Any]:
     input_schema = [slot_to_input(slot) for slot in slots]
     prompt_template = compile_prompt_template(data, slots)
     taxonomy = data.get("taxonomy") if isinstance(data.get("taxonomy"), dict) else {}
+    tag_assignments = normalized_tag_assignments(data.get("tagAssignments"))
     needs_review = taxonomy.get("needs_review") if taxonomy else ["taxonomy 未提供或未确认"]
     if not isinstance(needs_review, list):
         needs_review = [str(needs_review)] if needs_review else []
@@ -402,7 +463,7 @@ def build_gallery_template(data: dict[str, Any]) -> OrderedDict[str, Any]:
             needs_review.append(reason)
     metadata = OrderedDict(
         [
-            ("tags", metadata_tags(taxonomy)),
+            ("tags", metadata_tags(taxonomy, tag_assignments)),
             ("version", str(data.get("schemaVersion") or "1.0.0")),
         ]
     )
@@ -412,6 +473,8 @@ def build_gallery_template(data: dict[str, Any]) -> OrderedDict[str, Any]:
         if taxonomy.get("templateMechanism"):
             metadata["templateMechanism"] = taxonomy["templateMechanism"]
         metadata["taxonomy"] = taxonomy
+    if tag_assignments:
+        metadata["tagAssignments"] = tag_assignments
     if data.get("templateSource"):
         metadata["templateSource"] = metadata_template_source(data["templateSource"])
     if reference_context:

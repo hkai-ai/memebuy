@@ -72,6 +72,13 @@ def fixture() -> dict:
             "styles": ["复古"],
             "needs_review": ["taxonomy"],
         },
+        "tagAssignments": [
+            {"tagId": "scene.pet", "label": "宠物", "dimension": "scene", "level": "category", "source": "operator", "status": "accepted"},
+            {"tagId": "mechanism.visual-contrast", "label": "视觉反差", "dimension": "mechanism", "level": "tag", "source": "template", "status": "accepted"},
+            {"label": "白猫", "dimension": "subject", "level": "tag", "source": "ai", "status": "accepted", "confidence": 0.94},
+            {"label": "疑似惊讶", "dimension": "emotion", "level": "tag", "source": "ai", "status": "suggested", "confidence": 0.52},
+            {"label": "funny cat", "dimension": "source_tag", "level": "tag", "source": "external", "status": "accepted", "provider": "pinterest"},
+        ],
         "semanticReview": semantic_fixture(),
     }
 
@@ -148,6 +155,9 @@ def main() -> None:
     assert record["inputSchema"][1]["options"][0] == {"value": "粉色", "label": "粉色"}
     assert record["inputSchema"][2]["type"] == "image"
     assert record["metadata"]["needsReview"] == "taxonomy"
+    assert record["metadata"]["tags"] == ["反差", "复古", "宠物", "视觉反差", "白猫", "funny cat"]
+    assert len(record["metadata"]["tagAssignments"]) == 5
+    assert "疑似惊讶" not in record["metadata"]["tags"]
     assert record["metadata"]["referenceContext"]["status"] == "probable"
     assert record["metadata"]["referenceContext"]["primaryReference"] == "《戴珍珠耳环的少女》"
     assert "path" not in record["metadata"]["templateSource"]
@@ -207,6 +217,14 @@ def main() -> None:
     invalid_payload = deepcopy(record)
     invalid_payload["promptTemplate"] = "{{ laser_color.missing | \"粉色\" }}"
     assert any("undefined select payload field" in error for error in validate(invalid_payload))
+
+    invalid_external_tag = deepcopy(record)
+    invalid_external_tag["metadata"]["tagAssignments"][-1].pop("provider")
+    assert any("provider is required for external source" in error for error in validate(invalid_external_tag))
+
+    missing_flat_tag = deepcopy(record)
+    missing_flat_tag["metadata"]["tags"].remove("白猫")
+    assert any("missing accepted assignment labels" in error for error in validate(missing_flat_tag))
 
     with tempfile.TemporaryDirectory() as temp:
         base_dir = Path(temp)

@@ -1,4 +1,4 @@
 interface:
   display_name: "梗图模板分析与入库"
-  short_description: "分析梗图并生成严格 GalleryTemplateImport JSON"
-  default_prompt: "使用 $meme-template-analyzer 分析这张图：先区分视觉事实与文化参照，比较多种解释并完成公式前提审计，再生成 image-edit-template.json 和 image-edit-analysis.json，编译符合 GalleryTemplateImport Schema 的 meme-template.json，并运行语义与结构 validator。"
+  short_description: "分析梗图、区分标签来源并生成严格入库 JSON"
+  default_prompt: "使用 $meme-template-analyzer 分析这张图：先区分视觉事实与文化参照，读取可用的运营标签词库并保留标签来源，完成公式前提审计，再生成 image-edit-template.json 和 image-edit-analysis.json，编译符合 GalleryTemplateImport Schema 的 meme-template.json，并运行语义与结构 validator。"

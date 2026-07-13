@@ -91,6 +91,31 @@ test("uploads identical cover and reference image once and preserves source JSON
   }
 });
 
+test("explicit write-back mode atomically updates the source template", async () => {
+  const value = await fixture();
+  try {
+    const templateFile = path.join(value.templateDir, "meme-template.json");
+    const progressFile = path.join(value.root, "progress.json");
+    const summary = await finalizeGalleryBatch({
+      input: templateFile,
+      output: value.output,
+      progressFile,
+      config: CONFIG,
+      writeBack: true,
+      validateFile: mockValidate,
+      uploadObject: async () => undefined,
+    });
+    const source = JSON.parse(await readFile(templateFile, "utf8"));
+    assert.equal(summary.writtenBack, 1);
+    assert.equal(isManagedRemoteUrl(source.cover, CONFIG), true);
+    assert.equal(source.referenceImage, source.cover);
+    const progress = JSON.parse(await readFile(progressFile, "utf8"));
+    assert.equal(progress.status, "completed"); assert.equal(progress.completedTemplates, 1); assert.equal(progress.uploaded, 1); assert.equal(progress.writtenBack, 1);
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
+  }
+});
+
 test("persists successful uploads and reuses them after a partial failure", async () => {
   const value = await fixture();
   try {

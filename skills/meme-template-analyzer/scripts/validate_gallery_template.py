@@ -15,6 +15,8 @@ from typing import Any
 KEY_RE = re.compile(r"^[a-z][a-z0-9-]{1,59}$")
 ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{0,39}$")
 SIZE_RE = re.compile(r"^\d{2,4}x\d{2,4}$")
+TAG_ID_RE = re.compile(r"^[a-z][a-z0-9._-]{1,79}$")
+TAG_DIMENSION_RE = re.compile(r"^[a-z][a-z0-9_-]{1,39}$")
 PLACEHOLDER_RE = re.compile(r"{{\s*(.*?)\s*}}")
 PATH_TERM_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{0,39}(?:\.[a-zA-Z][a-zA-Z0-9_-]{0,39})*$")
 OSS_OBJECT_RE = re.compile(
@@ -312,6 +314,63 @@ def validate(data: Any) -> list[str]:
             not isinstance(tags, list) or any(not isinstance(tag, str) for tag in tags)
         ):
             errors.append("metadata.tags must be an array of strings")
+        assignments = metadata.get("tagAssignments")
+        if assignments is not None:
+            if not isinstance(assignments, list) or len(assignments) > 40:
+                errors.append("metadata.tagAssignments must be an array with at most 40 items")
+            else:
+                accepted_labels: list[str] = []
+                seen_assignments: set[tuple[str, str]] = set()
+                allowed_keys = {"tagId", "label", "dimension", "level", "source", "status", "confidence", "provider", "evidence"}
+                for index, assignment in enumerate(assignments):
+                    prefix = f"metadata.tagAssignments[{index}]"
+                    if not isinstance(assignment, dict):
+                        errors.append(f"{prefix} must be an object")
+                        continue
+                    unknown_keys = sorted(set(assignment) - allowed_keys)
+                    if unknown_keys:
+                        errors.append(f"{prefix} has unknown keys: {', '.join(unknown_keys)}")
+                    label = assignment.get("label")
+                    dimension = assignment.get("dimension")
+                    level = assignment.get("level")
+                    source = assignment.get("source")
+                    status = assignment.get("status")
+                    if not isinstance(label, str) or not 1 <= len(label) <= 80:
+                        errors.append(f"{prefix}.label must contain 1-80 characters")
+                    if not isinstance(dimension, str) or not TAG_DIMENSION_RE.fullmatch(dimension):
+                        errors.append(f"{prefix}.dimension is invalid")
+                    if level not in {"category", "tag"}:
+                        errors.append(f"{prefix}.level is invalid")
+                    if source not in {"operator", "template", "ai", "external"}:
+                        errors.append(f"{prefix}.source is invalid")
+                    if status not in {"accepted", "suggested", "rejected"}:
+                        errors.append(f"{prefix}.status is invalid")
+                    if source in {"operator", "template"} and status != "accepted":
+                        errors.append(f"{prefix} locked source must be accepted")
+                    tag_id = assignment.get("tagId")
+                    if tag_id is not None and (not isinstance(tag_id, str) or not TAG_ID_RE.fullmatch(tag_id)):
+                        errors.append(f"{prefix}.tagId is invalid")
+                    confidence = assignment.get("confidence")
+                    if confidence is not None and (source != "ai" or isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1):
+                        errors.append(f"{prefix}.confidence is only valid for ai from 0 to 1")
+                    provider = assignment.get("provider")
+                    if source == "external" and (not isinstance(provider, str) or not provider.strip()):
+                        errors.append(f"{prefix}.provider is required for external source")
+                    if provider is not None and (not isinstance(provider, str) or len(provider) > 80):
+                        errors.append(f"{prefix}.provider must contain at most 80 characters")
+                    evidence = assignment.get("evidence")
+                    if evidence is not None and (not isinstance(evidence, str) or len(evidence) > 300):
+                        errors.append(f"{prefix}.evidence must contain at most 300 characters")
+                    assignment_key = (str(source), str(tag_id or label).casefold())
+                    if assignment_key in seen_assignments:
+                        errors.append(f"{prefix} duplicates a tag from the same source")
+                    seen_assignments.add(assignment_key)
+                    if status == "accepted" and isinstance(label, str):
+                        accepted_labels.append(label)
+                if isinstance(tags, list):
+                    missing_labels = sorted(set(accepted_labels) - set(tags))
+                    if missing_labels:
+                        errors.append("metadata.tags is missing accepted assignment labels: " + ", ".join(missing_labels))
         input_semantics = metadata.get("inputSemantics")
         if input_semantics is not None:
             if not isinstance(input_semantics, dict):

@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.23.0",
+  "version": "0.25.0",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
-  "updated_at": "2026-07-12",
-  "notes": "Add explicit OSS handoff mode with resumable uploads, remote URL validation, and pure JSON batch output.",
+  "updated_at": "2026-07-13",
+  "notes": "Add tag provenance plus source-image OSS verification, explicit recovery uploads, and validated write-back support.",
   "tracked_files": [
     "SKILL.md",
     "README.md",
@@ -19,6 +19,7 @@
     "references/prompt-and-validation.md",
     "references/generation-testing.md",
     "references/batch-and-review.md",
+    "references/tagging-and-taxonomy.md",
     "references/oss-handoff.md",
     "references/json-contract.md",
     "assets/batch-workbench.html",

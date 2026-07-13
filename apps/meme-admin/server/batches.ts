@@ -58,7 +58,7 @@ export function defaultGroup(name: string, defaults: BatchConfig["defaults"]): G
     referenceConfig: { template_reference: true, style_reference: false, composition_reference: true, identity_reference: false, other: "" },
     referenceDependencyLevel: "medium", testModeRecommendation: "reference_aware_preferred",
     generationMode: defaults.generationMode, category: defaults.category, templateMechanism: "",
-    tags: [...defaults.tags], notes: "", imageIds: [],
+    tags: [...defaults.tags], operatorTagIds: [], templateTagIds: [], uploadSourceImages: false, notes: "", imageIds: [],
   };
 }
 
@@ -96,7 +96,7 @@ export async function exportCompatibilityFiles(batch: BatchConfig) {
     sourceFolder: batch.sourceFolder,
     images: batch.images.map((image) => ({ ...image, status: image.groupId ? "assigned" : "unassigned", suggestedGroup: image.groupId ?? "" })),
   };
-  const groups = [];
+  const groups: Array<Record<string, unknown>> = [];
   for (const group of batch.groups) {
     const groupDir = path.join(batch.outputFolder, "groups", safeSlug(group.groupName));
     await mkdir(groupDir, { recursive: true });

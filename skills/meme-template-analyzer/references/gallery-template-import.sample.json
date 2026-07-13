@@ -63,7 +63,27 @@
       "头像",
       "MBTI",
       "人脸融合",
-      "潮流"
+      "潮流",
+      "社交发布"
+    ],
+    "tagAssignments": [
+      {
+        "tagId": "use-case.social-post",
+        "label": "社交发布",
+        "dimension": "use_case",
+        "level": "category",
+        "source": "operator",
+        "status": "accepted"
+      },
+      {
+        "label": "潮流头像",
+        "dimension": "visual_detail",
+        "level": "tag",
+        "source": "ai",
+        "status": "suggested",
+        "confidence": 0.72,
+        "evidence": "画面采用高对比潮流头像构图"
+      }
     ],
     "category": "avatar/personality-fusion",
     "version": "1.0.0"

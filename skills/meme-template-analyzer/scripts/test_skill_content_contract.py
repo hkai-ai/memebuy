@@ -25,6 +25,7 @@ def main() -> None:
     prompt_validation = read("references/prompt-and-validation.md")
     generation_testing = read("references/generation-testing.md")
     batch_review = read("references/batch-and-review.md")
+    tagging_taxonomy = read("references/tagging-and-taxonomy.md")
     oss_handoff = read("references/oss-handoff.md")
     readme = read("README.md")
     business_doc = (REPO_ROOT / "docs" / "梗图模板业务使用说明.md").read_text(encoding="utf-8")
@@ -50,6 +51,7 @@ def main() -> None:
         "一个模板一个",
         "authoring-handoff",
         "oss-handoff.md",
+        "tagging-and-taxonomy.md",
     ]:
         require(skill, needle, "SKILL.md")
 
@@ -77,6 +79,9 @@ def main() -> None:
         require(skill, needle, "SKILL.md")
 
     assert len(skill.splitlines()) <= 250, "SKILL.md should stay concise; move details to references"
+
+    for needle in ["operator", "template", "ai", "external", "tagAssignments", "tag-catalog.snapshot.json", "metadata.tags"]:
+        require(tagging_taxonomy, needle, "references/tagging-and-taxonomy.md")
     for reference in [
         "slot-and-visual-design.md",
         "cultural-reference-discovery.md",
@@ -168,6 +173,9 @@ def main() -> None:
         "metadata.needsReview",
         "SHA-256",
         "handoff",
+        "--write-back",
+        "--progress-file",
+        "HEAD",
         "不得读取、打印、复制或写入 AK/SK",
     ]:
         require(oss_handoff, needle, "oss-handoff.md")
@@ -216,6 +224,9 @@ def main() -> None:
 
     assert schema["additionalProperties"] is False
     assert schema["required"] == ["key", "title", "promptTemplate", "inputSchema"]
+    assert "tagAssignments" in schema["properties"]["metadata"]["properties"]
+    assert "tagAssignment" in schema["$defs"]
+    assert sample["metadata"]["tagAssignments"][0]["source"] == "operator"
     assert set(schema["properties"]) == {
         "key",
         "title",
@@ -235,8 +246,9 @@ def main() -> None:
     assert any(item["type"] == "select" for item in sample["inputSchema"])
     assert any(item["type"] == "prompt" for item in sample["inputSchema"])
 
-    assert manifest["version"] == "0.23.0"
-    assert manifest["updated_at"] == "2026-07-12"
+    assert manifest["version"] == "0.25.0"
+    assert "references/tagging-and-taxonomy.md" in manifest["tracked_files"]
+    assert manifest["updated_at"] == "2026-07-13"
     for tracked in manifest["tracked_files"]:
         if not (ROOT / tracked).exists():
             raise AssertionError(f"skill-manifest.json tracks missing file: {tracked}")

@@ -107,6 +107,7 @@ OSS 收尾脚本只上传一次并复用 URL。最终交付 JSON 中二者为指
 后端未设专列但有价值的数据放 `metadata`：
 
 - `tags[]`: 从 taxonomy 非空值铺平并去重。
+- `tagAssignments[]`: 按 `tagging-and-taxonomy.md` 保留标签层级、来源、状态、AI 置信度和外部平台；只有 `accepted` label 铺入 `tags[]`。
 - `version`: Agent artifact/schema 版本。
 - `taxonomy`: 保留完整分类结构。
 - `templateSource`: 保留 authority、preserve、locked constraints；图片路径改为

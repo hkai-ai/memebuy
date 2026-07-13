@@ -146,7 +146,10 @@ async function createDefaultUploader(config) {
     secure: true,
   });
   return async ({ key, body, contentType }) => {
-    await client.put(key, body, { headers: { "Content-Type": contentType } });
+    const result = await client.put(key, body, { headers: { "Content-Type": contentType } });
+    if (result?.res?.status !== 200) fail(`OSS 上传未返回成功状态：${key}`);
+    const head = await client.head(key);
+    if (head?.res?.status !== 200) fail(`OSS 上传后对象检查失败：${key}`);
   };
 }
 
@@ -181,6 +184,25 @@ async function sha256(buffer) {
   return createHash("sha256").update(buffer).digest("hex");
 }
 
+async function writeBackTemplate(template, finalData, validateFile, config) {
+  const latest = JSON.parse(await readFile(template.file, "utf8"));
+  for (const field of IMAGE_FIELDS) {
+    if (latest[field] !== template.data[field] && latest[field] !== finalData[field]) {
+      fail(`${field} 在上传期间已被修改，未覆盖源模板：${template.file}`);
+    }
+    if (finalData[field] !== undefined) latest[field] = finalData[field];
+  }
+  const pending = `${template.file}.${randomUUID()}.pending.json`;
+  await atomicJson(pending, latest);
+  try {
+    await validateFile(pending, "remote", config);
+    await rename(pending, template.file);
+  } catch (error) {
+    await import("node:fs/promises").then(({ rm }) => rm(pending, { force: true }));
+    throw error;
+  }
+}
+
 function resolveLocalAsset(templateFile, field, value) {
   if (typeof value !== "string" || !value.trim()) return undefined;
   if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return undefined;
@@ -194,10 +216,17 @@ function resolveLocalAsset(templateFile, field, value) {
 export async function finalizeGalleryBatch(options) {
   const input = path.resolve(options.input);
   const outputDir = path.resolve(options.output);
+  const progressFile = options.progressFile ? path.resolve(options.progressFile) : undefined;
   const config = options.config ?? loadOssConfig();
   const validateFile = options.validateFile ?? defaultValidate;
   const files = await collectTemplateFiles(input);
   if (!files.length) fail(`未找到 meme-template.json：${input}`);
+  const progress = async (value) => {
+    const snapshot = { status: "running", totalTemplates: files.length, updatedAt: new Date().toISOString(), ...value };
+    if (progressFile) await atomicJson(progressFile, snapshot);
+    if (options.onProgress) await options.onProgress(snapshot);
+  };
+  await progress({ phase: "preflight", completedTemplates: 0, uploaded: 0, reused: 0 });
 
   const templates = [];
   const keys = new Set();
@@ -226,6 +255,9 @@ export async function finalizeGalleryBatch(options) {
   await mkdir(outputDir, { recursive: true });
   let uploaded = 0;
   let reused = 0;
+  let writtenBack = 0;
+  let completedTemplates = 0;
+  await progress({ phase: "uploading", completedTemplates, uploaded, reused });
 
   for (const template of templates) {
     const finalData = structuredClone(template.data);
@@ -250,6 +282,7 @@ export async function finalizeGalleryBatch(options) {
       await atomicJson(stateFile, state);
       finalData[field] = url;
       uploaded += 1;
+      await progress({ phase: "uploading", completedTemplates, currentTemplate: finalData.key, currentField: field, uploaded, reused });
     }
 
     const outputFile = path.join(outputDir, `${finalData.key}.json`);
@@ -264,31 +297,45 @@ export async function finalizeGalleryBatch(options) {
     }
     state.templates[finalData.key] = { source: template.file, output: outputFile, finalizedAt: new Date().toISOString() };
     await atomicJson(stateFile, state);
+    if (options.writeBack) {
+      await progress({ phase: "writing_back", completedTemplates, currentTemplate: finalData.key, uploaded, reused });
+      await writeBackTemplate(template, finalData, validateFile, config);
+      writtenBack += 1;
+    }
+    completedTemplates += 1;
+    await progress({ phase: "uploading", completedTemplates, currentTemplate: finalData.key, uploaded, reused });
   }
 
-  return { input, output: outputDir, stateFile, templates: templates.length, uploaded, reused };
+  if (progressFile) await atomicJson(progressFile, { status: "completed", phase: "completed", totalTemplates: files.length, completedTemplates, uploaded, reused, writtenBack, updatedAt: new Date().toISOString() });
+  return { input, output: outputDir, stateFile, progressFile, templates: templates.length, uploaded, reused, writtenBack };
 }
 
 function parseArgs(argv) {
   let input = "";
   let output = "";
   let stateFile;
+  let progressFile;
+  let writeBack = false;
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
     if (value === "--output") output = argv[++index] ?? "";
     else if (value === "--state-file") stateFile = argv[++index];
+    else if (value === "--progress-file") progressFile = argv[++index];
+    else if (value === "--write-back") writeBack = true;
     else if (value.startsWith("--")) fail(`未知参数：${value}`);
     else if (!input) input = value;
     else fail(`多余参数：${value}`);
   }
-  if (!input || !output) fail("用法：gallery:finalize <input> --output <output-dir> [--state-file <file>]");
-  return { input, output, stateFile };
+  if (!input || !output) fail("用法：gallery:finalize <input> --output <output-dir> [--state-file <file>] [--progress-file <file>] [--write-back]");
+  return { input, output, stateFile, progressFile, writeBack };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  finalizeGalleryBatch(parseArgs(process.argv.slice(2)))
+  const options = parseArgs(process.argv.slice(2));
+  finalizeGalleryBatch(options)
     .then((summary) => console.log(JSON.stringify({ ok: true, ...summary }, null, 2)))
-    .catch((error) => {
+    .catch(async (error) => {
+      if (options.progressFile) await atomicJson(path.resolve(options.progressFile), { status: "failed", phase: "failed", error: error?.message ?? String(error), updatedAt: new Date().toISOString() }).catch(() => undefined);
       console.error(error?.message ?? String(error));
       process.exitCode = 1;
     });

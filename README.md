@@ -179,6 +179,10 @@ pnpm gallery:finalize <input-dir> --output <handoff-dir>
 
 不要把 AK/SK 写入模板 JSON、脚本或其他会被 Git 跟踪的文件，也不要在日志中打印密钥。
 
+管理台“结果审核”会对 `meme-template.json` 中的 source image URL 做 OSS `HEAD` 二次检查。
+若仍是本地路径或对象缺失，可手动批量执行“重新上传原图”；上传和远程校验成功后会原子更新
+`cover`、`referenceImage`，不会覆盖标签等其他字段。
+
 ## 输出格式
 
 默认 artifact-first，不在聊天里粘贴完整 JSON。
