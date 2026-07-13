@@ -2,6 +2,22 @@
 
 这个仓库用于维护可复用的 Codex Skills。仓库按多 Skill 结构组织，每个 Skill 独立放在 `skills/<skill-name>/` 目录中。
 
+## 目录
+
+- [当前 Skills](#当前-skills)
+- [安装](#安装)
+  - [自动同步 Git hook](#自动同步-git-hook)
+- [meme-template-analyzer 使用场景](#meme-template-analyzer-使用场景)
+- [本地业务管理台](#本地业务管理台)
+- [支持输入](#支持输入)
+- [常用调用方式](#常用调用方式)
+  - [生成前端图片编辑模板](#1-生成前端图片编辑模板)
+  - [生成可替换槽位](#2-生成可替换槽位)
+  - [Mock 用户输入](#3-mock-用户输入)
+  - [批量建立后台模板库](#4-批量建立后台模板库)
+- [输出格式](#输出格式)
+- [维护和更新](#维护和更新)
+
 ## 当前 Skills
 
 - `skills/meme-template-analyzer`
@@ -69,6 +85,8 @@ scripts\check-skill-sync.ps1 -SkillName meme-template-analyzer
 仓库提供 `apps/meme-admin`，方便业务人员在浏览器中管理批次、素材分组、标签分类、任务状态和生成结果。管理台会直接调用本机 `codex exec --json`，并强制使用仓库内的 `meme-template-analyzer` 工作版本。
 
 Agent 自动启动、探活、日志和停止流程统一以根目录 `AGENTS.md` 的“本地业务管理台启动”章节为准。
+
+运营字段的填写方法和可复制模板见 [`docs/业务管理台运营配置模板.md`](docs/业务管理台运营配置模板.md)。
 
 ```powershell
 pnpm install

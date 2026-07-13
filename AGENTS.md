@@ -64,7 +64,7 @@ pnpm start
 * `.meme-admin/`：管理台设置、标签词库、任务记录与本地日志，已被 Git 忽略。
 * `artifacts/meme-template-analyzer/`：批次、分析结果与 handoff 产物，已被 Git 忽略。
 
-更完整的使用说明见 `apps/meme-admin/README.md`。
+更完整的启动说明见 `apps/meme-admin/README.md`；运营字段、标签和分组填写规则见 `docs/业务管理台运营配置模板.md`。Agent 代为操作管理台前应先读取这份配置模板。
 
 ## Git 与提交
 
