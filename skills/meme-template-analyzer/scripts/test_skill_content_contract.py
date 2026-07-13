@@ -164,6 +164,8 @@ def main() -> None:
         "semanticReviewStatus",
         "needs_research",
         "最终 JSON",
+        "不能当作后端批量导入载荷",
+        "handoff/<batch-id>/<template-key>.json",
     ]:
         require(batch_review, needle, "batch-and-review.md")
 
@@ -177,6 +179,8 @@ def main() -> None:
         "--progress-file",
         "HEAD",
         "不得读取、打印、复制或写入 AK/SK",
+        "最终交付清单",
+        "不能只给 `batch-manifest.json`",
     ]:
         require(oss_handoff, needle, "oss-handoff.md")
 
@@ -246,7 +250,14 @@ def main() -> None:
     assert any(item["type"] == "select" for item in sample["inputSchema"])
     assert any(item["type"] == "prompt" for item in sample["inputSchema"])
 
-    assert manifest["version"] == "0.28.0"
+    for needle in [
+        "任务完成后会交付什么",
+        "handoff/<batch-id>/",
+        "应交给后端吗",
+    ]:
+        require(readme, needle, "README.md")
+
+    assert manifest["version"] == "0.29.0"
     assert "references/tagging-and-taxonomy.md" in manifest["tracked_files"]
     assert manifest["updated_at"] == "2026-07-13"
     for tracked in manifest["tracked_files"]:

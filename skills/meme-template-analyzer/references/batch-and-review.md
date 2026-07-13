@@ -14,6 +14,14 @@
 - 只有用户明确要求最终 JSON/后端交付时才进入 OSS 收尾；普通批量分析不上传。
 - 最终交付按 `oss-handoff.md` 输出独立 handoff 目录，不覆盖本地路径版模板。
 
+文件职责：
+
+- `batch-manifest.json`：批次追踪和审计文件，可记录 source hash、语义状态、validator、OSS 状态及产物路径；不进入 GalleryTemplate 表，也不能当作后端批量导入载荷。
+- `<template>/meme-template.json`：每模板一个本地路径版入库契约，用于本地校验和问题恢复。
+- `handoff/<batch-id>/<template-key>.json`：OSS URL 版最终模板；后端批量导入读取这一组文件。
+
+任务完成后同时向用户报告追踪清单和实际导入目录，但必须明确只有 handoff 内 JSON 才是最终后端提交物。普通批量分析没有执行 OSS 时，应明确说明当前只有本地产物，尚无最终 handoff。
+
 ## 批量语义预审
 
 每张图片先写 `referenceStatus` 和 `semanticReviewStatus`，再决定是否进入模板编译：

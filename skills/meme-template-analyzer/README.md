@@ -469,6 +469,27 @@ output/
 
 `output/` 只在用户明确要求真实生成测试时创建。
 
+### 任务完成后会交付什么
+
+批量处理完成后会同时产生“追踪文件”和“真正导入文件”，二者不要混用：
+
+| 文件或目录 | 作用 | 应交给后端吗 |
+| --- | --- | --- |
+| `<batch>/batch-manifest.json` | 查看批次中的源图、模板状态、validator、OSS 结果和产物路径 | 否 |
+| `<batch>/<template>/meme-template.json` | 使用本地图片路径的单模板校验结果 | 否 |
+| `handoff/<batch-id>/` | OSS URL 版最终批次目录 | 是 |
+| `handoff/<batch-id>/<template-key>.json` | 后端可直接导入的单模板 JSON；文件名按模板 `key` 命名 | 是 |
+
+因此，用户要求“上传 OSS、输出后端批量导入 JSON”时，最终应收到：
+
+1. handoff 批次目录。
+2. 目录内全部 `<template-key>.json` 的路径和数量。
+3. `batch-manifest.json` 的路径，作为辅助追踪清单，并明确它不能导入后端。
+4. semantic validator、本地 Gallery validator、OSS PUT/HEAD 和 remote validator 结果。
+5. 上传、复用、失败、是否回写源模板，以及 `metadata.needsReview` 是否导致 DRAFT 的说明。
+
+单图也可以作为只有一个模板的批次；此时 handoff 目录内只有一个 `<template-key>.json`。普通本地分析没有执行 OSS 时，不会有 handoff，回复中应明确说明尚未生成最终后端提交物。
+
 ## 维护和更新
 
 本仓库副本是开发源文件：

@@ -41,6 +41,21 @@ pnpm gallery:finalize <input-dir> --output artifacts/meme-template-analyzer/hand
 恢复记录默认写到输出目录同级的 `.<batch-id>.upload-state.json`；每张图片上传成功后立即原子写入，
 重试按 SHA-256 复用 URL，避免部分失败产生重复对象。
 
+## 最终交付清单
+
+OSS 收尾成功后，必须把以下内容报告给用户：
+
+| 交付项 | 用途 | 是否交给后端导入 |
+| --- | --- | --- |
+| `handoff/<batch-id>/` | 最终批次目录，内部只含 OSS URL 版纯 JSON | 是，提交整个目录或其中全部 JSON |
+| `handoff/<batch-id>/<template-key>.json` | 单模板 `GalleryTemplateImport`，文件名按模板 `key` 命名 | 是 |
+| `<batch>/batch-manifest.json` | Agent 批次追踪、校验和 OSS 状态清单 | 否 |
+| `<batch>/<template>/meme-template.json` | 本地路径版单模板校验产物 | 否 |
+| `.<batch-id>.upload-state.json` | 上传失败恢复状态，位于 handoff 目录外 | 否 |
+| `image-edit-template.json`、`image-edit-analysis.json`、`index.md` | 草稿、分析和说明 | 否 |
+
+最终回复不能只给 `batch-manifest.json`。必须同时列出 handoff 目录和实际可导入 JSON；如果批次只有一个模板，也要说明它仍然是一个单项批次。报告模板数量、最终 JSON 数量、上传/复用数量、PUT/HEAD 与 remote validator 结果、是否 `--write-back`，以及 `metadata.needsReview` 是否会让后端按 DRAFT 处理。
+
 遇到以下情况立即失败：
 
 - 任一模板 validator 不通过；
