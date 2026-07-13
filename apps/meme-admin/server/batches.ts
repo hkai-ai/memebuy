@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { classifyImageAsset } from "../shared/assets.js";
-import type { BatchConfig, GroupConfig, ImageAsset } from "../shared/types.js";
+import { classifyImageAsset, imageAssetFolder } from "../shared/assets.js";
+import type { BatchConfig, FolderTemplateStatus, GroupConfig, ImageAsset } from "../shared/types.js";
 import { forEachConcurrent, sha256File } from "./file-utils.js";
 import { ensureDir, safeSlug } from "./paths.js";
 
@@ -34,6 +34,22 @@ export async function scanImages(root: string, previousImages: ImageAsset[] = []
     images.push({ id: `img-${shortHash}`, sourcePath: absolute, relativePath, fileName, shortHash, origin: classifyImageAsset(relativePath, fileName), modifiedAt, fileSize: fileStat.size, contentSha256 });
   });
   return images.sort((a, b) => a.relativePath.localeCompare(b.relativePath, "zh-CN"));
+}
+
+export async function inspectFolderTemplates(batch: BatchConfig): Promise<FolderTemplateStatus[]> {
+  const folders = [...new Set(batch.images.map((image) => imageAssetFolder(image.relativePath)))].sort((a, b) => a.localeCompare(b, "zh-CN"));
+  return Promise.all(folders.map(async (folder) => {
+    const absolutePath = path.resolve(batch.sourceFolder, folder, "meme-template.json");
+    const relative = path.relative(batch.sourceFolder, absolutePath);
+    if (relative.startsWith("..") || path.isAbsolute(relative)) return { folder, exists: false };
+    try {
+      const fileStat = await stat(absolutePath);
+      if (!fileStat.isFile()) return { folder, exists: false };
+      return { folder, exists: true, absolutePath, modifiedAt: fileStat.mtime.toISOString(), fileSize: fileStat.size };
+    } catch {
+      return { folder, exists: false };
+    }
+  }));
 }
 
 export function defaultGroup(name: string, defaults: BatchConfig["defaults"]): GroupConfig {

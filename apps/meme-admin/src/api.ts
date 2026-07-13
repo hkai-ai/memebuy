@@ -1,4 +1,4 @@
-import type { AdminSettings, BatchConfig, GroupConfig, JobRecord, ResultFile } from "../shared/types";
+import type { AdminSettings, BatchConfig, FolderTemplateStatus, GroupConfig, JobRecord, ResultFile } from "../shared/types";
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
@@ -15,6 +15,7 @@ export const api = {
   importBatch: (path: string) => request<BatchConfig>("/api/batches/import", { method: "POST", body: JSON.stringify({ path }) }),
   saveBatch: (batch: BatchConfig) => request<BatchConfig>(`/api/batches/${batch.id}`, { method: "PUT", body: JSON.stringify(batch) }),
   rescan: (id: string) => request<BatchConfig>(`/api/batches/${id}/rescan`, { method: "POST" }),
+  folderTemplates: (id: string) => request<FolderTemplateStatus[]>(`/api/batches/${id}/folder-templates`),
   addGroup: (id: string, name: string) => request<BatchConfig>(`/api/batches/${id}/groups`, { method: "POST", body: JSON.stringify({ name }) }),
   saveGroup: (batchId: string, group: GroupConfig) => request<BatchConfig>(`/api/batches/${batchId}/groups/${group.id}`, { method: "PUT", body: JSON.stringify(group) }),
   deleteGroup: (batchId: string, groupId: string) => request<BatchConfig>(`/api/batches/${batchId}/groups/${groupId}`, { method: "DELETE" }),

@@ -6,7 +6,7 @@ import { access, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { AdminSettings, BatchConfig, GroupConfig, JobRecord, ResultFile } from "../shared/types.js";
-import { createBatch, defaultGroup, exportCompatibilityFiles, organizeGroup, readCompatibilityFile, scanImages } from "./batches.js";
+import { createBatch, defaultGroup, exportCompatibilityFiles, inspectFolderTemplates, organizeGroup, readCompatibilityFile, scanImages } from "./batches.js";
 import { findProjectRoot, isInside, safeSlug } from "./paths.js";
 import { JobRunner } from "./runner.js";
 import { Storage } from "./storage.js";
@@ -52,6 +52,7 @@ app.post<{ Body: { path: string } }>("/api/system/open-folder", async (request) 
 });
 
 app.get("/api/batches", () => storage.listBatches());
+app.get<{ Params: { id: string } }>("/api/batches/:id/folder-templates", async (request) => inspectFolderTemplates(await requireBatch(request.params.id)));
 app.post<{ Body: { name: string; sourceFolder: string } }>("/api/batches", async (request) => {
   const sourceFolder = path.resolve(request.body?.sourceFolder ?? "");
   const images = await scanImages(sourceFolder);

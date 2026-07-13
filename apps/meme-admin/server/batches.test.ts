@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { classifyImageAsset, compareImageAssets, deduplicateImageAssets, imageAssetFolder, sourceImageIdsForFolders } from "../shared/assets.js";
-import { createBatch, defaultGroup, exportCompatibilityFiles, organizeGroup, readCompatibilityFile, scanImages } from "./batches.js";
+import { createBatch, defaultGroup, exportCompatibilityFiles, inspectFolderTemplates, organizeGroup, readCompatibilityFile, scanImages } from "./batches.js";
 
 const tempRoots: string[] = [];
 async function tempRoot() { const root = await mkdtemp(path.join(os.tmpdir(), "meme-admin-")); tempRoots.push(root); return root; }
@@ -47,6 +47,20 @@ describe("batch files", () => {
     expect(new Set(images.map((item) => item.id)).size).toBe(2);
     const cached = images.map((image) => ({ ...image, contentSha256: `cached-${image.id}` }));
     expect((await scanImages(root, cached)).map((image) => image.contentSha256)).toEqual(cached.map((image) => image.contentSha256));
+  });
+
+  it("reports meme-template.json for each scanned image folder", async () => {
+    const projectRoot = await tempRoot(); const source = path.join(projectRoot, "source");
+    await mkdir(path.join(source, "with-template"), { recursive: true }); await mkdir(path.join(source, "without-template"));
+    await Promise.all([
+      writeFile(path.join(source, "with-template", "source.png"), "one"),
+      writeFile(path.join(source, "with-template", "meme-template.json"), JSON.stringify({ key: "demo" })),
+      writeFile(path.join(source, "without-template", "source.png"), "two"),
+    ]);
+    const batch = createBatch(projectRoot, "模板检查", source, await scanImages(source));
+    const statuses = await inspectFolderTemplates(batch);
+    expect(statuses.map((item) => [item.folder, item.exists])).toEqual([["with-template", true], ["without-template", false]]);
+    expect(statuses[0].absolutePath).toBe(path.join(source, "with-template", "meme-template.json"));
   });
 
   it("deduplicates copied images by content and prefers the source asset", async () => {

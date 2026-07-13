@@ -101,3 +101,11 @@ export interface ResultFile {
   kind: "image" | "json" | "markdown" | "other";
   url?: string;
 }
+
+export interface FolderTemplateStatus {
+  folder: string;
+  exists: boolean;
+  absolutePath?: string;
+  modifiedAt?: string;
+  fileSize?: number;
+}
