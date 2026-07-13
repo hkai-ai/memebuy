@@ -148,6 +148,37 @@ mock 应包含 `slotValues`、`imageSelections`、`renderedTemplateText` 和 `re
 运行 `pnpm gallery:finalize <input> --output <handoff-dir>` 上传 OSS 并回填 URL。handoff 目录整体
 交给后端项目按 `key` upsert；数据库追踪信息不进入 GalleryTemplate JSON。
 
+#### OSS 环境变量与运行方式
+
+上传脚本从 `process.env` 读取 OSS 配置。可在仓库根目录创建不会被 Git 跟踪的 `.env`：
+
+```dotenv
+ALIYUN_OSS_ACCESS_KEY_ID=<access-key-id>
+ALIYUN_OSS_ACCESS_KEY_SECRET=<access-key-secret>
+ALIYUN_OSS_ASSETS_BUCKET=memebuy-assets
+ALIYUN_OSS_ASSETS_ENDPOINT=oss-cn-shanghai.aliyuncs.com
+ALIYUN_OSS_ASSETS_DOMAIN=assets.memebuy.cn
+ALIYUN_OSS_KEY_PREFIX=dev/
+```
+
+`ALIYUN_OSS_KEY_PREFIX` 可留空；开发、测试环境建议分别使用 `dev/`、`uat/`，生产环境按实际
+约定填写。Endpoint 和 Domain 只填写 hostname，不要包含 `https://` 或路径。
+
+`pnpm gallery:finalize` 不会自动加载 `.env`。使用 `.env` 时由 Node 显式加载：
+
+```powershell
+node --env-file=.env skills/meme-template-analyzer/scripts/finalize_gallery_batch.mjs `
+  <input-dir> --output <handoff-dir>
+```
+
+如果环境变量已注入当前 PowerShell 会话，则直接运行：
+
+```powershell
+pnpm gallery:finalize <input-dir> --output <handoff-dir>
+```
+
+不要把 AK/SK 写入模板 JSON、脚本或其他会被 Git 跟踪的文件，也不要在日志中打印密钥。
+
 ## 输出格式
 
 默认 artifact-first，不在聊天里粘贴完整 JSON。
