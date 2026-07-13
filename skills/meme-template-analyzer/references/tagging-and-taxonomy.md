@@ -1,6 +1,6 @@
 # 普通标签与来源
 
-管理台的标签词库只维护扁平、具体的普通 tags，不承担场景、主题、情绪、用途或模板机制分类。词库中的 `group` 仅用于按“版式·形态、画风·笔触、工艺·材质、实拍、观察池”整理 UI，不是标签，也不写入 `taxonomy` 或 `metadata.tags`。不要把 Pinterest、Instagram、Tumblr 的原始标签伪装成 AI 推断。
+管理台的标签词库只维护扁平、具体的普通 tags，不承担场景、主题、用途或模板机制分类。词库中的 `group` 仅用于整理 8 组风格标签和 4 组情绪标签，不是标签，也不写入 `taxonomy` 或 `metadata.tags`。不要把 Pinterest、Instagram、Tumblr 的原始标签伪装成 AI 推断。
 
 ## 输入
 

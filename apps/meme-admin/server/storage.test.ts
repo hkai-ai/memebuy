@@ -28,7 +28,7 @@ describe("local JSON storage", () => {
   it("creates, persists, and snapshots the operator tag catalog", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "meme-admin-tag-catalog-")); tempRoots.push(root);
     const storage = new Storage(root); await storage.init();
-    const catalog = await storage.getTagCatalog(); expect(catalog.tags).toHaveLength(37);
+    const catalog = await storage.getTagCatalog(); expect(catalog.tags).toHaveLength(119);
     catalog.tags.push({ id: "tag.campaign-a", label: "campaign-a", group: "自定义", aliases: [], enabled: true });
     catalog.updatedAt = "2026-07-13T00:00:00.000Z"; await storage.saveTagCatalog(catalog);
     const snapshot = await storage.snapshotTagCatalog(path.join(root, "artifacts", "batch"));

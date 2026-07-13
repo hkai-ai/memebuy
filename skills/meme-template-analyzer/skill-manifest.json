@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.27.0",
+  "version": "0.28.0",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-13",
-  "notes": "Add the approved visual-creation tag groups while keeping group labels out of template tags and taxonomy.",
+  "notes": "Expand the approved catalog to 103 style tags and 16 mood tags while keeping group labels UI-only.",
   "tracked_files": [
     "SKILL.md",
     "README.md",
