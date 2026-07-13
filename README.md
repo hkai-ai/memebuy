@@ -68,6 +68,8 @@ scripts\check-skill-sync.ps1 -SkillName meme-template-analyzer
 
 仓库提供 `apps/meme-admin`，方便业务人员在浏览器中管理批次、素材分组、标签分类、任务状态和生成结果。管理台会直接调用本机 `codex exec --json`，并强制使用仓库内的 `meme-template-analyzer` 工作版本。
 
+Agent 自动启动、探活、日志和停止流程统一以根目录 `AGENTS.md` 的“本地业务管理台启动”章节为准。
+
 ```powershell
 pnpm install
 pnpm dev

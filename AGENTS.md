@@ -1,5 +1,71 @@
 # AGENTS.md
 
+## 本地业务管理台启动
+
+仓库内 `apps/meme-admin` 是本地业务后台。前端使用 Vite，API 使用 Fastify；开发模式统一从仓库根目录启动：
+
+```powershell
+pnpm dev
+```
+
+地址约定：
+
+* 管理页面：`http://127.0.0.1:15173`
+* 本地 API：`http://127.0.0.1:14174`
+* API 探活：`http://127.0.0.1:14174/api/health`
+
+Agent 行为约束：
+
+* 默认不要主动启动管理台。只有用户明确要求启动、运行、测试、调试或验证页面时才启动。
+* 启动前先检查 `14174` 和 `15173` 端口，避免重复启动已有实例。
+* 需要继续执行其他工作时，把管理台作为隐藏后台进程启动，不要让长期运行的 `pnpm dev` 阻塞当前终端。
+* 后台启动前创建 `.meme-admin/`；标准输出和错误日志写入该目录，不要提交到 Git。
+* 启动后先调用 `/api/health`，确认 API 返回成功，再报告页面地址或进行浏览器验证。
+* 停止时终止启动进程及其子进程，避免遗留 Vite、tsx 或 concurrently 进程。
+* 管理台只监听 localhost，不要暴露到局域网、公网或 Cloudflare；未经用户明确确认，不执行生产部署。
+
+Windows PowerShell 后台启动示例：
+
+```powershell
+New-Item -ItemType Directory -Force .meme-admin | Out-Null
+$process = Start-Process -FilePath "pnpm.cmd" `
+  -ArgumentList "dev" `
+  -WorkingDirectory (Get-Location) `
+  -WindowStyle Hidden `
+  -RedirectStandardOutput ".meme-admin/dev.stdout.log" `
+  -RedirectStandardError ".meme-admin/dev.stderr.log" `
+  -PassThru
+$process.Id
+```
+
+探活示例：
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:14174/api/health
+```
+
+停止示例，其中 `<PID>` 使用启动命令返回的进程号：
+
+```powershell
+taskkill.exe /PID <PID> /T /F
+```
+
+如果只需构建并运行已构建版本：
+
+```powershell
+pnpm build
+pnpm start
+```
+
+该模式由 Fastify 提供已构建页面，访问 `http://127.0.0.1:14174`。不要把 `pnpm start` 与 `pnpm dev` 同时启动。
+
+本地数据位置：
+
+* `.meme-admin/`：管理台设置、标签词库、任务记录与本地日志，已被 Git 忽略。
+* `artifacts/meme-template-analyzer/`：批次、分析结果与 handoff 产物，已被 Git 忽略。
+
+更完整的使用说明见 `apps/meme-admin/README.md`。
+
 ## Git 与提交
 
 本项目按普通 Git 仓库处理。提交前使用 `git status --short` 和 `git remote -v` 确认当前仓库与远端，不要因为全局 `.codex` skill 目录不是 Git 仓库而误判当前项目不能提交。
