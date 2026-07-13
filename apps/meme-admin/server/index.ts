@@ -5,11 +5,12 @@ import { randomUUID } from "node:crypto";
 import { access, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { AdminSettings, BatchConfig, GroupConfig, JobRecord, ResultFile } from "../shared/types.js";
+import type { AdminSettings, BatchConfig, GroupConfig, JobRecord, ResultFile, TemplateTagUpdateResult } from "../shared/types.js";
 import { createBatch, defaultGroup, exportCompatibilityFiles, inspectFolderTemplates, organizeGroup, readCompatibilityFile, scanImages } from "./batches.js";
 import { findProjectRoot, isInside, safeSlug } from "./paths.js";
 import { JobRunner } from "./runner.js";
 import { Storage } from "./storage.js";
+import { addTagsToMemeTemplate, findMemeTemplateFiles } from "./template-tags.js";
 
 const execFileAsync = promisify(execFile);
 const projectRoot = await findProjectRoot();
@@ -106,6 +107,24 @@ app.post<{ Params: { id: string; groupId: string } }>("/api/batches/:id/groups/:
 });
 
 app.get("/api/jobs", () => storage.listJobs());
+app.put<{ Body: { jobIds: string[]; tags: string[] } }>("/api/template-tags", async (request): Promise<TemplateTagUpdateResult> => {
+  if (!Array.isArray(request.body?.jobIds) || request.body.jobIds.some((id) => typeof id !== "string")) fail("处理结果 ID 必须是字符串数组");
+  const jobIds = [...new Set(request.body.jobIds)];
+  if (!jobIds.length) fail("请至少选择一个处理结果");
+  if (jobIds.length > 100) fail("一次最多处理 100 个结果");
+  if (!Array.isArray(request.body?.tags) || !request.body.tags.some((tag) => typeof tag === "string" && tag.trim())) fail("请至少填写一个标签");
+  const jobs = await Promise.all(jobIds.map(async (id) => {
+    const job = await storage.getJob(id); if (!job) fail(`任务不存在：${id}`, 404);
+    if (!["succeeded", "needs_review"].includes(job.status)) fail(`任务尚未成功完成：${job.groupName}`);
+    return job;
+  }));
+  const filesByJob = await Promise.all(jobs.map(async (job) => ({ job, files: await findMemeTemplateFiles(job.resultDirectory) })));
+  const missing = filesByJob.filter((item) => !item.files.length).map((item) => item.job.groupName);
+  if (missing.length) fail(`以下结果没有 meme-template.json：${missing.join("、")}`, 404);
+  const files = filesByJob.flatMap((item) => item.files);
+  const updated = await Promise.all(files.map((file) => addTagsToMemeTemplate(file, request.body.tags)));
+  return { jobCount: jobs.length, fileCount: files.length, tags: [...new Set(updated.flat())] };
+});
 app.post<{ Body: { batchId: string; groupId: string } }>("/api/jobs", async (request) => {
   const batch = await requireBatch(request.body.batchId); const group = requireGroup(batch, request.body.groupId);
   if (group.status === "skipped") fail("已跳过的分组不能创建任务");

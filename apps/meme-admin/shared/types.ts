@@ -109,3 +109,9 @@ export interface FolderTemplateStatus {
   modifiedAt?: string;
   fileSize?: number;
 }
+
+export interface TemplateTagUpdateResult {
+  jobCount: number;
+  fileCount: number;
+  tags: string[];
+}

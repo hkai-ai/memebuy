@@ -1,4 +1,4 @@
-import type { AdminSettings, BatchConfig, FolderTemplateStatus, GroupConfig, JobRecord, ResultFile } from "../shared/types";
+import type { AdminSettings, BatchConfig, FolderTemplateStatus, GroupConfig, JobRecord, ResultFile, TemplateTagUpdateResult } from "../shared/types";
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
@@ -22,6 +22,7 @@ export const api = {
   assign: (batchId: string, groupId: string | undefined, imageIds: string[]) => request<BatchConfig>(`/api/batches/${batchId}/assign`, { method: "POST", body: JSON.stringify({ groupId, imageIds }) }),
   organize: (batchId: string, groupId: string) => request<{ files: string[] }>(`/api/batches/${batchId}/groups/${groupId}/organize`, { method: "POST" }),
   jobs: () => request<JobRecord[]>("/api/jobs"),
+  addTemplateTags: (jobIds: string[], tags: string[]) => request<TemplateTagUpdateResult>("/api/template-tags", { method: "PUT", body: JSON.stringify({ jobIds, tags }) }),
   createJob: (batchId: string, groupId: string) => request<JobRecord>("/api/jobs", { method: "POST", body: JSON.stringify({ batchId, groupId }) }),
   cancelJob: (id: string) => request<JobRecord>(`/api/jobs/${id}/cancel`, { method: "POST" }),
   retryJob: (id: string) => request<JobRecord>(`/api/jobs/${id}/retry`, { method: "POST" }),
