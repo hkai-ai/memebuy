@@ -11,16 +11,14 @@ export type TagStatus = "accepted" | "suggested" | "rejected";
 export interface TagDefinition {
   id: string;
   label: string;
-  dimension: string;
-  level: TagLevel;
+  group: string;
   aliases: string[];
   enabled: boolean;
-  aiAssignable: boolean;
   description?: string;
 }
 
 export interface TagCatalog {
-  schemaVersion: "1.0";
+  schemaVersion: "1.1";
   updatedAt: string;
   tags: TagDefinition[];
 }
@@ -69,8 +67,9 @@ export interface GroupConfig {
   category: string;
   templateMechanism: string;
   tags: string[];
-  operatorTagIds: string[];
-  templateTagIds: string[];
+  tagIds: string[];
+  operatorTagIds?: string[];
+  templateTagIds?: string[];
   uploadSourceImages: boolean;
   notes: string;
   imageIds: string[];

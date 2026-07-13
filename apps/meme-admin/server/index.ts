@@ -105,12 +105,10 @@ app.put<{ Params: { id: string; groupId: string }; Body: GroupConfig }>("/api/ba
   const batch = await requireBatch(request.params.id); const index = batch.groups.findIndex((item) => item.id === request.params.groupId);
   if (index < 0) fail("分组不存在", 404); safeSlug(request.body.groupName);
   if (batch.groups.some((item, i) => i !== index && item.groupName === request.body.groupName)) fail("分组目录名已存在");
-  const catalog = await storage.getTagCatalog(); const validTagIds = new Set(catalog.tags.map((tag) => tag.id)); const tagById = new Map(catalog.tags.map((tag) => [tag.id, tag]));
-  request.body.operatorTagIds = [...new Set(request.body.operatorTagIds ?? [])]; request.body.templateTagIds = [...new Set(request.body.templateTagIds ?? [])];
-  const unknownTagIds = [...request.body.operatorTagIds, ...request.body.templateTagIds].filter((id) => !validTagIds.has(id));
+  const catalog = await storage.getTagCatalog(); const validTagIds = new Set(catalog.tags.map((tag) => tag.id));
+  request.body.tagIds = [...new Set(request.body.tagIds ?? [])];
+  const unknownTagIds = request.body.tagIds.filter((id) => !validTagIds.has(id));
   if (unknownTagIds.length) fail(`标签词库中不存在：${[...new Set(unknownTagIds)].join("、")}`);
-  if (request.body.operatorTagIds.some((id) => tagById.get(id)?.level !== "category")) fail("运营大类只能选择 category 层级标签");
-  if (request.body.templateTagIds.some((id) => tagById.get(id)?.level !== "tag")) fail("模板固定标签只能选择 tag 层级标签");
   request.body.id = request.params.groupId; request.body.imageIds = batch.groups[index].imageIds; batch.groups[index] = request.body;
   touch(batch); await storage.saveBatch(batch); await exportCompatibilityFiles(batch); return batch;
 });

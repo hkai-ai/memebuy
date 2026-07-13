@@ -58,7 +58,7 @@ export function defaultGroup(name: string, defaults: BatchConfig["defaults"]): G
     referenceConfig: { template_reference: true, style_reference: false, composition_reference: true, identity_reference: false, other: "" },
     referenceDependencyLevel: "medium", testModeRecommendation: "reference_aware_preferred",
     generationMode: defaults.generationMode, category: defaults.category, templateMechanism: "",
-    tags: [...defaults.tags], operatorTagIds: [], templateTagIds: [], uploadSourceImages: false, notes: "", imageIds: [],
+    tags: [...defaults.tags], tagIds: [], uploadSourceImages: false, notes: "", imageIds: [],
   };
 }
 
@@ -131,6 +131,8 @@ export async function readCompatibilityFile(filePath: string, projectRoot: strin
     const config = raw.config ?? raw;
     const group = defaultGroup(config.groupName ?? raw.groupName ?? "imported-group", batch.defaults);
     Object.assign(group, config, { id: config.id ?? randomUUID(), imageIds: (raw.images ?? []).map((item: any) => item.imageId ?? item.id).filter(Boolean) });
+    const rawTagIds: unknown[] = Array.isArray(config.tagIds) ? config.tagIds : [...(config.operatorTagIds ?? []), ...(config.templateTagIds ?? [])];
+    group.tagIds = [...new Set(rawTagIds.filter((id): id is string => typeof id === "string"))];
     return group;
   });
   for (const group of batch.groups) for (const imageId of group.imageIds) { const image = batch.images.find((item) => item.id === imageId); if (image) image.groupId = group.id; }

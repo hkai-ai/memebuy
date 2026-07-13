@@ -32,7 +32,7 @@
 
 - 扫描素材目录，建立批次并按组管理图片。
 - 配置分类、标签、模板机制、参考角色和生成模式。
-- 在“标签词库”维护运营大类与模板固定标签；每次任务写 `tag-catalog.snapshot.json`，分析按 `tagging-and-taxonomy.md` 保留来源。
+- 在“标签词库”维护需要人工复用的普通 tags；每次任务写 `tag-catalog.snapshot.json`，分析按 `tagging-and-taxonomy.md` 保留来源。
 - 把图片复制到分组目录，不移动或删除源文件。
 - 按分组调用 `codex exec --json`，展示队列、阶段、日志、validator、取消和失败重试。
 - 查看 JSON、Markdown、生成图并打开结果目录。

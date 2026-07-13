@@ -5,7 +5,7 @@ import { classifyImageAsset } from "../shared/assets.js";
 import type { AdminSettings, BatchConfig, JobRecord, TagCatalog } from "../shared/types.js";
 import { forEachConcurrent, sha256File } from "./file-utils.js";
 import { ensureDir } from "./paths.js";
-import { defaultTagCatalog, normalizeTagCatalog } from "./tag-catalog.js";
+import { defaultTagCatalog, withDefaultTags } from "./tag-catalog.js";
 
 export class Storage {
   readonly root: string;
@@ -20,12 +20,16 @@ export class Storage {
 
   async init() {
     await Promise.all([ensureDir(this.batchesDir), ensureDir(this.jobsDir), ensureDir(path.join(this.root, "logs"))]);
-    if (!await this.readJson<TagCatalog>(path.join(this.root, "tag-catalog.json"))) await this.saveTagCatalog(defaultTagCatalog());
+    const storedCatalog = await this.readJson<TagCatalog>(path.join(this.root, "tag-catalog.json"));
+    await this.saveTagCatalog(storedCatalog ?? defaultTagCatalog());
+    const validTagIds = new Set((await this.getTagCatalog()).tags.map((tag) => tag.id));
     for (const batch of await this.listBatches()) {
       let changed = false;
       for (const group of batch.groups) {
-        if (!Array.isArray(group.operatorTagIds)) { group.operatorTagIds = []; changed = true; }
-        if (!Array.isArray(group.templateTagIds)) { group.templateTagIds = []; changed = true; }
+        const migratedTagIds = [...new Set([...(group.tagIds ?? []), ...(group.operatorTagIds ?? []), ...(group.templateTagIds ?? [])])].filter((id) => validTagIds.has(id));
+        if (JSON.stringify(group.tagIds ?? []) !== JSON.stringify(migratedTagIds)) { group.tagIds = migratedTagIds; changed = true; }
+        if (group.operatorTagIds !== undefined) { delete group.operatorTagIds; changed = true; }
+        if (group.templateTagIds !== undefined) { delete group.templateTagIds; changed = true; }
         if (typeof group.uploadSourceImages !== "boolean") { group.uploadSourceImages = false; changed = true; }
       }
       await forEachConcurrent(batch.images, 4, async (image) => {
@@ -84,9 +88,9 @@ export class Storage {
   saveSettings(settings: AdminSettings) { return this.atomicJson(path.join(this.root, "settings.json"), settings); }
 
   async getTagCatalog(): Promise<TagCatalog> {
-    return normalizeTagCatalog((await this.readJson<TagCatalog>(path.join(this.root, "tag-catalog.json"))) ?? defaultTagCatalog());
+    return withDefaultTags((await this.readJson<TagCatalog>(path.join(this.root, "tag-catalog.json"))) ?? defaultTagCatalog());
   }
-  saveTagCatalog(catalog: unknown) { return this.atomicJson(path.join(this.root, "tag-catalog.json"), normalizeTagCatalog(catalog)); }
+  saveTagCatalog(catalog: unknown) { return this.atomicJson(path.join(this.root, "tag-catalog.json"), withDefaultTags(catalog)); }
   async snapshotTagCatalog(outputFolder: string): Promise<string> {
     const file = path.join(outputFolder, "tag-catalog.snapshot.json");
     await this.atomicJson(file, await this.getTagCatalog());

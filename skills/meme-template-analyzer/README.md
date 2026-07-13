@@ -410,7 +410,7 @@ pnpm dev
 
 打开 `http://127.0.0.1:15173`。页面支持素材扫描、分组、标签词库、分类与固定标签、参考角色、生成模式、按组排队、任务状态、取消重试、validator 和结果预览。本地 API 使用 `127.0.0.1:14174`，会固定调用仓库内 skill，不依赖同名全局副本。
 
-运营先在顶部“标签词库”维护大类与模板固定标签，再在分组中勾选。任务启动时管理台写 `tag-catalog.snapshot.json`；Skill 按 `references/tagging-and-taxonomy.md` 区分 `operator`、`template`、`ai`、`external`，并继续生成兼容搜索的 `metadata.tags`。
+运营可在顶部“标签词库”维护需要复用的普通 tags，再在分组中勾选。词库不承担场景、主题、风格、情绪、用途或模板机制分类。任务启动时管理台写 `tag-catalog.snapshot.json`；Skill 按 `references/tagging-and-taxonomy.md` 区分 `operator`、`ai`、`external`，并继续生成兼容搜索的 `metadata.tags`。
 
 批量模板全部通过 validator 后，如用户明确要求 OSS 最终交付，执行：
 

@@ -64,14 +64,14 @@
       "MBTI",
       "人脸融合",
       "潮流",
-      "社交发布"
+      "MBTI头像"
     ],
     "tagAssignments": [
       {
-        "tagId": "use-case.social-post",
-        "label": "社交发布",
-        "dimension": "use_case",
-        "level": "category",
+        "tagId": "tag.mbti-avatar",
+        "label": "MBTI头像",
+        "dimension": "manual",
+        "level": "tag",
         "source": "operator",
         "status": "accepted"
       },

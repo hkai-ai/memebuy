@@ -80,7 +80,7 @@ def main() -> None:
 
     assert len(skill.splitlines()) <= 250, "SKILL.md should stay concise; move details to references"
 
-    for needle in ["operator", "template", "ai", "external", "tagAssignments", "tag-catalog.snapshot.json", "metadata.tags"]:
+    for needle in ["operator", "ai", "external", "tagAssignments", "tag-catalog.snapshot.json", "metadata.tags", "普通 tags", "版式·形态", "group"]:
         require(tagging_taxonomy, needle, "references/tagging-and-taxonomy.md")
     for reference in [
         "slot-and-visual-design.md",
@@ -246,7 +246,7 @@ def main() -> None:
     assert any(item["type"] == "select" for item in sample["inputSchema"])
     assert any(item["type"] == "prompt" for item in sample["inputSchema"])
 
-    assert manifest["version"] == "0.25.0"
+    assert manifest["version"] == "0.27.0"
     assert "references/tagging-and-taxonomy.md" in manifest["tracked_files"]
     assert manifest["updated_at"] == "2026-07-13"
     for tracked in manifest["tracked_files"]:

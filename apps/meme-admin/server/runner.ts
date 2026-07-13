@@ -106,8 +106,7 @@ export class JobRunner extends EventEmitter {
     const ossInstruction = group.uploadSourceImages
       ? `用户已明确授权上传 source image。所有本地 validator 通过后，必须读取 oss-handoff.md，并执行 pnpm gallery:finalize "${resultDir}" --output "${path.join(resultDir, ".oss-handoff")}" --progress-file "${path.join(resultDir, ".oss-progress.json")}" --write-back；PUT、HEAD 或 remote validator 任一步失败都不得伪造成功。`
       : "本任务未授权 OSS 写入；只生成本地路径版 meme-template.json，不得上传或回写远程 URL。";
-    const operatorTags = selectedTags(catalog, group.operatorTagIds ?? []).map((tag) => ({ tagId: tag.id, label: tag.label, dimension: tag.dimension, level: tag.level, source: "operator", status: "accepted" }));
-    const templateTags = selectedTags(catalog, group.templateTagIds ?? []).map((tag) => ({ tagId: tag.id, label: tag.label, dimension: tag.dimension, level: tag.level, source: "template", status: "accepted" }));
+    const lockedTags = selectedTags(catalog, group.tagIds ?? []).map((tag) => ({ tagId: tag.id, label: tag.label, dimension: "manual", level: "tag", source: "operator", status: "accepted" }));
     return [
       `使用仓库内 ${path.join(this.projectRoot, "skills", "meme-template-analyzer", "SKILL.md")} 执行任务。`,
       "必须读取仓库内 skill 及其所需 references，禁止使用同名全局 skill。",
@@ -115,7 +114,7 @@ export class JobRunner extends EventEmitter {
       `输入目录：${path.join(batch.outputFolder, "groups", safeSlug(group.groupName), "input")}。`,
       `唯一结果目录：${resultDir}。只在此目录写本任务产物，不修改仓库代码。`,
       `标签词库快照：${catalogSnapshot}。必须读取，并按仓库内 tagging-and-taxonomy.md 执行。`,
-      `锁定标签分配：${JSON.stringify([...operatorTags, ...templateTags])}。operator/template 标签必须原样保留，AI 不得删除、改名或覆盖。`,
+      `锁定人工标签：${JSON.stringify(lockedTags)}。这些普通 tags 必须原样保留，AI 不得删除、改名或覆盖。`,
       `分组配置：分类=${group.category || "待分析"}；标签=${group.tags.join("、") || "待分析"}；模板机制=${group.templateMechanism || "待分析"}。`,
       `参考配置：${JSON.stringify(group.referenceConfig)}；依赖级别=${group.referenceDependencyLevel}；建议模式=${group.testModeRecommendation}。`,
       `业务备注：${group.notes || "无"}。`,
