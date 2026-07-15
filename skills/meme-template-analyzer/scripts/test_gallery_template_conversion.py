@@ -11,6 +11,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from convert_image_edit_to_meme_template import build_gallery_template  # noqa: E402
+from clean_image_edit_template import clean_template  # noqa: E402
 from validate_gallery_template import validate, validate_artifact_paths  # noqa: E402
 from validate_semantic_analysis import validate_analysis  # noqa: E402
 
@@ -20,21 +21,27 @@ ROOT = SCRIPT_DIR.parent
 
 def fixture() -> dict:
     return {
-        "schemaVersion": "1.0",
+        "schemaVersion": "2.0.0",
         "templateId": "laser_cat_test",
         "title": "激光猫",
-        "summary": "测试模板",
+        "summary": "内部分析摘要，不应进入 description",
+        "description": "激光宠物海报",
         "templateText": "一只【主体：白猫】发射【激光颜色：粉色】激光。",
         "slots": [
             {
                 "id": "subject",
                 "label": "主体",
-                "inputKind": "text",
+                "inputKind": "subject",
                 "slotRole": "semantic_replacement",
                 "required": True,
                 "defaultValue": "白猫",
                 "suggestions": ["黑狗", "熊猫"],
                 "allowCustom": True,
+                "imagePromptValue": "用户上传图中的主体",
+                "extract": "保留主体身份、轮廓与颜色，不继承构图。",
+                "maxCount": 1,
+                "private": True,
+                "sourceOptions": ["upload", "asset_library"],
             },
             {
                 "id": "laser_color",
@@ -141,6 +148,7 @@ def main() -> None:
         "inputSchema",
         "preprocessSteps",
         "promptTemplate",
+        "promptEnhancement",
         "metadata",
     }
     assert record["preprocessSteps"] == []
@@ -148,9 +156,16 @@ def main() -> None:
     assert record["cover"] == "source.png"
     assert record["referenceImage"] == "source.png"
     assert record["imageSize"] == "1024x1024"
+    assert record["description"] == "激光宠物海报"
+    assert record["metadata"]["version"] == "2.0.0"
     assert "{{ subject | \"白猫\" }}" in record["promptTemplate"]
-    assert "激光向左下方发射" in record["promptTemplate"]
-    assert record["inputSchema"][0]["type"] == "prompt"
+    assert "激光向左下方发射" not in record["promptTemplate"]
+    assert "激光向左下方发射" in record["promptEnhancement"]["lockedConstraints"]
+    assert record["promptEnhancement"]["referenceField"] == "referenceImage"
+    assert record["promptEnhancement"]["output"] == {"format": "json", "promptField": "finalPrompt"}
+    assert record["inputSchema"][0]["type"] == "subject"
+    assert record["inputSchema"][0]["resolutionStrategy"] == "image_over_text"
+    assert record["inputSchema"][0]["image"]["promptValue"] == "用户上传图中的主体"
     assert record["inputSchema"][1]["type"] == "select"
     assert record["inputSchema"][1]["options"][0] == {"value": "粉色", "label": "粉色"}
     assert record["inputSchema"][2]["type"] == "image"
@@ -162,6 +177,32 @@ def main() -> None:
     assert record["metadata"]["referenceContext"]["primaryReference"] == "《戴珍珠耳环的少女》"
     assert "path" not in record["metadata"]["templateSource"]
     assert record["metadata"]["templateSource"]["referenceField"] == "referenceImage"
+
+    visibility_fixture = fixture()
+    visibility_fixture["promptEnhancement"] = {
+        "stageKey": "gallery.prompt_rewrite",
+        "instruction": "后端内部策略",
+    }
+    frontend = clean_template(
+        visibility_fixture,
+        "frontend",
+        None,
+        keep_suggestion_reasons=False,
+        keep_slot_ui=False,
+        keep_mock_user_input=False,
+    )
+    assert frontend["description"] == "激光宠物海报"
+    assert "summary" not in frontend
+    assert "promptEnhancement" not in frontend
+    runtime = clean_template(
+        visibility_fixture,
+        "runtime",
+        None,
+        keep_suggestion_reasons=False,
+        keep_slot_ui=False,
+        keep_mock_user_input=False,
+    )
+    assert runtime["promptEnhancement"]["instruction"] == "后端内部策略"
 
     without_taxonomy = fixture()
     without_taxonomy.pop("taxonomy")
@@ -210,6 +251,10 @@ def main() -> None:
     invalid_dimension["inputSchema"][2]["minWidth"] = 32
     assert any("minWidth must be an integer from 64 to 8192" in error for error in validate(invalid_dimension))
 
+    invalid_subject = deepcopy(record)
+    invalid_subject["inputSchema"][0]["image"]["promptValue"] = "白猫"
+    assert any("must not repeat the default text subject" in error for error in validate(invalid_subject))
+
     invalid_prompt = deepcopy(record)
     invalid_prompt["promptTemplate"] = '{{ subject | "白猫" '
     assert any("unclosed or unmatched placeholder" in error for error in validate(invalid_prompt))
@@ -217,6 +262,10 @@ def main() -> None:
     invalid_payload = deepcopy(record)
     invalid_payload["promptTemplate"] = "{{ laser_color.missing | \"粉色\" }}"
     assert any("undefined select payload field" in error for error in validate(invalid_payload))
+
+    leaked_constraint = deepcopy(record)
+    leaked_constraint["promptTemplate"] += " 必须遵守：保持构图。"
+    assert any("backend-only constraint text" in error for error in validate(leaked_constraint))
 
     invalid_external_tag = deepcopy(record)
     invalid_external_tag["metadata"]["tagAssignments"][-1].pop("provider")

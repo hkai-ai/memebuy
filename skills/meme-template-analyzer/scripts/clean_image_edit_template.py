@@ -22,6 +22,7 @@ RUNTIME_KEYS = [
     "sourceAccess",
     "templateId",
     "title",
+    "description",
     "summary",
     "templateSource",
     "userSubjectInput",
@@ -31,6 +32,7 @@ RUNTIME_KEYS = [
     "slots",
     "imageRefs",
     "backendHint",
+    "promptEnhancement",
     "analysisRef",
 ]
 
@@ -40,7 +42,7 @@ FRONTEND_KEYS = [
     "createdAt",
     "templateId",
     "title",
-    "summary",
+    "description",
     "templateText",
     "editablePrompt",
     "allowFullRewrite",

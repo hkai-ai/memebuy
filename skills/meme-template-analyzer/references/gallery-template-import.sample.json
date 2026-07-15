@@ -1,7 +1,7 @@
 {
   "key": "mbti-fusion-avatar",
   "title": "MBTI 融合头像",
-  "description": "上传一张正脸照，选一个 MBTI 人格，把你的脸和该人格的专属风格融合成一张头像。",
+  "description": "MBTI人格融合头像",
   "cover": "./assets/cover.png",
   "referenceImage": "./assets/style-reference.png",
   "imageSize": "1024x1024",
@@ -9,15 +9,36 @@
   "stageKey": "meme.avatar_gen",
   "inputSchema": [
     {
-      "type": "image",
-      "id": "face",
-      "label": "你的正脸照",
-      "hint": "请上传一张五官清晰的正脸照",
-      "required": true,
-      "maxCount": 1,
-      "minWidth": 512,
-      "minHeight": 512,
-      "private": true
+      "type": "subject",
+      "id": "person",
+      "label": "头像主体",
+      "required": false,
+      "text": {
+        "defaultValue": "一位年轻人",
+        "placeholder": "选择预设或描述人物",
+        "allowCustom": true,
+        "suggestions": [
+          "一位年轻女性",
+          "一位年轻男性",
+          "一只拟人化宠物"
+        ]
+      },
+      "image": {
+        "enabled": true,
+        "promptValue": "用户上传图中的主体",
+        "hint": "可上传一张主体清晰的参考图",
+        "extract": "仅保留主体身份、五官、轮廓、颜色和服饰线索，不继承原图构图。",
+        "maxCount": 1,
+        "minWidth": 512,
+        "minHeight": 512,
+        "private": true,
+        "sourceOptions": [
+          "upload",
+          "recent_upload",
+          "asset_library"
+        ]
+      },
+      "resolutionStrategy": "image_over_text"
     },
     {
       "type": "select",
@@ -49,15 +70,43 @@
       "label": "额外风格描述（可选）",
       "placeholder": "例如：赛博朋克、水彩、胶片颗粒",
       "required": false,
+      "maxLength": 120,
       "suggestions": [
         "赛博朋克",
         "水彩插画",
         "胶片颗粒感"
       ]
+    },
+    {
+      "type": "image",
+      "id": "style_reference",
+      "label": "附加风格参考图",
+      "hint": "可选，不用于替换主体",
+      "required": false,
+      "maxCount": 1,
+      "private": false
     }
   ],
   "preprocessSteps": [],
-  "promptTemplate": "一张 {{mbti}} 风格的头像肖像，保留上传人脸的五官特征。整体配色 {{mbti.palette}}。副标题氛围：{{mbti.subtitle}}。{{extra | \"电影级布光，高细节\"}}",
+  "promptTemplate": "为 {{person | \"一位年轻人\"}} 设计一张 {{mbti}} 风格的头像肖像。整体配色 {{mbti.palette}}，副标题氛围为 {{mbti.subtitle}}。补充要求：{{extra | \"电影级布光，高细节\"}}。",
+  "promptEnhancement": {
+    "stageKey": "gallery.prompt_rewrite",
+    "instruction": "在不改变用户主体和人格选择的前提下，将基础提示词改写为完整、清晰、适合图片网关执行的提示词。上传主体图存在时只继承身份特征，不继承其构图。",
+    "referenceField": "referenceImage",
+    "lockedConstraints": [
+      "主体面部清晰且不被文字遮挡",
+      "保持模板参考图的头像构图和风格层级"
+    ],
+    "preserve": [
+      "portrait_crop",
+      "face_visibility",
+      "style_hierarchy"
+    ],
+    "output": {
+      "format": "json",
+      "promptField": "finalPrompt"
+    }
+  },
   "metadata": {
     "tags": [
       "头像",
@@ -86,6 +135,6 @@
       }
     ],
     "category": "avatar/personality-fusion",
-    "version": "1.0.0"
+    "version": "2.0.0"
   }
 }

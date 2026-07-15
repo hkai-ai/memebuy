@@ -134,6 +134,8 @@ def main() -> None:
 
     for needle in [
         "promptTemplate",
+        "promptEnhancement",
+        "resolvedPrompt",
         "inputSchema",
         "preprocessSteps",
         "LiquidJS",
@@ -187,6 +189,9 @@ def main() -> None:
     for needle in [
         "additionalProperties: false",
         "{{ subject | \"白猫\" }}",
+        "promptEnhancement",
+        "resolvedPrompt",
+        "image_over_text",
         "select.options",
         "原图直通",
         "preprocessSteps",
@@ -200,6 +205,8 @@ def main() -> None:
     for needle in [
         "GalleryTemplateImport",
         "promptTemplate",
+        "promptEnhancement",
+        "resolvedPrompt",
         "inputSchema",
         "preprocessSteps",
         "metadata",
@@ -227,7 +234,8 @@ def main() -> None:
         require(batch_workbench, needle, "assets/batch-workbench.html")
 
     assert schema["additionalProperties"] is False
-    assert schema["required"] == ["key", "title", "promptTemplate", "inputSchema"]
+    assert schema["required"] == ["key", "title", "promptTemplate", "promptEnhancement", "inputSchema"]
+    assert schema["properties"]["description"]["maxLength"] == 20
     assert "tagAssignments" in schema["properties"]["metadata"]["properties"]
     assert "tagAssignment" in schema["$defs"]
     assert sample["metadata"]["tagAssignments"][0]["source"] == "operator"
@@ -241,6 +249,7 @@ def main() -> None:
         "imageN",
         "stageKey",
         "promptTemplate",
+        "promptEnhancement",
         "inputSchema",
         "preprocessSteps",
         "metadata",
@@ -249,6 +258,9 @@ def main() -> None:
     assert any(item["type"] == "image" for item in sample["inputSchema"])
     assert any(item["type"] == "select" for item in sample["inputSchema"])
     assert any(item["type"] == "prompt" for item in sample["inputSchema"])
+    assert any(item["type"] == "subject" for item in sample["inputSchema"])
+    assert len(sample["description"]) <= 20
+    assert sample["promptEnhancement"]["output"] == {"format": "json", "promptField": "finalPrompt"}
 
     for needle in [
         "任务完成后会交付什么",
@@ -257,9 +269,9 @@ def main() -> None:
     ]:
         require(readme, needle, "README.md")
 
-    assert manifest["version"] == "0.29.0"
+    assert manifest["version"] == "0.30.0"
     assert "references/tagging-and-taxonomy.md" in manifest["tracked_files"]
-    assert manifest["updated_at"] == "2026-07-13"
+    assert manifest["updated_at"] == "2026-07-15"
     for tracked in manifest["tracked_files"]:
         if not (ROOT / tracked).exists():
             raise AssertionError(f"skill-manifest.json tracks missing file: {tracked}")

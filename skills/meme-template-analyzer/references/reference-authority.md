@@ -38,3 +38,13 @@
 - `composition_reference`：提取构图、镜头和布局。
 
 用户上传图默认原图直通生成，不创建 vision step。`extract` 放入 `metadata.inputSemantics`；只有后端已绑定视觉能力且业务明确需要“读图转文字”时才使用 vision preprocess。
+
+## 复合主体槽
+
+同一主体允许预设、自由文本和图片上传时使用 `inputSchema.type: subject`。前端把它渲染为一个控件，运行时按以下顺序解析：
+
+1. 有上传图时选择 image mode，`{{subjectId}}` 注入 `image.promptValue`，原图作为 identity reference 直通网关。
+2. 没有上传图时选择 text mode，依次使用自定义文本、预设值和 `text.defaultValue`。
+3. `resolutionStrategy` 固定为 `image_over_text`；图片身份不得覆盖模板图的构图和风格权限。
+
+这些权限和冲突处理写入后端 `promptEnhancement`，不暴露在前端 `promptTemplate`。

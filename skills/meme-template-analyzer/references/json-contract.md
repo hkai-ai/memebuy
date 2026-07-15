@@ -153,7 +153,9 @@ python skills/meme-template-analyzer/scripts/convert_image_edit_to_meme_template
 
 - 展示/资产：`key`、`title`、`description`、`cover`、`referenceImage`
 - 生成配置：`imageSize`、`imageN`
-- 可执行字段：`promptTemplate`、`inputSchema`、`preprocessSteps`
+- 前端可编辑字段：`promptTemplate`、`inputSchema`
+- 后端策略字段：`promptEnhancement`、`preprocessSteps`
+- 运行时字段：`resolvedPrompt`，只交给图片网关，不写入模板 JSON
 - 扩展存储：`metadata`
 
 顶层 Schema 设置 `additionalProperties: false`，不要输出 `version`、`taxonomy`、`assets`、
@@ -234,7 +236,7 @@ python skills/meme-template-analyzer/scripts/validate_gallery_template.py artifa
 {
   "id": "subject",
   "label": "主体",
-  "inputKind": "text | prompt | select | image_upload | image_select",
+  "inputKind": "text | prompt | select | image_upload | image_select | subject",
   "slotRole": "semantic_replacement | prompt_fragment | visual_variable | identity_reference | edit_target | style_reference | composition_reference",
   "required": true,
   "defaultValue": "狗",
@@ -268,6 +270,7 @@ python skills/meme-template-analyzer/scripts/validate_gallery_template.py artifa
 - `select`: 候选项选择，通常仍设置 `allowCustom: true`。
 - `image_upload`: 用户上传图片。
 - `image_select`: 用户从素材库、示例图或历史上传中选择图片。
+- `subject`: 同一主体的复合输入，允许预设、自由文本和图片上传；图片按 `image_over_text` 覆盖文本身份。
 
 `slotRole` 语义：
 
@@ -375,6 +378,14 @@ python skills/meme-template-analyzer/scripts/validate_gallery_template.py artifa
   "notes": []
 }
 ```
+
+复合主体槽沿用同一组图片字段，并增加 `imagePromptValue`。转换后生成 Gallery v2 `subject`，其中 `text` 保存默认值、预设和自由编辑能力，`image` 保存上传能力；图片模式下 `{{subjectId}}` 使用中性 `promptValue`，不得继续写死默认主体。
+
+## Prompt 三层对象
+
+- `promptTemplate`：前端可见、可自由编辑的基础提示词模板，只包含创作意图。
+- `promptEnhancement`：仅后端可见，保存 LLM 二次编辑 instruction、参考图字段、锁定约束、preserve 项和 `{format: json, promptField: finalPrompt}` 输出协议。
+- `resolvedPrompt`：运行时结果，不归档、不回显，只交给图片网关。
 
 `backendHint` 不绑定 OpenAI、Cloudflare、ComfyUI 或其他图像 API。后端可以自由把 `editablePrompt + slots + imageRefs` 转成实际请求。
 

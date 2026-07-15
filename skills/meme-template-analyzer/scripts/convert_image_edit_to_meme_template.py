@@ -18,7 +18,7 @@ TOKEN_RE = re.compile(r"【\s*([^【】：:]+?)\s*[：:]\s*([^】]*)】")
 KEY_RE = re.compile(r"^[a-z][a-z0-9-]{1,59}$")
 ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{0,39}$")
 TAG_ID_RE = re.compile(r"^[a-z][a-z0-9._-]{1,79}$")
-TEXTUAL_KINDS = {"text", "prompt", "select"}
+TEXTUAL_KINDS = {"text", "prompt", "select", "subject"}
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -169,6 +169,16 @@ def slot_to_input(slot: dict[str, Any]) -> OrderedDict[str, Any]:
         if placeholder:
             item["placeholder"] = str(placeholder)[:120]
         item["required"] = required
+        validation = slot.get("validation")
+        if isinstance(validation, dict):
+            if validation.get("minLength") is not None:
+                item["minLength"] = strict_int(
+                    validation["minLength"], f"slot {slot_id!r}.validation.minLength", 0, 0, 4000
+                )
+            if validation.get("maxLength") is not None:
+                item["maxLength"] = strict_int(
+                    validation["maxLength"], f"slot {slot_id!r}.validation.maxLength", 120, 1, 4000
+                )
         suggestions = suggestion_strings(slot.get("suggestions"))[:10]
         if suggestions:
             item["suggestions"] = suggestions
@@ -187,6 +197,67 @@ def slot_to_input(slot: dict[str, Any]) -> OrderedDict[str, Any]:
                 ("label", label),
                 ("required", required),
                 ("options", options),
+            ]
+        )
+
+    if input_kind == "subject":
+        default_value = str(slot.get("defaultValue") or "").strip()
+        if not default_value:
+            raise ValueError(f"subject slot {slot_id!r} requires defaultValue")
+        suggestions = suggestion_strings(slot.get("suggestions"))[:10]
+        if not suggestions:
+            raise ValueError(f"subject slot {slot_id!r} requires at least one suggestion")
+        source_options = slot.get("sourceOptions")
+        if not isinstance(source_options, list) or not source_options:
+            raise ValueError(f"subject slot {slot_id!r} requires sourceOptions")
+        allowed_sources = {"upload", "recent_upload", "asset_library"}
+        if any(not isinstance(source, str) or source not in allowed_sources for source in source_options):
+            raise ValueError(f"subject slot {slot_id!r}.sourceOptions contains an invalid source")
+        image = OrderedDict(
+            [
+                ("enabled", True),
+                ("promptValue", str(slot.get("imagePromptValue") or "用户上传图中的主体")[:120]),
+            ]
+        )
+        hint = slot.get("imageHint") or slot.get("placeholder")
+        if hint:
+            image["hint"] = str(hint)[:120]
+        extract = str(slot.get("extract") or "").strip()
+        if not extract:
+            raise ValueError(f"subject slot {slot_id!r} requires extract")
+        image["extract"] = extract[:1000]
+        image["maxCount"] = strict_int(slot.get("maxCount"), f"slot {slot_id!r}.maxCount", 1, 1, 6)
+        validation = slot.get("validation")
+        if isinstance(validation, dict):
+            if validation.get("minWidth") is not None:
+                image["minWidth"] = strict_int(
+                    validation["minWidth"], f"slot {slot_id!r}.validation.minWidth", 64, 64, 8192
+                )
+            if validation.get("minHeight") is not None:
+                image["minHeight"] = strict_int(
+                    validation["minHeight"], f"slot {slot_id!r}.validation.minHeight", 64, 64, 8192
+                )
+        image["private"] = strict_bool(slot.get("private"), f"slot {slot_id!r}.private", False)
+        image["sourceOptions"] = list(dict.fromkeys(source_options))
+        text = OrderedDict(
+            [
+                ("defaultValue", default_value[:120]),
+                ("allowCustom", allow_custom),
+                ("suggestions", suggestions),
+            ]
+        )
+        placeholder = slot.get("placeholder")
+        if placeholder:
+            text["placeholder"] = str(placeholder)[:120]
+        return OrderedDict(
+            [
+                ("type", "subject"),
+                ("id", slot_id),
+                ("label", label),
+                ("required", required),
+                ("text", text),
+                ("image", image),
+                ("resolutionStrategy", "image_over_text"),
             ]
         )
 
@@ -244,6 +315,8 @@ def template_constraints(template_source: Any) -> list[str]:
                 text = item.get("value") or item.get("description")
                 if text:
                     constraints.append(str(text).rstrip("。"))
+            elif isinstance(item, str) and item.strip():
+                constraints.append(item.strip().rstrip("。"))
     preserve = template_source.get("preserve")
     if isinstance(preserve, list) and preserve:
         readable = "、".join(str(item).replace("_", " ") for item in preserve)
@@ -277,34 +350,44 @@ def compile_prompt_template(data: dict[str, Any], slots: list[dict[str, Any]]) -
             label = str(slot.get("label") or slot_id)
             default = slot.get("defaultValue", "")
             prompt += f" {label}：{{{{ {slot_id} | {json_literal(default)} }}}}。"
-        elif input_kind == "image_upload":
-            label = str(slot.get("label") or slot_id)
-            role = slot.get("slotRole")
-            if role == "identity_reference":
-                prompt += f" 如果用户提供了{label}，将该原图作为身份参考并保留主体特征，不要让它覆盖模板构图。"
-            else:
-                prompt += f" 如果用户提供了{label}，将该原图作为生成参考图。"
-
-    text_limits: list[str] = []
-    for slot in slots:
-        validation = slot.get("validation")
-        if not is_textual_slot(slot) or not isinstance(validation, dict):
-            continue
-        max_length = validation.get("maxLength")
-        if isinstance(max_length, int) and not isinstance(max_length, bool) and max_length > 0:
-            text_limits.append(f"{slot.get('label') or slot.get('id')}不超过{max_length}个字符")
-    if text_limits:
-        prompt += " 文案长度要求：" + "；".join(text_limits) + "。"
-
-    template_source = data.get("templateSource")
-    if isinstance(template_source, dict) and template_source.get("path"):
-        prompt += " 使用模板固定参考图作为构图和风格参考。"
-    constraints = template_constraints(template_source)
-    if constraints:
-        prompt += " 必须遵守：" + "；".join(constraints) + "。"
     if len(prompt) > 4000:
         raise ValueError(f"compiled promptTemplate exceeds 4000 characters: {len(prompt)}")
     return re.sub(r"\s+", " ", prompt).strip()
+
+
+def compile_prompt_enhancement(data: dict[str, Any]) -> OrderedDict[str, Any]:
+    explicit = data.get("promptEnhancement")
+    template_source = data.get("templateSource")
+    source = template_source if isinstance(template_source, dict) else {}
+    locked_constraints = template_constraints({"lockedConstraints": source.get("lockedConstraints") or source.get("locked_composition_constraints")})
+    preserve = [str(item)[:120] for item in source.get("preserve", []) if str(item).strip()] if isinstance(source.get("preserve"), list) else []
+
+    if explicit is not None and not isinstance(explicit, dict):
+        raise ValueError("promptEnhancement must be an object")
+    config = explicit or {}
+    stage_key = str(config.get("stageKey") or "gallery.prompt_rewrite").strip()
+    instruction = str(
+        config.get("instruction")
+        or "在不改变用户创作意图的前提下，把基础提示词改写为完整、清晰、可执行的图片生成提示词；应用锁定约束，并解决文本主体与上传主体之间的冲突。"
+    ).strip()
+    result = OrderedDict(
+        [
+            ("stageKey", stage_key[:60]),
+            ("instruction", instruction[:8000]),
+        ]
+    )
+    if source.get("path"):
+        result["referenceField"] = "referenceImage"
+    explicit_locked = config.get("lockedConstraints")
+    if isinstance(explicit_locked, list):
+        locked_constraints = template_constraints({"lockedConstraints": explicit_locked})
+    explicit_preserve = config.get("preserve")
+    if isinstance(explicit_preserve, list):
+        preserve = [str(item)[:120] for item in explicit_preserve if str(item).strip()]
+    result["lockedConstraints"] = locked_constraints[:30]
+    result["preserve"] = preserve[:30]
+    result["output"] = OrderedDict([("format", "json"), ("promptField", "finalPrompt")])
+    return result
 
 
 def normalized_tag_assignments(value: Any) -> list[OrderedDict[str, Any]]:
@@ -393,7 +476,7 @@ def slot_semantics(slots: list[dict[str, Any]]) -> dict[str, Any]:
     result: OrderedDict[str, Any] = OrderedDict()
     for slot in slots:
         details = OrderedDict()
-        for key in ["slotRole", "defaultValue", "allowCustom", "extract", "sourceOptions"]:
+        for key in ["slotRole", "defaultValue", "allowCustom", "extract", "sourceOptions", "resolutionStrategy"]:
             if key in slot and slot[key] not in (None, "", []):
                 details[key] = slot[key]
         if details:
@@ -441,7 +524,7 @@ def build_gallery_template(data: dict[str, Any]) -> OrderedDict[str, Any]:
     template_id = str(data.get("templateId") or "")
     key = slugify(template_id)
     title = str(data.get("title") or template_id or "未命名模板")[:80]
-    description = str(data.get("summary") or data.get("description") or "")[:300] or None
+    description = str(data.get("description") or "").strip()[:20] or None
     source = source_path(data)
     slots = [slot for slot in data.get("slots", []) if isinstance(slot, dict)]
     if len(slots) > 20:
@@ -452,6 +535,7 @@ def build_gallery_template(data: dict[str, Any]) -> OrderedDict[str, Any]:
 
     input_schema = [slot_to_input(slot) for slot in slots]
     prompt_template = compile_prompt_template(data, slots)
+    prompt_enhancement = compile_prompt_enhancement(data)
     taxonomy = data.get("taxonomy") if isinstance(data.get("taxonomy"), dict) else {}
     tag_assignments = normalized_tag_assignments(data.get("tagAssignments"))
     needs_review = taxonomy.get("needs_review") if taxonomy else ["taxonomy 未提供或未确认"]
@@ -464,7 +548,7 @@ def build_gallery_template(data: dict[str, Any]) -> OrderedDict[str, Any]:
     metadata = OrderedDict(
         [
             ("tags", metadata_tags(taxonomy, tag_assignments)),
-            ("version", str(data.get("schemaVersion") or "1.0.0")),
+            ("version", "2.0.0"),
         ]
     )
     if taxonomy:
@@ -497,6 +581,7 @@ def build_gallery_template(data: dict[str, Any]) -> OrderedDict[str, Any]:
             ("inputSchema", input_schema),
             ("preprocessSteps", []),
             ("promptTemplate", prompt_template),
+            ("promptEnhancement", prompt_enhancement),
             ("metadata", metadata),
         ]
     )
@@ -514,6 +599,8 @@ def validate_record(record: dict[str, Any]) -> None:
         raise ValueError("title must contain 1-80 characters")
     if not record.get("promptTemplate") or len(str(record["promptTemplate"])) > 4000:
         raise ValueError("promptTemplate must contain 1-4000 characters")
+    if not isinstance(record.get("promptEnhancement"), dict):
+        raise ValueError("promptEnhancement must be an object")
     inputs = record.get("inputSchema")
     if not isinstance(inputs, list) or len(inputs) > 20:
         raise ValueError("inputSchema must be an array with at most 20 items")

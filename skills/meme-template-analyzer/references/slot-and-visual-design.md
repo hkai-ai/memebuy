@@ -47,6 +47,7 @@
 - `select`：候选选择；允许自定义时最终编译为 prompt。
 - `image_upload`：用户上传图。
 - `image_select`：素材选择；v1 只支持选项注入文字，不支持把所选图作为运行时参考图。
+- `subject`：复合主体输入；同一前端控件支持预设、自由文本和图片上传，最终编译为 Gallery v2 的 `subject`。
 
 `slotRole`：
 
@@ -59,6 +60,8 @@
 - `composition_reference`
 
 文本槽给 3-8 个与原模板同类的 suggestions，默认用 `string[]`。图片槽必须写 `extract`、`maxCount`、`private`、`sourceOptions`。
+
+主体一旦允许上传图片，不要再创建互相独立、用户难以理解的“主体文本”和“主体参考图”两个控件；优先使用 `subject`。图片存在时 `resolutionStrategy` 固定为 `image_over_text`，`imagePromptValue` 使用“用户上传图中的主体”等中性描述，禁止重复默认的猫、狗、人物或商品身份。
 
 ## 视觉层分解
 

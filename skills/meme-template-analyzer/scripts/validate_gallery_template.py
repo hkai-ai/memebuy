@@ -26,14 +26,22 @@ OSS_OBJECT_RE = re.compile(
 )
 ROOT_KEYS = {
     "key", "title", "description", "cover", "referenceImage", "imageSize",
-    "imageN", "stageKey", "promptTemplate", "inputSchema", "preprocessSteps", "metadata",
+    "imageN", "stageKey", "promptTemplate", "promptEnhancement", "inputSchema", "preprocessSteps", "metadata",
 }
 INPUT_KEYS = {
-    "prompt": {"type", "id", "label", "placeholder", "required", "suggestions"},
+    "prompt": {"type", "id", "label", "placeholder", "required", "minLength", "maxLength", "suggestions"},
     "select": {"type", "id", "label", "required", "options"},
     "image": {
         "type", "id", "label", "hint", "required", "maxCount", "minWidth", "minHeight", "private",
     },
+    "subject": {"type", "id", "label", "required", "text", "image", "resolutionStrategy"},
+}
+SUBJECT_TEXT_KEYS = {"defaultValue", "placeholder", "allowCustom", "suggestions"}
+SUBJECT_IMAGE_KEYS = {
+    "enabled", "promptValue", "hint", "extract", "maxCount", "minWidth", "minHeight", "private", "sourceOptions",
+}
+PROMPT_ENHANCEMENT_KEYS = {
+    "stageKey", "instruction", "referenceField", "lockedConstraints", "preserve", "output",
 }
 STEP_KEYS = {
     "vision": {"type", "id", "stageKey", "imageInputId", "prompt", "maxOutputTokens", "cache"},
@@ -136,7 +144,7 @@ def validate_input(errors: list[str], item: Any, index: int) -> None:
         return
     kind = item.get("type")
     if kind not in INPUT_KEYS:
-        errors.append(f"{path}.type must be prompt, select, or image")
+        errors.append(f"{path}.type must be prompt, select, image, or subject")
         return
     reject_extra(errors, path, item, INPUT_KEYS[kind])
     for field in ["type", "id", "label"]:
@@ -144,6 +152,10 @@ def validate_input(errors: list[str], item: Any, index: int) -> None:
             errors.append(f"{path}.{field} is required")
     if kind == "select" and "options" not in item:
         errors.append(f"{path}.options is required")
+    if kind == "subject":
+        for field in ["text", "image", "resolutionStrategy"]:
+            if field not in item:
+                errors.append(f"{path}.{field} is required")
     if not ID_RE.fullmatch(str(item.get("id", ""))):
         errors.append(f"{path}.id is invalid")
     check_string(errors, f"{path}.label", item.get("label"), 1, 40)
@@ -153,6 +165,11 @@ def validate_input(errors: list[str], item: Any, index: int) -> None:
     if kind == "prompt":
         if "placeholder" in item:
             check_string(errors, f"{path}.placeholder", item["placeholder"], 0, 120)
+        for field, minimum, maximum in [("minLength", 0, 4000), ("maxLength", 1, 4000)]:
+            if field in item:
+                check_integer(errors, f"{path}.{field}", item[field], minimum, maximum)
+        if isinstance(item.get("minLength"), int) and isinstance(item.get("maxLength"), int) and item["minLength"] > item["maxLength"]:
+            errors.append(f"{path}.minLength must not exceed maxLength")
         suggestions = item.get("suggestions", [])
         if not isinstance(suggestions, list) or len(suggestions) > 10:
             errors.append(f"{path}.suggestions must contain at most 10 strings")
@@ -185,7 +202,7 @@ def validate_input(errors: list[str], item: Any, index: int) -> None:
                         parsed = urlparse(thumbnail)
                         if not parsed.scheme:
                             errors.append(f"{option_path}.thumbnail must be an absolute URI")
-    else:
+    elif kind == "image":
         if "hint" in item:
             check_string(errors, f"{path}.hint", item["hint"], 0, 120)
         if "maxCount" in item:
@@ -195,6 +212,91 @@ def validate_input(errors: list[str], item: Any, index: int) -> None:
                 check_integer(errors, f"{path}.{field}", item[field], 64, 8192)
         if "private" in item:
             check_boolean(errors, f"{path}.private", item["private"])
+    else:
+        text = item.get("text")
+        if not isinstance(text, dict):
+            errors.append(f"{path}.text must be an object")
+        else:
+            reject_extra(errors, f"{path}.text", text, SUBJECT_TEXT_KEYS)
+            for field in ["defaultValue", "allowCustom", "suggestions"]:
+                if field not in text:
+                    errors.append(f"{path}.text.{field} is required")
+            check_string(errors, f"{path}.text.defaultValue", text.get("defaultValue"), 1, 120)
+            if "placeholder" in text:
+                check_string(errors, f"{path}.text.placeholder", text["placeholder"], 0, 120)
+            if "allowCustom" in text:
+                check_boolean(errors, f"{path}.text.allowCustom", text["allowCustom"])
+            suggestions = text.get("suggestions")
+            if not isinstance(suggestions, list) or not 1 <= len(suggestions) <= 10:
+                errors.append(f"{path}.text.suggestions must contain 1-10 strings")
+            elif any(not isinstance(value, str) or not 1 <= len(value) <= 120 for value in suggestions):
+                errors.append(f"{path}.text.suggestions contains an invalid value")
+        image = item.get("image")
+        if not isinstance(image, dict):
+            errors.append(f"{path}.image must be an object")
+        else:
+            reject_extra(errors, f"{path}.image", image, SUBJECT_IMAGE_KEYS)
+            for field in ["enabled", "promptValue", "extract", "maxCount", "private", "sourceOptions"]:
+                if field not in image:
+                    errors.append(f"{path}.image.{field} is required")
+            if image.get("enabled") is not True:
+                errors.append(f"{path}.image.enabled must be true")
+            check_string(errors, f"{path}.image.promptValue", image.get("promptValue"), 1, 120)
+            if isinstance(text, dict) and image.get("promptValue") == text.get("defaultValue"):
+                errors.append(f"{path}.image.promptValue must not repeat the default text subject")
+            if "hint" in image:
+                check_string(errors, f"{path}.image.hint", image["hint"], 0, 120)
+            if "extract" in image:
+                check_string(errors, f"{path}.image.extract", image["extract"], 1, 1000)
+            if "maxCount" in image:
+                check_integer(errors, f"{path}.image.maxCount", image["maxCount"], 1, 6)
+            for field in ["minWidth", "minHeight"]:
+                if field in image:
+                    check_integer(errors, f"{path}.image.{field}", image[field], 64, 8192)
+            if "private" in image:
+                check_boolean(errors, f"{path}.image.private", image["private"])
+            source_options = image.get("sourceOptions")
+            allowed_sources = {"upload", "recent_upload", "asset_library"}
+            sources_are_strings = isinstance(source_options, list) and all(isinstance(source, str) for source in source_options)
+            if (
+                not sources_are_strings
+                or not source_options
+                or len(source_options) != len(set(source_options))
+                or any(source not in allowed_sources for source in source_options)
+            ):
+                errors.append(f"{path}.image.sourceOptions is invalid")
+        if item.get("resolutionStrategy") != "image_over_text":
+            errors.append(f"{path}.resolutionStrategy must be image_over_text")
+
+
+def validate_prompt_enhancement(errors: list[str], value: Any) -> None:
+    path = "promptEnhancement"
+    if not isinstance(value, dict):
+        errors.append(f"{path} must be an object")
+        return
+    reject_extra(errors, path, value, PROMPT_ENHANCEMENT_KEYS)
+    for field in ["stageKey", "instruction", "lockedConstraints", "preserve", "output"]:
+        if field not in value:
+            errors.append(f"{path}.{field} is required")
+    check_string(errors, f"{path}.stageKey", value.get("stageKey"), 1, 60)
+    check_string(errors, f"{path}.instruction", value.get("instruction"), 1, 8000)
+    if "referenceField" in value and value["referenceField"] != "referenceImage":
+        errors.append(f"{path}.referenceField must be referenceImage")
+    for field, maximum, item_maximum in [("lockedConstraints", 30, 500), ("preserve", 30, 120)]:
+        items = value.get(field)
+        if not isinstance(items, list) or len(items) > maximum:
+            errors.append(f"{path}.{field} must be an array with at most {maximum} items")
+        elif any(not isinstance(item, str) or not 1 <= len(item) <= item_maximum for item in items):
+            errors.append(f"{path}.{field} contains an invalid value")
+    output = value.get("output")
+    if not isinstance(output, dict):
+        errors.append(f"{path}.output must be an object")
+    else:
+        reject_extra(errors, f"{path}.output", output, {"format", "promptField"})
+        if output.get("format") != "json":
+            errors.append(f"{path}.output.format must be json")
+        if output.get("promptField") != "finalPrompt":
+            errors.append(f"{path}.output.promptField must be finalPrompt")
 
 
 def validate_step(errors: list[str], step: Any, index: int, image_ids: set[str]) -> None:
@@ -236,14 +338,14 @@ def validate(data: Any) -> list[str]:
     if not isinstance(data, dict):
         return ["document must be an object"]
     reject_extra(errors, "$", data, ROOT_KEYS)
-    for field in ["key", "title", "promptTemplate", "inputSchema"]:
+    for field in ["key", "title", "promptTemplate", "promptEnhancement", "inputSchema"]:
         if field not in data:
             errors.append(f"{field} is required")
     if not KEY_RE.fullmatch(str(data.get("key", ""))):
         errors.append("key must match ^[a-z][a-z0-9-]{1,59}$")
     check_string(errors, "title", data.get("title"), 1, 80)
     if data.get("description") is not None:
-        check_string(errors, "description", data.get("description"), 0, 300)
+        check_string(errors, "description", data.get("description"), 0, 20)
     for field in ["cover", "referenceImage"]:
         if field in data and data[field] is not None and not isinstance(data[field], str):
             errors.append(f"{field} must be a string or null")
@@ -254,6 +356,10 @@ def validate(data: Any) -> list[str]:
     if data.get("stageKey") is not None:
         check_string(errors, "stageKey", data["stageKey"], 0, 60)
     check_string(errors, "promptTemplate", data.get("promptTemplate"), 1, 4000)
+    for marker in ["文案长度要求：", "使用模板固定参考图作为构图和风格参考", "必须遵守：", "保留模板参考图的这些结构和风格特征："]:
+        if marker in str(data.get("promptTemplate", "")):
+            errors.append(f"promptTemplate contains backend-only constraint text: {marker}")
+    validate_prompt_enhancement(errors, data.get("promptEnhancement"))
 
     inputs = data.get("inputSchema")
     if not isinstance(inputs, list) or len(inputs) > 20:
@@ -267,7 +373,7 @@ def validate(data: Any) -> list[str]:
     image_ids = {
         str(item.get("id"))
         for item in inputs
-        if isinstance(item, dict) and item.get("type") == "image"
+        if isinstance(item, dict) and item.get("type") in {"image", "subject"}
     }
     select_payloads: dict[str, set[str]] = {}
     for item in inputs:

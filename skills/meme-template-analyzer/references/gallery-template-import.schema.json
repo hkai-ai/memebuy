@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://memebuy.internal/schemas/gallery-template-import.json",
-  "title": "GalleryTemplateImport",
-  "description": "批量导入 memebuy 后端 GalleryTemplate 表的单模板文件契约。本地产物的图片字段使用本地路径；OSS 最终交付产物使用指定 assets 域名下的 HTTPS URL。topicId / status / sortOrder 由后端导入时决定，不在本文件里产出。",
+  "title": "GalleryTemplateImport v2",
+  "description": "批量导入 memebuy 后端 GalleryTemplate 表的单模板文件契约。v2 将前端可编辑的 promptTemplate、后端专用的 promptEnhancement 和运行时 resolvedPrompt 分层。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["key", "title", "promptTemplate", "inputSchema"],
+  "required": ["key", "title", "promptTemplate", "promptEnhancement", "inputSchema"],
   "properties": {
     "key": {
       "type": "string",
@@ -20,8 +20,8 @@
     },
     "description": {
       "type": ["string", "null"],
-      "maxLength": 300,
-      "description": "模板简介，超长请截断到 300 字符。"
+      "maxLength": 20,
+      "description": "前端展示的纯模板描述，最多 20 个字符。不得包含批次号、图片序号、文件名、模板 key 或槽位数量。"
     },
     "cover": {
       "type": ["string", "null"],
@@ -53,18 +53,22 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 4000,
-      "description": "提示词模板【可执行字段，语法固定】。占位为兜底链：{{ term | term | \"字面量默认\" }}，从左到右取第一个非空项。term 是点路径：{{inputId}} 取该输入值；{{selectId.key}} 取选中项 payload[key]；{{stepId.field}} 取预处理步产出的 JSON 字段。双引号内是字面量兜底。所有 term 引用的 head id 必须在 inputSchema 或 preprocessSteps 中已定义。"
+      "description": "前端可见、可按产品能力允许用户自由编辑的基础提示词模板。只表达用户创作意图，不得写入长度限制、参考图权限、锁定构图或安全约束。占位为兜底链：{{ term | term | \"字面量默认\" }}。"
+    },
+    "promptEnhancement": {
+      "$ref": "#/$defs/promptEnhancement"
     },
     "inputSchema": {
       "type": "array",
       "maxItems": 20,
       "default": [],
-      "description": "终端用户填写的输入槽【可执行字段，结构固定】。判别联合，按 type 分 prompt/select/image 三类。数组内 id 唯一。",
+      "description": "终端用户填写的输入槽【前端可编辑字段，结构固定】。判别联合，按 type 分 prompt/select/image/subject 四类。数组内 id 唯一。",
       "items": {
         "oneOf": [
           { "$ref": "#/$defs/promptInput" },
           { "$ref": "#/$defs/selectInput" },
-          { "$ref": "#/$defs/imageInput" }
+          { "$ref": "#/$defs/imageInput" },
+          { "$ref": "#/$defs/subjectInput" }
         ]
       }
     },
@@ -131,6 +135,8 @@
         "label": { "type": "string", "minLength": 1, "maxLength": 40 },
         "placeholder": { "type": "string", "maxLength": 120, "default": "" },
         "required": { "type": "boolean", "default": false },
+        "minLength": { "type": "integer", "minimum": 0, "maximum": 4000 },
+        "maxLength": { "type": "integer", "minimum": 1, "maximum": 4000 },
         "suggestions": {
           "type": "array",
           "maxItems": 10,
@@ -191,6 +197,96 @@
         "minWidth": { "type": "integer", "minimum": 64, "maximum": 8192, "description": "可选最低宽度像素。" },
         "minHeight": { "type": "integer", "minimum": 64, "maximum": 8192, "description": "可选最低高度像素。" },
         "private": { "type": "boolean", "default": false, "description": "人脸等敏感图置 true → 走私读桶。" }
+      }
+    },
+    "subjectTextConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["defaultValue", "allowCustom", "suggestions"],
+      "properties": {
+        "defaultValue": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "placeholder": { "type": "string", "maxLength": 120, "default": "" },
+        "allowCustom": { "type": "boolean", "default": true },
+        "suggestions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": { "type": "string", "minLength": 1, "maxLength": 120 }
+        }
+      }
+    },
+    "subjectImageConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "promptValue", "extract", "maxCount", "private", "sourceOptions"],
+      "properties": {
+        "enabled": { "type": "boolean", "const": true },
+        "promptValue": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "图片模式下 {{subjectId}} 注入基础提示词的中性描述，禁止重复默认文本主体，例如：用户上传图中的主体。"
+        },
+        "hint": { "type": "string", "maxLength": 120, "default": "" },
+        "extract": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "maxCount": { "type": "integer", "minimum": 1, "maximum": 6, "default": 1 },
+        "minWidth": { "type": "integer", "minimum": 64, "maximum": 8192 },
+        "minHeight": { "type": "integer", "minimum": 64, "maximum": 8192 },
+        "private": { "type": "boolean", "default": false },
+        "sourceOptions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["upload", "recent_upload", "asset_library"] }
+        }
+      }
+    },
+    "subjectInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "label", "text", "image", "resolutionStrategy"],
+      "description": "前端复合主体控件。用户可选预设、输入自定义文本或上传图片；运行时值为 text/image 二选一，图片模式同时把原图作为 identity reference 传给网关。",
+      "properties": {
+        "type": { "const": "subject" },
+        "id": { "$ref": "#/$defs/inputId" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "required": { "type": "boolean", "default": false },
+        "text": { "$ref": "#/$defs/subjectTextConfig" },
+        "image": { "$ref": "#/$defs/subjectImageConfig" },
+        "resolutionStrategy": {
+          "const": "image_over_text",
+          "description": "上传图片存在时图片身份覆盖文本主体；没有图片时使用自定义文本、预设值或 defaultValue。"
+        }
+      }
+    },
+    "promptEnhancement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stageKey", "instruction", "lockedConstraints", "preserve", "output"],
+      "description": "仅后端可见的提示词二次编辑策略。后端先渲染 promptTemplate，再将渲染结果、主体输入和参考图上下文交给该阶段，得到运行时 resolvedPrompt。",
+      "properties": {
+        "stageKey": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "instruction": { "type": "string", "minLength": 1, "maxLength": 8000 },
+        "referenceField": { "const": "referenceImage" },
+        "lockedConstraints": {
+          "type": "array",
+          "maxItems": 30,
+          "items": { "type": "string", "minLength": 1, "maxLength": 500 }
+        },
+        "preserve": {
+          "type": "array",
+          "maxItems": 30,
+          "items": { "type": "string", "minLength": 1, "maxLength": 120 }
+        },
+        "output": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["format", "promptField"],
+          "properties": {
+            "format": { "const": "json" },
+            "promptField": { "const": "finalPrompt" }
+          }
+        }
       }
     },
     "visionStep": {

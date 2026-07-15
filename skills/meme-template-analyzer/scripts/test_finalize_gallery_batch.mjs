@@ -15,6 +15,14 @@ const CONFIG = {
   prefix: "dev/",
 };
 
+const PROMPT_ENHANCEMENT = {
+  stageKey: "gallery.prompt_rewrite",
+  instruction: "将基础提示词改写为可执行的图片生成提示词。",
+  lockedConstraints: [],
+  preserve: [],
+  output: { format: "json", promptField: "finalPrompt" },
+};
+
 async function fixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "meme-finalizer-"));
   const input = path.join(root, "input");
@@ -29,6 +37,7 @@ async function fixture() {
     cover: "./cover.png",
     referenceImage: "./cover.png",
     promptTemplate: "测试提示词",
+    promptEnhancement: PROMPT_ENHANCEMENT,
     inputSchema: [],
     preprocessSteps: [],
   }, null, 2)}\n`);
@@ -163,6 +172,7 @@ test("rejects duplicate template keys before uploading", async () => {
       title: "重复模板",
       cover: "./cover.png",
       promptTemplate: "测试",
+      promptEnhancement: PROMPT_ENHANCEMENT,
       inputSchema: [],
     }, null, 2)}\n`);
     let uploads = 0;
