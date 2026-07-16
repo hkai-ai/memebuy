@@ -269,7 +269,7 @@ def main() -> None:
     ]:
         require(readme, needle, "README.md")
 
-    assert manifest["version"] == "0.32.0"
+    assert manifest["version"] == "0.32.1"
     assert "references/tagging-and-taxonomy.md" in manifest["tracked_files"]
     assert "scripts/validate_slot_intelligence.py" in manifest["tracked_files"]
     assert "scripts/test_slot_intelligence.py" in manifest["tracked_files"]

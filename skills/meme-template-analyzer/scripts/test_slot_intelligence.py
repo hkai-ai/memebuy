@@ -8,14 +8,14 @@ from pathlib import Path
 from validate_slot_intelligence import validate
 
 
-def write_case(root: Path, slots: list[dict], components: list[dict], candidates: list[dict], selected: list[str]) -> Path:
+def write_case(root: Path, slots: list[dict], components: list[dict], candidates: list[dict], selected: list[str], mechanism: str = "poster_layout") -> Path:
     root.mkdir(parents=True, exist_ok=True)
     analysis = {
         "analysis": {
             "component_graph": {"components": components, "relationships": []},
             "edit_intent_candidates": candidates,
             "slot_intelligence_review": {
-                "mechanismClass": "poster_layout",
+                "mechanismClass": mechanism,
                 "selectedSlotIds": selected,
                 "genericSlotReuseRisk": "low",
                 "componentCoveragePassed": True,
@@ -80,6 +80,20 @@ def main() -> None:
         )
         errors, _, _ = validate(generic)
         assert any("mechanical generic slot set" in error for error in errors), errors
+
+        fish = write_case(
+            root / "fish",
+            [{"id": "fish_species"}, {"id": "fish_palette"}],
+            [component("fish", "subject", ["identity", "color"])],
+            [
+                candidate("edit_fish", "fish", "identity", "fish_species"),
+                candidate("edit_fish_color", "fish", "color", "fish_palette"),
+            ],
+            ["fish_species", "fish_palette"],
+            mechanism="reaction_portrait",
+        )
+        errors, _, _ = validate(fish)
+        assert any("reaction_portrait requires visible" in error for error in errors), errors
     print("PASS slot intelligence tests")
 
 

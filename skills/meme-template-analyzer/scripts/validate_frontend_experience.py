@@ -19,6 +19,12 @@ GENERIC_SUGGESTIONS = {
 }
 FALLBACK_RE = re.compile(r"\{\{\s*([a-zA-Z][a-zA-Z0-9_-]*)[^}]*\|\s*\"([^\"]*)\"\s*\}\}")
 SIZE_RE = re.compile(r"^(\d{2,4})x(\d{2,4})$")
+INTERNAL_PRESERVE_ID_RE = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)+_\d+$", re.IGNORECASE)
+INTERNAL_INSTRUCTION_RE = re.compile(
+    r"按.{0,60}组件图|可编辑组件区域|组件化.{0,30}展示模板|"
+    r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+_\d+\b",
+    re.IGNORECASE,
+)
 
 
 def ratio_for_size(image_size: str) -> str | None:
@@ -46,6 +52,25 @@ def validate(data: Any, runtime_profile: str = "gallery-v2-subject") -> list[str
         errors.append("promptTemplate describes authoring a template instead of the user's image intent")
 
     metadata = data.get("metadata") if isinstance(data.get("metadata"), dict) else {}
+    enhancement = data.get("promptEnhancement") if isinstance(data.get("promptEnhancement"), dict) else {}
+    instruction = str(enhancement.get("instruction") or "")
+    if instruction:
+        if INTERNAL_INSTRUCTION_RE.search(instruction):
+            errors.append("promptEnhancement.instruction exposes internal component-diagram language")
+        if "只输出最终成图" not in instruction:
+            errors.append("promptEnhancement.instruction must forbid rendering editor annotations")
+    for field, values in (
+        ("promptEnhancement.preserve", enhancement.get("preserve")),
+        (
+            "metadata.templateSource.preserve",
+            metadata.get("templateSource", {}).get("preserve")
+            if isinstance(metadata.get("templateSource"), dict) else None,
+        ),
+    ):
+        if isinstance(values, list):
+            leaked = [str(value) for value in values if INTERNAL_PRESERVE_ID_RE.fullmatch(str(value).strip())]
+            if leaked:
+                errors.append(f"{field} contains internal enumerated ids: {', '.join(leaked)}")
     semantics = metadata.get("inputSemantics") if isinstance(metadata.get("inputSemantics"), dict) else {}
     fallbacks = {match.group(1): match.group(2) for match in FALLBACK_RE.finditer(prompt)}
     subjects = []

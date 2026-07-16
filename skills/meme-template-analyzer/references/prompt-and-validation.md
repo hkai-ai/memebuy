@@ -42,6 +42,10 @@
 
 硬约束必须写进 `promptEnhancement`，并在 `metadata.templateSource` 保留结构副本。
 
+`promptEnhancement` 仍会进入生成链路，因此只包含面向成图的自然语言约束。机制分类、组件图、槽位 ID 和分析枚举留在 `image-edit-analysis.json`。最终指令必须明确“只输出最终成图”，并禁止显示模板标题、槽位框、组件标签、组件 ID、虚线连线、图例、操作说明和界面元素。
+
+`preserve` 使用“主体位于画面中央”“保持单主体构图”“保留水彩纸张质感”等视觉不变量。禁止写 `character_styling_1`、`reaction_portrait_1` 等内部枚举；序号容易被模型误解为多个面板或多张变体。
+
 ## 脚本
 
 编译：
@@ -85,6 +89,7 @@ validator 检查：
 - `subject` 的 text/image 两种来源、`promptValue` 和 `image_over_text` 策略合法。
 - 本地 `cover`、`referenceImage` 文件存在性。
 - 用户可见名称、描述和提示词不包含内部编排语言。
+- 生成指令不包含组件图或枚举 ID，并明确禁止输出编辑标注。
 - 已有默认值的槽位可直接生成，自由编辑不会被隐藏必填项卡住。
 - `metadata.presentation` 与 `metadata.runtimeRequirements` 能驱动正确比例、固定参考图和多主体图片传递。
 

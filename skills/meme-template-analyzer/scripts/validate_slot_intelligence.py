@@ -28,6 +28,10 @@ RISKS = {"low", "medium", "high"}
 CONTROLS = {"text", "prompt", "select", "image_upload", "subject"}
 GENERIC_IDS = {"subject", "scene", "style", "caption"}
 ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{0,79}$")
+REACTION_PORTRAIT_EVIDENCE = (
+    "头像", "头部", "脸", "面部", "表情", "正脸", "肖像", "特写", "半身",
+    "headshot", "face", "facial", "portrait", "close-up",
+)
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -73,6 +77,7 @@ def validate(directory: Path) -> tuple[list[str], tuple[str, ...], str]:
     component_ids: set[str] = set()
     text_component_ids: set[str] = set()
     editable_text_components: set[str] = set()
+    subject_visible_evidence: list[str] = []
     for index, component in enumerate(components):
         if not isinstance(component, dict):
             errors.append(f"component_graph.components[{index}] must be an object")
@@ -102,6 +107,8 @@ def validate(directory: Path) -> tuple[list[str], tuple[str, ...], str]:
             text_component_ids.add(component_id)
             if "text" in editable:
                 editable_text_components.add(component_id)
+        if component_type == "subject":
+            subject_visible_evidence.extend(str(value) for value in component.get("visibleEvidence") or [])
     for component in components:
         if isinstance(component, dict):
             parent_id = component.get("parentId")
@@ -182,6 +189,10 @@ def validate(directory: Path) -> tuple[list[str], tuple[str, ...], str]:
     mechanism = str(review.get("mechanismClass") or "").strip()
     if not mechanism:
         errors.append("slot_intelligence_review.mechanismClass is required")
+    if mechanism == "reaction_portrait":
+        evidence_text = " ".join(subject_visible_evidence).casefold()
+        if not any(marker.casefold() in evidence_text for marker in REACTION_PORTRAIT_EVIDENCE):
+            errors.append("reaction_portrait requires visible face, headshot, expression, portrait, or close-up evidence")
     selected = review.get("selectedSlotIds")
     if not isinstance(selected, list) or set(map(str, selected)) != set(slot_ids) or len(selected) != len(slot_ids):
         errors.append("slot_intelligence_review.selectedSlotIds must exactly match template slots")

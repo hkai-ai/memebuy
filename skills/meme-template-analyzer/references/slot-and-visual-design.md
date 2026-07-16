@@ -74,6 +74,8 @@
 - `passed`
 - `reviewReasons[]`
 
+`mechanismClass` 必须由非循环的可见证据支持。`reaction_portrait` 至少要在主体证据中出现头像、面部、头部、表情、肖像或特写；“画面呈现 reaction_portrait 结构”不构成证据。单条鱼、单件物品或普通全身角色不得仅因单主体构图套用该机制。机制名只用于分析分类，不生成带序号的 `preserve` 项，也不决定面板数量。
+
 ## Slot 反思
 
 生成 `slots[]` 前按顺序检查：

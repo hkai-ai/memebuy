@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.32.0",
+  "version": "0.32.1",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-16",
-  "notes": "Add product-facing copy, optional fallback semantics, semantic suggestions, subject UI labels, aspect-ratio metadata, runtime capability declarations, and frontend experience validation.",
+  "notes": "Prevent component-diagram metadata and enumerated preserve IDs from leaking into generated images; enforce clean-output instructions and regression coverage.",
   "tracked_files": [
     "SKILL.md",
     "README.md",

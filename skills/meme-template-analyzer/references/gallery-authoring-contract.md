@@ -200,6 +200,8 @@ python skills/meme-template-analyzer/scripts/validate_gallery_template.py <templ
 - `description` 是 20 字以内的独立纯描述。
 - `promptTemplate` 只包含前端可编辑创作意图，不含后端约束。
 - 所有模板硬约束写入 `promptEnhancement`，并在 `metadata.templateSource` 保留结构副本。
+- `promptEnhancement.instruction` 必须要求只输出最终干净成图；禁止出现“按某某组件图执行”、内部组件 ID、槽位展示、标注框、连线或图例。
+- `promptEnhancement.preserve` 与 `metadata.templateSource.preserve` 只能写可直接理解的视觉不变量；禁止使用 `character_styling_1`、`reaction_portrait_2` 等机制名加序号的内部 ID。
 - 复合主体图片模式不重复默认文本主体，固定按 `image_over_text` 解析。
 - 用户图片槽默认原图直通，`preprocessSteps` 为 `[]`。
 - taxonomy 未完成人审时，`metadata.needsReview` 非空。

@@ -163,6 +163,7 @@ def main() -> None:
     assert "激光向左下方发射" in record["promptEnhancement"]["lockedConstraints"]
     assert record["promptEnhancement"]["referenceField"] == "referenceImage"
     assert record["promptEnhancement"]["output"] == {"format": "json", "promptField": "finalPrompt"}
+    assert "只输出最终成图" in record["promptEnhancement"]["instruction"]
     assert record["inputSchema"][0]["type"] == "subject"
     assert record["inputSchema"][0]["resolutionStrategy"] == "image_over_text"
     assert record["inputSchema"][0]["image"]["promptValue"] == "用户上传图中的主体"
@@ -177,6 +178,25 @@ def main() -> None:
     assert record["metadata"]["referenceContext"]["primaryReference"] == "《戴珍珠耳环的少女》"
     assert "path" not in record["metadata"]["templateSource"]
     assert record["metadata"]["templateSource"]["referenceField"] == "referenceImage"
+
+    leaking_fixture = fixture()
+    leaking_fixture["promptEnhancement"] = {
+        "stageKey": "gallery.prompt_rewrite",
+        "instruction": "按 reaction_portrait 组件图执行编辑。每个输入只修改其绑定组件。",
+        "preserve": ["reaction_portrait_1", "reaction_portrait_2"],
+    }
+    leaking_fixture["templateSource"]["preserve"] = [
+        "reaction_portrait_1", "reaction_portrait_2"
+    ]
+    leaking_fixture["templateSource"]["locked_composition_constraints"][0]["description"] = (
+        "保持激光方向，具体可编辑内容由组件槽位控制。"
+    )
+    sanitized = build_gallery_template(leaking_fixture)
+    assert "组件图" not in sanitized["promptEnhancement"]["instruction"]
+    assert "只输出最终成图" in sanitized["promptEnhancement"]["instruction"]
+    assert sanitized["promptEnhancement"]["preserve"] == []
+    assert sanitized["metadata"]["templateSource"]["preserve"] == []
+    assert "组件槽位" not in sanitized["metadata"]["templateSource"]["locked_composition_constraints"][0]["description"]
 
     visibility_fixture = fixture()
     visibility_fixture["promptEnhancement"] = {

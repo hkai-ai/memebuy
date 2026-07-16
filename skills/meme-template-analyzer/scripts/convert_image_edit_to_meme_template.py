@@ -19,6 +19,19 @@ KEY_RE = re.compile(r"^[a-z][a-z0-9-]{1,59}$")
 ID_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{0,39}$")
 TAG_ID_RE = re.compile(r"^[a-z][a-z0-9._-]{1,79}$")
 TEXTUAL_KINDS = {"text", "prompt", "select", "subject"}
+INTERNAL_PRESERVE_ID_RE = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)+_\d+$", re.IGNORECASE)
+INTERNAL_GENERATION_MARKERS = (
+    "组件图", "组件槽位", "槽位框", "槽位说明", "组件标签", "组件 ID",
+    "可编辑组件区域", "按可见组件开放编辑能力",
+)
+DEFAULT_REWRITE_INSTRUCTION = (
+    "在不改变用户创作意图的前提下，把基础提示词改写为完整、清晰、可执行的图片生成提示词；"
+    "应用锁定的视觉约束，并解决文本主体与上传主体之间的冲突。"
+)
+CLEAN_OUTPUT_INSTRUCTION = (
+    "只输出最终成图；不得显示模板标题、槽位框、组件标签、组件 ID、虚线连线、图例、"
+    "操作说明、界面元素或任何编辑标注。"
+)
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -60,6 +73,35 @@ def source_path(data: dict[str, Any]) -> str | None:
 
 def json_literal(value: Any) -> str:
     return json.dumps("" if value is None else str(value), ensure_ascii=False)
+
+
+def contains_internal_generation_language(value: Any) -> bool:
+    text = str(value or "")
+    return any(marker.casefold() in text.casefold() for marker in INTERNAL_GENERATION_MARKERS) or bool(
+        re.search(r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+_\d+\b", text, re.IGNORECASE)
+    )
+
+
+def safe_preserve_values(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    result: list[str] = []
+    for item in value:
+        text = str(item).strip()[:120]
+        if not text or INTERNAL_PRESERVE_ID_RE.fullmatch(text) or contains_internal_generation_language(text):
+            continue
+        if text not in result:
+            result.append(text)
+    return result
+
+
+def safe_rewrite_instruction(value: Any) -> str:
+    instruction = str(value or "").strip()
+    if not instruction or contains_internal_generation_language(instruction):
+        instruction = DEFAULT_REWRITE_INSTRUCTION
+    if CLEAN_OUTPUT_INSTRUCTION not in instruction:
+        instruction = f"{instruction.rstrip('。')}。{CLEAN_OUTPUT_INSTRUCTION}"
+    return instruction
 
 
 def strict_bool(value: Any, field: str, default: bool) -> bool:
@@ -325,7 +367,7 @@ def template_constraints(template_source: Any) -> list[str]:
                     constraints.append(str(text).rstrip("。"))
             elif isinstance(item, str) and item.strip():
                 constraints.append(item.strip().rstrip("。"))
-    preserve = template_source.get("preserve")
+    preserve = safe_preserve_values(template_source.get("preserve"))
     if isinstance(preserve, list) and preserve:
         readable = "、".join(str(item).replace("_", " ") for item in preserve)
         constraints.append(f"保留模板参考图的这些结构和风格特征：{readable}")
@@ -368,16 +410,13 @@ def compile_prompt_enhancement(data: dict[str, Any]) -> OrderedDict[str, Any]:
     template_source = data.get("templateSource")
     source = template_source if isinstance(template_source, dict) else {}
     locked_constraints = template_constraints({"lockedConstraints": source.get("lockedConstraints") or source.get("locked_composition_constraints")})
-    preserve = [str(item)[:120] for item in source.get("preserve", []) if str(item).strip()] if isinstance(source.get("preserve"), list) else []
+    preserve = safe_preserve_values(source.get("preserve"))
 
     if explicit is not None and not isinstance(explicit, dict):
         raise ValueError("promptEnhancement must be an object")
     config = explicit or {}
     stage_key = str(config.get("stageKey") or "gallery.prompt_rewrite").strip()
-    instruction = str(
-        config.get("instruction")
-        or "在不改变用户创作意图的前提下，把基础提示词改写为完整、清晰、可执行的图片生成提示词；应用锁定约束，并解决文本主体与上传主体之间的冲突。"
-    ).strip()
+    instruction = safe_rewrite_instruction(config.get("instruction"))
     result = OrderedDict(
         [
             ("stageKey", stage_key[:60]),
@@ -391,7 +430,7 @@ def compile_prompt_enhancement(data: dict[str, Any]) -> OrderedDict[str, Any]:
         locked_constraints = template_constraints({"lockedConstraints": explicit_locked})
     explicit_preserve = config.get("preserve")
     if isinstance(explicit_preserve, list):
-        preserve = [str(item)[:120] for item in explicit_preserve if str(item).strip()]
+        preserve = safe_preserve_values(explicit_preserve)
     result["lockedConstraints"] = locked_constraints[:30]
     result["preserve"] = preserve[:30]
     result["output"] = OrderedDict([("format", "json"), ("promptField", "finalPrompt")])
@@ -476,6 +515,22 @@ def metadata_template_source(source: Any) -> Any:
     if not isinstance(source, dict):
         return source
     result = OrderedDict((key, value) for key, value in source.items() if key != "path")
+    if "preserve" in result:
+        result["preserve"] = safe_preserve_values(result["preserve"])
+    locked = result.get("locked_composition_constraints")
+    if isinstance(locked, list):
+        cleaned_locked = []
+        for item in locked:
+            if not isinstance(item, dict):
+                cleaned_locked.append(item)
+                continue
+            cleaned = OrderedDict(item)
+            value = str(cleaned.get("value") or "").strip()
+            description = str(cleaned.get("description") or "").strip()
+            if contains_internal_generation_language(description) and value:
+                cleaned["description"] = f"保持{value}。"
+            cleaned_locked.append(cleaned)
+        result["locked_composition_constraints"] = cleaned_locked
     result["referenceField"] = "referenceImage"
     return result
 

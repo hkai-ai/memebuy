@@ -91,16 +91,16 @@
   "promptTemplate": "为 {{person | \"一位年轻人\"}} 设计一张 {{mbti}} 风格的头像肖像。整体配色 {{mbti.palette}}，副标题氛围为 {{mbti.subtitle}}。补充要求：{{extra | \"电影级布光，高细节\"}}。",
   "promptEnhancement": {
     "stageKey": "gallery.prompt_rewrite",
-    "instruction": "在不改变用户主体和人格选择的前提下，将基础提示词改写为完整、清晰、适合图片网关执行的提示词。上传主体图存在时只继承身份特征，不继承其构图。",
+    "instruction": "在不改变用户主体和人格选择的前提下，将基础提示词改写为完整、清晰、适合图片网关执行的提示词。上传主体图存在时只继承身份特征，不继承其构图。只输出最终成图；不得显示模板标题、槽位框、组件标签、组件 ID、虚线连线、图例、操作说明、界面元素或任何编辑标注。",
     "referenceField": "referenceImage",
     "lockedConstraints": [
       "主体面部清晰且不被文字遮挡",
       "保持模板参考图的头像构图和风格层级"
     ],
     "preserve": [
-      "portrait_crop",
-      "face_visibility",
-      "style_hierarchy"
+      "保持头像裁切",
+      "保持面部清晰可见",
+      "保持视觉风格层级"
     ],
     "output": {
       "format": "json",
@@ -135,6 +135,23 @@
       }
     ],
     "category": "avatar/personality-fusion",
-    "version": "2.0.0"
+    "version": "2.0.0",
+    "inputSemantics": {
+      "person": {
+        "semanticType": "person_identity",
+        "defaultStateLabel": "保留默认人物",
+        "textInputLabel": "或用文字描述人物",
+        "uploadLabel": "上传人物图"
+      }
+    },
+    "presentation": {
+      "recommendedOutputRatio": "1:1",
+      "referenceImageRemovable": false
+    },
+    "runtimeRequirements": {
+      "subjectInputVersion": 2,
+      "supportsMultipleSubjectImages": false,
+      "imageSlotAddressing": "input_id"
+    }
   }
 }
