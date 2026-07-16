@@ -131,6 +131,53 @@
 }
 ```
 
+槽位设计还必须包含组件绑定链路：
+
+```json
+{
+  "component_graph": {
+    "components": [
+      {
+        "id": "headline",
+        "type": "text",
+        "parentId": "canvas",
+        "visibleEvidence": ["画面顶部存在大号 MEOW 字样"],
+        "editableProperties": ["text", "color"],
+        "lockedProperties": ["top_zone", "display_typography"]
+      }
+    ],
+    "relationships": []
+  },
+  "edit_intent_candidates": [
+    {
+      "id": "edit-headline-text",
+      "componentId": "headline",
+      "property": "text",
+      "operation": "replace_text",
+      "userEditLikelihood": 0.96,
+      "visualSalience": 0.98,
+      "templateIntegrityRisk": "low",
+      "frontendControl": "prompt",
+      "decision": "expose",
+      "slotId": "headline",
+      "reason": "主标题是高显著且自然可编辑的海报组件"
+    }
+  ],
+  "slot_intelligence_review": {
+    "mechanismClass": "poster_layout",
+    "selectedSlotIds": ["headline"],
+    "genericSlotReuseRisk": "low",
+    "componentCoveragePassed": true,
+    "textSlotAuditPassed": true,
+    "compositeInputAuditPassed": true,
+    "passed": true,
+    "reviewReasons": []
+  }
+}
+```
+
+`selectedSlotIds` 必须与 `image-edit-template.json.slots[].id` 完全一致。每个开放槽位必须存在一个 `decision: expose` 候选，并绑定有效 `componentId` 和具体 `property`。未开放的显著组件属性也要有候选及原因。
+
 `interpretation_hypotheses` 至少覆盖 `external_reference`、`intrinsic_visual_joke`、`standalone_image` 三类。完整规则见 `references/cultural-reference-discovery.md`。转换器只把精简 `referenceContext` 和审核原因写入 Gallery metadata，不把完整推理链入库。
 
 清洗历史过长产物时，使用仓库脚本：

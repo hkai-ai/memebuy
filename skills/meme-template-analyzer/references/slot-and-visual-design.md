@@ -3,6 +3,7 @@
 ## 目录
 
 - Meme 公式与槽位最小化
+- 组件图与编辑意图
 - Slot 反思
 - 输入类型与角色
 - 视觉层分解
@@ -16,6 +17,9 @@
 
 默认把完整分析写入 `image-edit-analysis.json`：
 
+- `component_graph`
+- `edit_intent_candidates`
+- `slot_intelligence_review`
 - `meme_formula`
 - `reading_model`
 - `slot_minimization_review`
@@ -23,6 +27,52 @@
 - `co_variation_constraints`
 - `fusion_model`
 - `variable_slots`
+
+## 组件图与编辑意图
+
+槽位从可指认组件及其可编辑属性产生。先建立 `component_graph.components[]`，每个组件至少写：
+
+- `id`：稳定、具体的组件 id，例如 `headline`、`pet_subject`、`outfit`、`outer_background`、`notebook_art_region`。
+- `type`：`canvas | subject | text | accessory | apparel | background | container | embedded_content | decoration | object | panel`。
+- `parentId`：父组件；根画布使用 `null`。
+- `visibleEvidence[]`：支持该组件存在的可见证据。
+- `editableProperties[]`：用户可能修改的具体属性，例如 `text`、`identity`、`color`、`garment`、`image_content`。
+- `lockedProperties[]`：需要维持的几何、关系或识别属性。
+
+再为每个显著可编辑属性建立 `edit_intent_candidates[]`：
+
+- `id`
+- `componentId`
+- `property`
+- `operation`：`replace_identity | replace_text | replace_image | recolor | restyle | change_apparel | change_accessory | change_background | stylize_and_embed | adjust_layout`。
+- `userEditLikelihood`、`visualSalience`：0-1。
+- `templateIntegrityRisk`：`low | medium | high`。
+- `frontendControl`：对应 `text | prompt | select | image_upload | subject`。
+- `decision`：`expose | locked_invariant | constraint_only | style_note | too_minor | backend_only`。
+- `slotId`：仅 `expose` 时必填，必须与最终 `slots[]` 对齐。
+- `reason`：说明开放或不开放的依据。
+
+像素只能提供“用户可能想改什么”的证据。优先使用以下产品先验：
+
+1. 海报：主体、主标题、次级文字、整套配色常可编辑；版式层级和装饰位置通常保留。
+2. 角色穿搭：身份、服装、配饰分别评估；配饰只有参与文化识别或梗公式时才锁定。
+3. 嵌套内容：外层背景、容器颜色、页内/屏幕内内容分别建组件；需要文字与图片双输入时使用 `subject`。
+4. 文字卡片：文字内容优先于宽泛主体槽；纸张、箭头和排版节奏通常保留。
+5. 拼贴/网格：照片内容、中心意象和配色可开放；网格、遮挡和阅读顺序优先保留。
+6. 物体融合：被融合的身份与容器/食物/服饰分开评估，并记录重映射关系。
+
+禁止把下列组合作为批量默认答案：`subject + scene + style + caption`。`scene`、`style`、`caption` 只有在绑定具体组件和属性时才可保留；优先使用 `background`、`outfit`、`accessory`、`headline`、`palette`、`embedded_art` 等业务名称。
+
+`slot_intelligence_review` 至少包含：
+
+- `mechanismClass`
+- `selectedSlotIds[]`
+- `genericSlotReuseRisk`
+- `componentCoveragePassed`
+- `textSlotAuditPassed`
+- `compositeInputAuditPassed`
+- `passed`
+- `reviewReasons[]`
 
 ## Slot 反思
 
@@ -35,8 +85,12 @@
 5. `frontend_control_check`：能否用现有 input kind 清楚表达。
 6. `omission_review`：未暴露项必须标记 `locked_invariant | constraint_only | style_note | too_minor | backend_only`。
 7. `semantic_merge_review`：合并表达同一意图、通常同步修改或可从其他输入推导的维度。
+8. `component_binding_review`：每个槽位必须绑定一个组件和具体属性；无法绑定则降级或删除。
+9. `mechanism_specificity_review`：槽位名称和控件必须体现当前模板机制，避免跨图片复用宽泛字段。
 
 `missing_obvious_slots` 应为空，`exposed_slots` 必须与最终 `slots[]` 一致。积极文案、困倦场景和固定困倦表情已经形成反差时，不再默认添加必填 `irony_mood`。
+
+显著文字组件必须有对应候选，允许开放、锁定或降级，但不得静默遗漏。没有可见文字组件时，不得习惯性增加 `caption`。
 
 ## 输入类型与角色
 
@@ -61,7 +115,13 @@
 
 文本槽给 3-8 个与原模板同类的 suggestions，默认用 `string[]`。图片槽必须写 `extract`、`maxCount`、`private`、`sourceOptions`。
 
+候选项沿同一语义轴展开：人物身份只提供人物，宠物身份只提供宠物，穿着只改变服装，配色只描述色彩系统。每个槽位记录 `semanticType`；禁止用“复古版本”等风格版本名填充与风格无关的槽位。
+
+`subject` 另记录面向用户的 `defaultStateLabel`、`textInputLabel` 和 `uploadLabel`。例如人物槽可使用“保留原人物 / 或用文字描述人物 / 上传人物图”，背景内容槽使用“保留原背景 / 或用文字描述背景 / 上传背景图”。
+
 主体一旦允许上传图片，不要再创建互相独立、用户难以理解的“主体文本”和“主体参考图”两个控件；优先使用 `subject`。图片存在时 `resolutionStrategy` 固定为 `image_over_text`，`imagePromptValue` 使用“用户上传图中的主体”等中性描述，禁止重复默认的猫、狗、人物或商品身份。
+
+背景、页内画作、屏幕内容和包装图案也可使用 `subject` 复合输入。此时 `slotRole` 可为 `composition_reference` 或 `edit_target`，`imagePromptValue` 使用“用户上传图中的外层背景环境”“用户上传图中的页内绘画内容”等角色化中性描述；`extract` 必须说明文字模式、图片模式、目标区域和风格转换。
 
 ## 视觉层分解
 

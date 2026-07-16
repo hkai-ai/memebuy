@@ -56,6 +56,22 @@ python skills/meme-template-analyzer/scripts/convert_image_edit_to_meme_template
 python skills/meme-template-analyzer/scripts/validate_gallery_template.py <dir>/meme-template.json
 ```
 
+槽位智能验证：
+
+```bash
+python skills/meme-template-analyzer/scripts/validate_slot_intelligence.py <dir>
+```
+
+前端体验与运行时兼容验证：
+
+```bash
+python skills/meme-template-analyzer/scripts/validate_frontend_experience.py <dir>/meme-template.json
+```
+
+它会拒绝内部编排文案、已有 fallback 仍必填、跨语义候选项、缺少显示文案的 `subject`、错误默认比例和未声明的多图主体能力。针对旧站点检查时使用 `--runtime-profile legacy-single-image`，出现失败代表需先升级站点运行时。
+
+批量时一次传入全部模板目录，validator 还会检查槽位签名和模板机制多样性，防止整批复用机械通用槽。
+
 validator 检查：
 
 - 顶层和判别联合字段、类型、长度与数值范围。
@@ -68,5 +84,8 @@ validator 检查：
 - `promptTemplate` 不含后端约束，`promptEnhancement` 字段完整。
 - `subject` 的 text/image 两种来源、`promptValue` 和 `image_over_text` 策略合法。
 - 本地 `cover`、`referenceImage` 文件存在性。
+- 用户可见名称、描述和提示词不包含内部编排语言。
+- 已有默认值的槽位可直接生成，自由编辑不会被隐藏必填项卡住。
+- `metadata.presentation` 与 `metadata.runtimeRequirements` 能驱动正确比例、固定参考图和多主体图片传递。
 
 只有 `PASS` 才能交付或上传 OSS。

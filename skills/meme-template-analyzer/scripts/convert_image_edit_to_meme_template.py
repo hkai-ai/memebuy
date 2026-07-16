@@ -105,6 +105,14 @@ def output_image_size(data: dict[str, Any]) -> str:
     return "1024x1024"
 
 
+def recommended_output_ratio(image_size: str) -> str:
+    width, height = (int(value) for value in image_size.split("x", 1))
+    candidates = [(16, 9), (1, 1), (9, 16), (3, 4), (4, 3)]
+    target = width / height
+    best = min(candidates, key=lambda ratio: abs(target - ratio[0] / ratio[1]))
+    return f"{best[0]}:{best[1]}"
+
+
 def suggestion_strings(value: Any) -> list[str]:
     simplified = simplify_suggestions(value, keep_reasons=False)
     if not isinstance(simplified, list):
@@ -476,7 +484,11 @@ def slot_semantics(slots: list[dict[str, Any]]) -> dict[str, Any]:
     result: OrderedDict[str, Any] = OrderedDict()
     for slot in slots:
         details = OrderedDict()
-        for key in ["slotRole", "defaultValue", "allowCustom", "extract", "sourceOptions", "resolutionStrategy"]:
+        for key in [
+            "slotRole", "semanticType", "defaultValue", "allowCustom", "extract",
+            "sourceOptions", "resolutionStrategy", "defaultStateLabel", "textInputLabel",
+            "uploadLabel",
+        ]:
             if key in slot and slot[key] not in (None, "", []):
                 details[key] = slot[key]
         if details:
@@ -534,6 +546,7 @@ def build_gallery_template(data: dict[str, Any]) -> OrderedDict[str, Any]:
         raise ValueError("slot ids must be unique")
 
     input_schema = [slot_to_input(slot) for slot in slots]
+    image_size = output_image_size(data)
     prompt_template = compile_prompt_template(data, slots)
     prompt_enhancement = compile_prompt_enhancement(data)
     taxonomy = data.get("taxonomy") if isinstance(data.get("taxonomy"), dict) else {}
@@ -566,6 +579,20 @@ def build_gallery_template(data: dict[str, Any]) -> OrderedDict[str, Any]:
     semantics = slot_semantics(slots)
     if semantics:
         metadata["inputSemantics"] = semantics
+    subject_count = sum(1 for item in input_schema if item.get("type") == "subject")
+    metadata["presentation"] = OrderedDict(
+        [
+            ("recommendedOutputRatio", recommended_output_ratio(image_size)),
+            ("referenceImageRemovable", not bool(source)),
+        ]
+    )
+    metadata["runtimeRequirements"] = OrderedDict(
+        [
+            ("subjectInputVersion", 2 if subject_count else 0),
+            ("supportsMultipleSubjectImages", subject_count > 1),
+            ("imageSlotAddressing", "input_id"),
+        ]
+    )
     if isinstance(needs_review, list) and needs_review:
         metadata["needsReview"] = "；".join(str(item) for item in needs_review)
 
@@ -576,7 +603,7 @@ def build_gallery_template(data: dict[str, Any]) -> OrderedDict[str, Any]:
             ("description", description),
             ("cover", source),
             ("referenceImage", source),
-            ("imageSize", output_image_size(data)),
+            ("imageSize", image_size),
             ("imageN", 1),
             ("inputSchema", input_schema),
             ("preprocessSteps", []),

@@ -1,4 +1,4 @@
 interface:
   display_name: "梗图模板分析与入库"
-  short_description: "分析梗图、区分标签来源并生成严格入库 JSON"
-  default_prompt: "使用 $meme-template-analyzer 分析这张图：先区分视觉事实与文化参照，读取可用的运营标签词库并保留标签来源，完成公式前提审计；description 使用 20 字以内纯描述，提示词按前端 promptTemplate、后端 promptEnhancement、运行时 resolvedPrompt 三层设计，需要多来源主体时使用 subject 复合槽；再生成并验证 GalleryTemplateImport v2 产物。"
+  short_description: "按画面组件和编辑意图挖掘槽位并生成严格入库 JSON"
+  default_prompt: "使用 $meme-template-analyzer 分析这张图：先建立组件图和编辑意图候选，为每个槽位绑定具体组件、属性与操作，避免通用四槽；再完成文化参照审计、三层提示词设计和 GalleryTemplateImport v2 全链路验证。"

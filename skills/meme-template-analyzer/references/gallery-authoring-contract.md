@@ -169,6 +169,9 @@ GalleryTemplateImport v2 支持 `prompt | select | image | subject`：
 - `templateSource`: 保留 authority、preserve、locked constraints；图片路径改为
   `referenceField: "referenceImage"`，避免留下本地路径。
 - `inputSemantics`: 保留 `slotRole`、默认值、`extract`、`sourceOptions` 等不可执行语义。
+- `inputSemantics`: `subject` 另保留 `semanticType`、`defaultStateLabel`、`textInputLabel`和 `uploadLabel`，前端不再硬编码“自动”或“或描述主体”。
+- `presentation`: 保留 `recommendedOutputRatio` 和 `referenceImageRemovable`；模板参考图默认固定。
+- `runtimeRequirements`: 声明 `subjectInputVersion`、`supportsMultipleSubjectImages` 和 `imageSlotAddressing: input_id`。导入目标不支持时必须阻断发布。
 - `needsReview`: 非空字符串会让导入脚本强制写入 `DRAFT`；为空时默认 `PUBLISHED`。
 
 `topicId`、`status`、`sortOrder` 不由 Agent 产出。`topicId` 由导入运维指定；status 默认
@@ -190,6 +193,9 @@ python skills/meme-template-analyzer/scripts/validate_gallery_template.py <templ
 
 - `key` 满足 `^[a-z][a-z0-9-]{1,59}$`，批次内唯一。
 - 每个 input id 唯一，且与 preprocess step id 共享命名空间。
+- 有 fallback/defaultValue 的 input 默认非必填，用户打开模板后可直接生成。
+- title、description、promptTemplate 不包含“组件槽位版”或“制作…模板”等编排文案。
+- suggestions 与该 input 的 `semanticType` 同类，不使用批量通用版本名。
 - 所有 promptTemplate 引用的 head id 已定义。
 - `description` 是 20 字以内的独立纯描述。
 - `promptTemplate` 只包含前端可编辑创作意图，不含后端约束。

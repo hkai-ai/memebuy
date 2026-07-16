@@ -269,9 +269,13 @@ def main() -> None:
     ]:
         require(readme, needle, "README.md")
 
-    assert manifest["version"] == "0.30.0"
+    assert manifest["version"] == "0.32.0"
     assert "references/tagging-and-taxonomy.md" in manifest["tracked_files"]
-    assert manifest["updated_at"] == "2026-07-15"
+    assert "scripts/validate_slot_intelligence.py" in manifest["tracked_files"]
+    assert "scripts/test_slot_intelligence.py" in manifest["tracked_files"]
+    assert "scripts/validate_frontend_experience.py" in manifest["tracked_files"]
+    assert "scripts/test_frontend_experience.py" in manifest["tracked_files"]
+    assert manifest["updated_at"] == "2026-07-16"
     for tracked in manifest["tracked_files"]:
         if not (ROOT / tracked).exists():
             raise AssertionError(f"skill-manifest.json tracks missing file: {tracked}")
