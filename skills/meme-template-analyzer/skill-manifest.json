@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.32.1",
+  "version": "0.35.0",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
-  "updated_at": "2026-07-16",
-  "notes": "Prevent component-diagram metadata and enumerated preserve IDs from leaking into generated images; enforce clean-output instructions and regression coverage.",
+  "updated_at": "2026-07-20",
+  "notes": "Require complete user-facing prompt prose and meaningful multi-option suggestions; keep reference and edit constraints in backend prompt enhancement.",
   "tracked_files": [
     "SKILL.md",
     "README.md",

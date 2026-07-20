@@ -7,6 +7,7 @@ import argparse
 import json
 import re
 from collections import OrderedDict
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +32,24 @@ DEFAULT_REWRITE_INSTRUCTION = (
 CLEAN_OUTPUT_INSTRUCTION = (
     "只输出最终成图；不得显示模板标题、槽位框、组件标签、组件 ID、虚线连线、图例、"
     "操作说明、界面元素或任何编辑标注。"
+)
+SUBJECT_OVERRIDE_INSTRUCTION = (
+    "若主体槽使用上传图，上传图决定主体身份、物种与人物类型，并覆盖模板标题、默认值、"
+    "候选词和模板参考图中的原主体身份；模板参考图只控制构图、姿态关系与视觉风格。"
+)
+REFERENCE_AUTHORITY_INSTRUCTION = (
+    "模板参考图是构图与视觉风格的最高权限；只允许替换 inputSchema 明确开放的槽位，"
+    "严格保持参考图的画幅裁切、镜头景别、元素位置与比例、遮挡和留白、媒介质感、"
+    "色彩关系与版式节奏，禁止重新设计构图、姿态、场景或画风。输出的 finalPrompt 必须"
+    "明确写出以模板参考图为构图和风格基准，不得把任务改写成从零生成新画面。"
+)
+IDENTITY_SEMANTIC_TYPES = {
+    "subject_identity", "person_identity", "pet_identity", "animal_identity",
+    "character_identity", "object_identity",
+}
+IDENTITY_LABEL_RE = re.compile(
+    r"猫咪|小猫|猫|小狗|狗狗|狗|宠物|人物|人像|肖像|女孩|男孩|女人|男人|"
+    r"女性|男性|动物|角色|商品|物体"
 )
 
 
@@ -95,13 +114,69 @@ def safe_preserve_values(value: Any) -> list[str]:
     return result
 
 
-def safe_rewrite_instruction(value: Any) -> str:
+def safe_rewrite_instruction(value: Any, has_reference: bool = False) -> str:
     instruction = str(value or "").strip()
     if not instruction or contains_internal_generation_language(instruction):
         instruction = DEFAULT_REWRITE_INSTRUCTION
     if CLEAN_OUTPUT_INSTRUCTION not in instruction:
         instruction = f"{instruction.rstrip('。')}。{CLEAN_OUTPUT_INSTRUCTION}"
+    if SUBJECT_OVERRIDE_INSTRUCTION not in instruction:
+        instruction = f"{instruction.rstrip('。')}。{SUBJECT_OVERRIDE_INSTRUCTION}"
+    if has_reference and REFERENCE_AUTHORITY_INSTRUCTION not in instruction:
+        instruction = f"{instruction.rstrip('。')}。{REFERENCE_AUTHORITY_INSTRUCTION}"
     return instruction
+
+
+def is_identity_subject_slot(slot: dict[str, Any]) -> bool:
+    if slot.get("inputKind") != "subject":
+        return False
+    semantic_type = str(slot.get("semanticType") or "").strip()
+    if semantic_type in IDENTITY_SEMANTIC_TYPES or semantic_type.endswith("_identity"):
+        return True
+    label = str(slot.get("label") or "")
+    return slot.get("slotRole") == "identity_reference" or (
+        slot.get("slotRole") == "semantic_replacement"
+        and ("主体" in label or bool(IDENTITY_LABEL_RE.search(label)))
+    )
+
+
+def generic_identity_label(label: Any) -> str:
+    original = str(label or "").strip()
+    if not original:
+        return "主体"
+    if not IDENTITY_LABEL_RE.search(original):
+        return original
+    cleaned = IDENTITY_LABEL_RE.sub("", original)
+    cleaned = re.sub(r"主体+", "主体", cleaned).strip(" ·_-：:")
+    if not cleaned or cleaned in {"主体", "主体图", "主体照片", "主体头像"}:
+        return "主体"
+    if "组合" in cleaned or "一组" in cleaned or "多名" in cleaned or "多个" in cleaned:
+        return "主体组合"
+    position = next(
+        (word for word in ("左侧", "右侧", "中央", "前景", "背景", "顶部", "底部", "上层", "下层", "盒内", "框内") if word in cleaned),
+        "",
+    )
+    return f"{position}主体" if position else "主体"
+
+
+def normalize_identity_subject_slot(slot: dict[str, Any]) -> dict[str, Any]:
+    result = deepcopy(slot)
+    if not is_identity_subject_slot(result):
+        return result
+    result["label"] = generic_identity_label(result.get("label"))
+    result["semanticType"] = "subject_identity"
+    image_prompt = str(result.get("imagePromptValue") or "").strip()
+    if not image_prompt or IDENTITY_LABEL_RE.search(image_prompt):
+        result["imagePromptValue"] = "用户上传图中的主体"
+    for key, fallback in (
+        ("defaultStateLabel", "保留原主体"),
+        ("textInputLabel", "或用文字描述主体"),
+        ("uploadLabel", "上传主体图"),
+    ):
+        value = str(result.get(key) or "").strip()
+        if not value or IDENTITY_LABEL_RE.search(value):
+            result[key] = fallback
+    return result
 
 
 def strict_bool(value: Any, field: str, default: bool) -> bool:
@@ -230,6 +305,11 @@ def slot_to_input(slot: dict[str, Any]) -> OrderedDict[str, Any]:
                     validation["maxLength"], f"slot {slot_id!r}.validation.maxLength", 120, 1, 4000
                 )
         suggestions = suggestion_strings(slot.get("suggestions"))[:10]
+        if suggestions and len(suggestions) < 3:
+            raise ValueError(
+                f"prompt slot {slot_id!r} suggestions require at least 3 distinct values; "
+                "omit suggestions for free-text-only input"
+            )
         if suggestions:
             item["suggestions"] = suggestions
         return item
@@ -238,8 +318,8 @@ def slot_to_input(slot: dict[str, Any]) -> OrderedDict[str, Any]:
         input_kind == "image_select" and is_text_only_image_select(slot)
     ):
         options = option_objects(slot.get("suggestions"))
-        if not options:
-            raise ValueError(f"select slot {slot_id!r} requires at least one option")
+        if len(options) < 2:
+            raise ValueError(f"select slot {slot_id!r} requires at least two distinct options")
         return OrderedDict(
             [
                 ("type", "select"),
@@ -255,8 +335,8 @@ def slot_to_input(slot: dict[str, Any]) -> OrderedDict[str, Any]:
         if not default_value:
             raise ValueError(f"subject slot {slot_id!r} requires defaultValue")
         suggestions = suggestion_strings(slot.get("suggestions"))[:10]
-        if not suggestions:
-            raise ValueError(f"subject slot {slot_id!r} requires at least one suggestion")
+        if len(suggestions) < 3:
+            raise ValueError(f"subject slot {slot_id!r} requires at least three distinct suggestions")
         source_options = slot.get("sourceOptions")
         if not isinstance(source_options, list) or not source_options:
             raise ValueError(f"subject slot {slot_id!r} requires sourceOptions")
@@ -416,7 +496,7 @@ def compile_prompt_enhancement(data: dict[str, Any]) -> OrderedDict[str, Any]:
         raise ValueError("promptEnhancement must be an object")
     config = explicit or {}
     stage_key = str(config.get("stageKey") or "gallery.prompt_rewrite").strip()
-    instruction = safe_rewrite_instruction(config.get("instruction"))
+    instruction = safe_rewrite_instruction(config.get("instruction"), has_reference=bool(source.get("path")))
     result = OrderedDict(
         [
             ("stageKey", stage_key[:60]),
@@ -515,6 +595,16 @@ def metadata_template_source(source: Any) -> Any:
     if not isinstance(source, dict):
         return source
     result = OrderedDict((key, value) for key, value in source.items() if key != "path")
+    if not result.get("role"):
+        result["role"] = "template_reference"
+    if result.get("role") == "template_reference" and not isinstance(result.get("authority"), dict):
+        result["authority"] = OrderedDict(
+            [
+                ("composition_authority", "high"),
+                ("style_authority", "high"),
+                ("identity_authority", "none"),
+            ]
+        )
     if "preserve" in result:
         result["preserve"] = safe_preserve_values(result["preserve"])
     locked = result.get("locked_composition_constraints")
@@ -593,7 +683,7 @@ def build_gallery_template(data: dict[str, Any]) -> OrderedDict[str, Any]:
     title = str(data.get("title") or template_id or "未命名模板")[:80]
     description = str(data.get("description") or "").strip()[:20] or None
     source = source_path(data)
-    slots = [slot for slot in data.get("slots", []) if isinstance(slot, dict)]
+    slots = [normalize_identity_subject_slot(slot) for slot in data.get("slots", []) if isinstance(slot, dict)]
     if len(slots) > 20:
         raise ValueError("GalleryTemplate inputSchema supports at most 20 inputs")
     ids = [str(slot.get("id", "")) for slot in slots]

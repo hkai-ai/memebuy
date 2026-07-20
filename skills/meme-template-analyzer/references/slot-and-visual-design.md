@@ -115,13 +115,13 @@
 - `style_reference`
 - `composition_reference`
 
-文本槽给 3-8 个与原模板同类的 suggestions，默认用 `string[]`。图片槽必须写 `extract`、`maxCount`、`private`、`sourceOptions`。
+提供预设交互的文本槽给 3-8 个去重且与原模板同类的 suggestions，默认用 `string[]`。候选应包含多个真实可替换方向，不能只重复当前默认值。无法可靠生成至少 3 个候选时，普通自由输入槽省略 suggestions 或进入人审；`subject` 复合槽必须补齐至少 3 个文字预设后才能交付。图片槽必须写 `extract`、`maxCount`、`private`、`sourceOptions`。
 
-候选项沿同一语义轴展开：人物身份只提供人物，宠物身份只提供宠物，穿着只改变服装，配色只描述色彩系统。每个槽位记录 `semanticType`；禁止用“复古版本”等风格版本名填充与风格无关的槽位。
+候选项沿同一语义轴展开，并逐项代入“将【label】替换为【suggestion】”检查是否自然、是否只改变目标属性。例如“盒内内容”可提供猫、狗、兔子或玩偶，不能混入夜晚城市、海边日落、森林薄雾；“背景环境”才可以提供这些外部场景。每个槽位记录 `semanticType`；禁止用“复古版本”“简洁款某某”“彩色手绘某某”“用户自定义某某”等批量填充项代替真实候选。
 
-`subject` 另记录面向用户的 `defaultStateLabel`、`textInputLabel` 和 `uploadLabel`。例如人物槽可使用“保留原人物 / 或用文字描述人物 / 上传人物图”，背景内容槽使用“保留原背景 / 或用文字描述背景 / 上传背景图”。
+`subject` 另记录面向用户的 `defaultStateLabel`、`textInputLabel` 和 `uploadLabel`。身份类主体统一使用“保留原主体 / 或用文字描述主体 / 上传主体图”，不按原图写成猫咪、宠物、人物或具体性别。背景内容槽可使用“保留原背景 / 或用文字描述背景 / 上传背景图”。
 
-主体一旦允许上传图片，不要再创建互相独立、用户难以理解的“主体文本”和“主体参考图”两个控件；优先使用 `subject`。图片存在时 `resolutionStrategy` 固定为 `image_over_text`，`imagePromptValue` 使用“用户上传图中的主体”等中性描述，禁止重复默认的猫、狗、人物或商品身份。
+主体一旦允许上传图片，不要再创建互相独立、用户难以理解的“主体文本”和“主体参考图”两个控件；优先使用 `subject`。身份类槽统一使用 `semanticType: subject_identity`，label 使用“主体”或“左侧主体/盒内内容”等位置化中性名称。图片存在时 `resolutionStrategy` 固定为 `image_over_text`；普通身份槽的 `imagePromptValue` 使用“用户上传图中的主体”，嵌套内容可使用“用户上传图中的盒内内容/右页内容”等角色化中性描述。禁止重复默认的猫、狗、人物、性别、角色或商品身份；图片模式必须覆盖模板标题、fallback、候选词和参考图中的原主体身份。
 
 背景、页内画作、屏幕内容和包装图案也可使用 `subject` 复合输入。此时 `slotRole` 可为 `composition_reference` 或 `edit_target`，`imagePromptValue` 使用“用户上传图中的外层背景环境”“用户上传图中的页内绘画内容”等角色化中性描述；`extract` 必须说明文字模式、图片模式、目标区域和风格转换。
 
@@ -141,5 +141,7 @@
 ## 关系与融合分析
 
 `co_variation_constraints` 记录跨槽同步关系，每条包含 `source_slot`、`dependent_slot`、同步规则、失配风险和 QA。
+
+同一显著概念出现在多个组件时，先判断普通用户是否会把它视为一次整体替换。甜品口味、果酱和顶部水果都以“草莓”为共同主题时，优先合并为“水果主题”并在多个 prompt 位置复用同一 placeholder；需要独立编辑时，明确拆成“果酱口味”和“顶部装饰水果”，候选值与默认值也不得互相重叠。槽位默认值的显著词不得留在 placeholder 外的静态主题名或描述中。
 
 `fusion_model` 判断主体是否与物件、文字、UI、场景或身体结构融合，记录 `fused_slots`、`replacement_sensitivity` 和 `requires_remap_if_subject_changes`。替换主体会影响姿势、遮挡、道具或文字关系时，必须列出 remap 目标。

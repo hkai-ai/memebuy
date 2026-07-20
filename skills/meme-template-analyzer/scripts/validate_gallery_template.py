@@ -170,15 +170,18 @@ def validate_input(errors: list[str], item: Any, index: int) -> None:
                 check_integer(errors, f"{path}.{field}", item[field], minimum, maximum)
         if isinstance(item.get("minLength"), int) and isinstance(item.get("maxLength"), int) and item["minLength"] > item["maxLength"]:
             errors.append(f"{path}.minLength must not exceed maxLength")
-        suggestions = item.get("suggestions", [])
-        if not isinstance(suggestions, list) or len(suggestions) > 10:
-            errors.append(f"{path}.suggestions must contain at most 10 strings")
-        elif any(not isinstance(value, str) or len(value) > 120 for value in suggestions):
-            errors.append(f"{path}.suggestions contains an invalid value")
+        if "suggestions" in item:
+            suggestions = item.get("suggestions")
+            if not isinstance(suggestions, list) or not 3 <= len(suggestions) <= 10:
+                errors.append(f"{path}.suggestions must contain 3-10 strings when provided")
+            elif any(not isinstance(value, str) or not 1 <= len(value) <= 120 for value in suggestions):
+                errors.append(f"{path}.suggestions contains an invalid value")
+            elif len(set(suggestions)) != len(suggestions):
+                errors.append(f"{path}.suggestions must contain distinct values")
     elif kind == "select":
         options = item.get("options")
-        if not isinstance(options, list) or not 1 <= len(options) <= 30:
-            errors.append(f"{path}.options must contain 1-30 items")
+        if not isinstance(options, list) or not 2 <= len(options) <= 30:
+            errors.append(f"{path}.options must contain 2-30 items")
         else:
             for option_index, option in enumerate(options):
                 option_path = f"{path}.options[{option_index}]"
@@ -227,10 +230,12 @@ def validate_input(errors: list[str], item: Any, index: int) -> None:
             if "allowCustom" in text:
                 check_boolean(errors, f"{path}.text.allowCustom", text["allowCustom"])
             suggestions = text.get("suggestions")
-            if not isinstance(suggestions, list) or not 1 <= len(suggestions) <= 10:
-                errors.append(f"{path}.text.suggestions must contain 1-10 strings")
+            if not isinstance(suggestions, list) or not 3 <= len(suggestions) <= 10:
+                errors.append(f"{path}.text.suggestions must contain 3-10 strings")
             elif any(not isinstance(value, str) or not 1 <= len(value) <= 120 for value in suggestions):
                 errors.append(f"{path}.text.suggestions contains an invalid value")
+            elif len(set(suggestions)) != len(suggestions):
+                errors.append(f"{path}.text.suggestions must contain distinct values")
         image = item.get("image")
         if not isinstance(image, dict):
             errors.append(f"{path}.image must be an object")
@@ -356,7 +361,11 @@ def validate(data: Any) -> list[str]:
     if data.get("stageKey") is not None:
         check_string(errors, "stageKey", data["stageKey"], 0, 60)
     check_string(errors, "promptTemplate", data.get("promptTemplate"), 1, 4000)
-    for marker in ["文案长度要求：", "使用模板固定参考图作为构图和风格参考", "必须遵守：", "保留模板参考图的这些结构和风格特征："]:
+    for marker in [
+        "文案长度要求：", "使用模板固定参考图作为构图和风格参考", "必须遵守：",
+        "保留模板参考图的这些结构和风格特征：", "沿用原画面", "以下开放项",
+        "生成同构画面", "以模板参考图为构图", "仅修改开放项", "仅修改以下开放项",
+    ]:
         if marker in str(data.get("promptTemplate", "")):
             errors.append(f"promptTemplate contains backend-only constraint text: {marker}")
     validate_prompt_enhancement(errors, data.get("promptEnhancement"))

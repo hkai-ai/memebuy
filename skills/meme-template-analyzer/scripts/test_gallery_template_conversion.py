@@ -35,7 +35,7 @@ def fixture() -> dict:
                 "slotRole": "semantic_replacement",
                 "required": True,
                 "defaultValue": "白猫",
-                "suggestions": ["黑狗", "熊猫"],
+                "suggestions": ["白猫", "黑狗", "熊猫", "垂耳兔"],
                 "allowCustom": True,
                 "imagePromptValue": "用户上传图中的主体",
                 "extract": "保留主体身份、轮廓与颜色，不继承构图。",
@@ -71,7 +71,9 @@ def fixture() -> dict:
             "role": "template_reference",
             "preserve": ["subject_on_right"],
             "locked_composition_constraints": [
-                {"id": "laser_direction", "value": "激光向左下方发射。"}
+                {"id": "laser_direction", "value": "保持主体位于右侧并向左下方发射激光的纵向构图与画幅裁切。"},
+                {"id": "paper_style", "value": "保持粗糙纸张颗粒、复古印刷网点和手绘线稿结合的媒介质感。"},
+                {"id": "spatial_relation", "value": "保持主体、眼睛与激光之间的前后层级、遮挡关系和方向联系。"}
             ],
         },
         "taxonomy": {
@@ -160,7 +162,7 @@ def main() -> None:
     assert record["metadata"]["version"] == "2.0.0"
     assert "{{ subject | \"白猫\" }}" in record["promptTemplate"]
     assert "激光向左下方发射" not in record["promptTemplate"]
-    assert "激光向左下方发射" in record["promptEnhancement"]["lockedConstraints"]
+    assert any("激光" in value and "左下方" in value for value in record["promptEnhancement"]["lockedConstraints"])
     assert record["promptEnhancement"]["referenceField"] == "referenceImage"
     assert record["promptEnhancement"]["output"] == {"format": "json", "promptField": "finalPrompt"}
     assert "只输出最终成图" in record["promptEnhancement"]["instruction"]
@@ -176,6 +178,11 @@ def main() -> None:
     assert "疑似惊讶" not in record["metadata"]["tags"]
     assert record["metadata"]["referenceContext"]["status"] == "probable"
     assert record["metadata"]["referenceContext"]["primaryReference"] == "《戴珍珠耳环的少女》"
+    assert record["inputSchema"][0]["label"] == "主体"
+    assert record["inputSchema"][0]["image"]["promptValue"] == "用户上传图中的主体"
+    assert record["metadata"]["inputSemantics"]["subject"]["semanticType"] == "subject_identity"
+    assert record["metadata"]["inputSemantics"]["subject"]["uploadLabel"] == "上传主体图"
+    assert "上传图决定主体身份、物种与人物类型" in record["promptEnhancement"]["instruction"]
     assert "path" not in record["metadata"]["templateSource"]
     assert record["metadata"]["templateSource"]["referenceField"] == "referenceImage"
 

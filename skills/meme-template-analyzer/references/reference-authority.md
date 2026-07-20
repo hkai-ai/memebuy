@@ -13,6 +13,7 @@
 - `composition_authority`：主体位置、画幅、镜头、遮挡、版式、文字区域和 `arrangement_pattern`。
 - `style_authority`：媒介、线稿、色彩节奏和材质。
 - `identity_authority`：通常为 `none`，固定角色模板除外。
+- 存在模板图时，最终 `finalPrompt` 必须显式声明模板图是构图与风格基准，只替换开放槽位；不得仅在请求的 `referenceImages` 数组中附带 URL 后继续使用从零生成式提示词。
 
 用户输入：
 
@@ -29,6 +30,8 @@
 - `templateSource.preserve`
 - `backendHint.generationModes.reference_aware_prompt.mustPreserve`
 - 真实生成 QA
+
+`lockedConstraints/preserve` 至少覆盖当前图片特有的构图、媒介风格和空间关系。每项写出可观察对象及关系，例如“人物位于左上、纸箱位于下方中心”“粗颗粒剪纸拼贴”“纸箱前沿遮挡盒内主体下半身”。“保持构图”“保持风格”“保持画幅”不能单独作为交付约束。
 
 ## 图片槽
 

@@ -60,6 +60,8 @@ def main() -> None:
         "editablePrompt",
         "allowFullRewrite",
         "slots[]",
+        "完整画面描述",
+        "禁止显示单选项候选控件",
         "slot_reflection_review",
         "templateSource",
         "userSubjectInput",
@@ -138,6 +140,8 @@ def main() -> None:
         "resolvedPrompt",
         "inputSchema",
         "preprocessSteps",
+        "完整、连贯、可独立理解",
+        "至少 3 个去重",
         "LiquidJS",
         "allowCustom: true",
         "{value,label}",
@@ -269,13 +273,13 @@ def main() -> None:
     ]:
         require(readme, needle, "README.md")
 
-    assert manifest["version"] == "0.32.1"
+    assert manifest["version"] == "0.35.0"
     assert "references/tagging-and-taxonomy.md" in manifest["tracked_files"]
     assert "scripts/validate_slot_intelligence.py" in manifest["tracked_files"]
     assert "scripts/test_slot_intelligence.py" in manifest["tracked_files"]
     assert "scripts/validate_frontend_experience.py" in manifest["tracked_files"]
     assert "scripts/test_frontend_experience.py" in manifest["tracked_files"]
-    assert manifest["updated_at"] == "2026-07-16"
+    assert manifest["updated_at"] == "2026-07-20"
     for tracked in manifest["tracked_files"]:
         if not (ROOT / tracked).exists():
             raise AssertionError(f"skill-manifest.json tracks missing file: {tracked}")

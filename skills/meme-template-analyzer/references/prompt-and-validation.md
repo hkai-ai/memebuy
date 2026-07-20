@@ -26,6 +26,14 @@
 
 `promptTemplate` 不得出现“文案长度要求”“使用模板固定参考图”“必须遵守”或 preserve 清单。它们属于后端策略。
 
+`promptTemplate` 必须是一段完整、连贯、可独立理解的成图描述。把 placeholder 放进自然语法中的主体、动作、空间关系、道具、背景或风格位置，例如：
+
+```text
+一位{{ person | "古装发髻女子" }}坐在电脑桌前，面向{{ device | "黑色笔记本电脑" }}，双手托着{{ prop | "粉色莲花" }}；背景采用{{ background | "钴蓝色" }}，整体呈现复古网点印刷插画质感。
+```
+
+禁止使用“沿用原画面，通过以下开放项生成同构画面：A；B；C”“以模板参考图为基准，仅修改以下开放项”或连续 placeholder 清单。这些参考图权限和编辑边界属于 `promptEnhancement`。
+
 ## 编译映射
 
 - `【主体：白猫】` -> `{{ subject | "白猫" }}`。
@@ -89,6 +97,8 @@ validator 检查：
 - `subject` 的 text/image 两种来源、`promptValue` 和 `image_over_text` 策略合法。
 - 本地 `cover`、`referenceImage` 文件存在性。
 - 用户可见名称、描述和提示词不包含内部编排语言。
+- `promptTemplate` 是完整自然语言成图描述，不是后处理指令或槽位清单。
+- 候选交互包含至少 3 个去重、同类且符合模板情景的真实选项；没有足够候选时不显示候选交互。
 - 生成指令不包含组件图或枚举 ID，并明确禁止输出编辑标注。
 - 已有默认值的槽位可直接生成，自由编辑不会被隐藏必填项卡住。
 - `metadata.presentation` 与 `metadata.runtimeRequirements` 能驱动正确比例、固定参考图和多主体图片传递。

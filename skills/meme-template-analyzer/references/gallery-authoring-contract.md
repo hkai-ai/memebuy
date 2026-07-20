@@ -127,7 +127,7 @@ GalleryTemplateImport v2 支持 `prompt | select | image | subject`：
 变为“读图转文字且不把原图传给生成模型”。槽位的 `extract` 暂存于
 `metadata.inputSemantics`。
 
-`subject` 是 Gallery v2 新增的复合输入。它包含 `text`、`image` 和固定的 `resolutionStrategy: image_over_text`。图片模式下 `{{subjectId}}` 解析为 `image.promptValue`，例如“用户上传图中的主体”，同时把原图作为 identity reference 传给网关；禁止继续注入默认“猫”“狗”或人物身份。
+`subject` 是 Gallery v2 新增的复合输入。它包含 `text`、`image` 和固定的 `resolutionStrategy: image_over_text`。身份类槽统一使用 `semanticType: subject_identity`；普通身份槽的图片模式解析为“用户上传图中的主体”，盒内内容、右页画作等嵌套槽可保留空间或功能角色，同时把原图作为 identity reference 传给网关。label、`image.promptValue`、`defaultStateLabel`、`textInputLabel` 和 `uploadLabel` 均不得继续注入默认“猫”“狗”、人物类型、性别或商品身份。
 
 建议后端接收以下运行时值：
 
@@ -195,12 +195,16 @@ python skills/meme-template-analyzer/scripts/validate_gallery_template.py <templ
 - 每个 input id 唯一，且与 preprocess step id 共享命名空间。
 - 有 fallback/defaultValue 的 input 默认非必填，用户打开模板后可直接生成。
 - title、description、promptTemplate 不包含“组件槽位版”或“制作…模板”等编排文案。
-- suggestions 与该 input 的 `semanticType` 同类，不使用批量通用版本名。
+- suggestions 回答同一个槽位问题并只改变目标属性；主体/容器内容不得混入外部风景，且不使用批量通用版本名或“简洁款/彩色手绘/用户自定义”填充项。
 - 所有 promptTemplate 引用的 head id 已定义。
 - `description` 是 20 字以内的独立纯描述。
 - `promptTemplate` 只包含前端可编辑创作意图，不含后端约束。
+- `promptTemplate` 必须用一段完整自然语言描述成图，placeholder 自然嵌入句子；不得使用“沿用原画面/以下开放项/同构画面/以模板参考图为基准/仅修改开放项”等后处理文案，也不得退化为槽位清单。
+- `prompt.suggestions` 存在时必须有 3-10 个去重候选；`subject.text.suggestions` 必须有 3-10 个去重预设；纯 `select` 至少提供 2 个选项。候选不足时，普通 prompt 省略 suggestions 并使用自由输入，或标记 `needsReview`。
 - 所有模板硬约束写入 `promptEnhancement`，并在 `metadata.templateSource` 保留结构副本。
 - `promptEnhancement.instruction` 必须要求只输出最终干净成图；禁止出现“按某某组件图执行”、内部组件 ID、槽位展示、标注框、连线或图例。
+- 有 `referenceImage` 时，`promptEnhancement.instruction` 必须声明模板图拥有最高构图/风格权限，`finalPrompt` 显式采用参考图，只改开放槽位并禁止从零重新设计；约束必须包含当前图片特有的构图、媒介和空间关系证据。
+- 槽位默认属性不得在 placeholder 之外静态写死，也不得被多个重叠槽位同时拥有；例如用户选择水蜜桃后，旧的“草莓”不能从模板主题、甜品内容 fallback 或另一个装饰槽回流。
 - `promptEnhancement.preserve` 与 `metadata.templateSource.preserve` 只能写可直接理解的视觉不变量；禁止使用 `character_styling_1`、`reaction_portrait_2` 等机制名加序号的内部 ID。
 - 复合主体图片模式不重复默认文本主体，固定按 `image_over_text` 解析。
 - 用户图片槽默认原图直通，`preprocessSteps` 为 `[]`。

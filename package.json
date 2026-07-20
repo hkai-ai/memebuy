@@ -7,7 +7,7 @@
     "build": "pnpm --filter @memebuy/meme-admin build",
     "start": "pnpm --filter @memebuy/meme-admin start",
     "test": "pnpm --filter @memebuy/meme-admin test && pnpm test:skill",
-    "test:skill": "node --test skills/meme-template-analyzer/scripts/test_finalize_gallery_batch.mjs && python skills/meme-template-analyzer/scripts/test_gallery_template_conversion.py && python skills/meme-template-analyzer/scripts/test_skill_content_contract.py",
+    "test:skill": "node --test skills/meme-template-analyzer/scripts/test_finalize_gallery_batch.mjs && python skills/meme-template-analyzer/scripts/test_gallery_template_conversion.py && python skills/meme-template-analyzer/scripts/test_frontend_experience.py && python skills/meme-template-analyzer/scripts/test_slot_intelligence.py && python skills/meme-template-analyzer/scripts/test_skill_content_contract.py",
     "gallery:finalize": "node skills/meme-template-analyzer/scripts/finalize_gallery_batch.mjs",
     "typecheck": "pnpm --filter @memebuy/meme-admin typecheck"
   },
