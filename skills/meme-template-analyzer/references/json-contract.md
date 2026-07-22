@@ -328,7 +328,7 @@ python skills/meme-template-analyzer/scripts/validate_gallery_template.py artifa
 - `style_reference`: 提取风格、色彩、材质或媒介。
 - `composition_reference`: 提取构图、镜头、布局或文字位置。
 
-显性视觉变量仍需进入槽位候选审计，但同款模式只开放内容属性。对象自身的颜色或文字内容可使用 `slotRole: "visual_variable"`；背景环境、背景颜色、整体配色、画幅、构图、姿态、镜头、风格、媒介和材质由参考图锁定，不进入最终 `inputSchema`。
+显性视觉变量仍需进入槽位候选审计。对象自身的颜色或文字内容可使用 `slotRole: "visual_variable"`；背景内容、背景颜色、整体配色或色调通过组件独立性、编辑概率和模板完整性审计后也可进入 `inputSchema`。画幅、构图、姿态、镜头、风格、光影、媒介和材质由参考图锁定。
 
 `suggestions` 默认使用 `string[]`。不要在普通前端运行模板里写重复的 `{ "value": "小猪", "label": "小猪" }`，也不要默认写 `reason`。只有候选值和展示名不同、需要后台解释或 debug 时，才使用对象：
 
@@ -438,7 +438,7 @@ python skills/meme-template-analyzer/scripts/validate_gallery_template.py artifa
 
 `generationModes.reference_aware_prompt` 是有模板资产图时的默认编译路径。它把同一份用户输入转换成带参考图约束的提示词：模板资产图负责构图和保留项，用户输入负责主体语义或身份。`generationModes.prompt_mode` / `text_only_prompt` 是无参考图或自由变体的降级路径，必须把模板结构完整文字化。
 
-`promptEnhancement` 的详细边界见 `prompt-enhancement-v2.md`：`lockedConstraints` 只指名参考图视觉维度，`preserve` 只保存语义锚点；同款模式只开放主体、道具、配饰、文字和嵌套内容，不开放背景环境、姿态、镜头、风格、整体色调、媒介或材质。
+`promptEnhancement` 的详细边界见 `prompt-enhancement-v2.md`：`lockedConstraints` 只指名参考图负责且未开放的视觉维度，`preserve` 只保存语义锚点；背景或色调可以有条件开放，姿态、镜头、构图、风格、光影、媒介和材质保持锁定。
 
 ## 分析对象
 

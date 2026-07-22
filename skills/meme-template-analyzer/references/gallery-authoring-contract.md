@@ -94,7 +94,7 @@ OSS 收尾脚本只上传一次并复用 URL。最终交付 JSON 中二者为指
 
 ### promptEnhancement
 
-`promptEnhancement` 仅后端可见。后端先用输入值渲染 `promptTemplate`；全文编辑时先把用户改写合并进基础提示词，再将结果、复合主体模式、用户参考图和模板参考图上下文交给增强层。开放内容由用户决定，构图、镜头、姿态、背景环境、风格、材质、整体色调和光影由参考图决定。它包含：
+`promptEnhancement` 仅后端可见。后端先用输入值渲染 `promptTemplate`；全文编辑时先把用户改写合并进基础提示词，再将结果、复合主体模式、用户参考图和模板参考图上下文交给增强层。用户决定全部开放槽位；参考图决定构图、镜头、姿态、风格、材质、光影和其他未开放呈现维度。背景或色调未开放时由参考图决定，开放时由用户输入决定。它包含：
 
 - `stageKey`：二次编辑能力，例如 `gallery.prompt_rewrite`。
 - `instruction`：内部改写目标；参考图最高权限必须限定在呈现维度，显式排除开放内容和主体身份。
@@ -211,7 +211,7 @@ python skills/meme-template-analyzer/scripts/validate_gallery_template.py <templ
 - `promptEnhancement.instruction` 必须要求只输出最终干净成图；禁止出现“按某某组件图执行”、内部组件 ID、槽位展示、标注框、连线或图例。
 - 有 `referenceImage` 时，`promptEnhancement.instruction` 必须声明模板图对呈现维度的最高权限，同时排除开放内容和主体身份；不得要求最终提示词复述参考图元指令。
 - `lockedConstraints` 每条只指名视觉维度，建议不超过 40 字，不含“图像依据/具体为”等画面复述；`preserve` 不得复制约束。
-- 同款模式不得开放背景环境、整体配色、风格、姿态、镜头、画幅、构图、媒介或材质；对象自身内容属性可以开放。
+- 背景内容、背景颜色、整体配色或色调只有通过组件独立性、用户编辑概率和模板完整性审计后才可开放；禁止整批机械复用。风格、姿态、镜头、画幅、构图、光影、媒介和材质保持锁定。
 - 每个 `prompt`、`subject` 内容槽都必须自然出现在 `promptTemplate`，不得依赖转换器追加槽位清单。
 - 槽位默认属性不得在 placeholder 之外静态写死，也不得被多个重叠槽位同时拥有；例如用户选择水蜜桃后，旧的“草莓”不能从模板主题、甜品内容 fallback 或另一个装饰槽回流。
 - `promptEnhancement.preserve` 与 `metadata.templateSource.preserve` 只写可直接理解的语义锚点；禁止复制 `lockedConstraints`，也禁止使用 `character_styling_1`、`reaction_portrait_2` 等机制名加序号的内部 ID。

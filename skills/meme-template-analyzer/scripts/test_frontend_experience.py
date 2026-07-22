@@ -11,10 +11,10 @@ def sample() -> dict:
         "imageSize": "768x1024",
         "promptTemplate": "{{ person | \"穿长外套的人\" }}与{{ pet | \"低头小狗\" }}在蓝天下散步。",
         "promptEnhancement": {
-            "instruction": "把基础提示词改写成一条完整、可直接执行的图像生成提示词。用户在开放槽位中填写或上传的内容是本次生成的主体意图，必须完整体现。参考图在构图、画幅、裁切、镜头景别、背景、留白、画风、媒介、材质、色调与光影维度上具有最高权限，在画面内容与主体身份维度上不具权限。不要用文字复述参考图中的具体画面内容。只输出最终成图；不得显示模板标题、槽位框、组件标签、组件 ID、虚线连线、图例、操作说明、界面元素或任何编辑标注。",
+            "instruction": "把基础提示词改写成一条完整、可直接执行的图像生成提示词。用户在开放槽位中填写或上传的内容拥有对应维度的最高权限，必须完整体现。参考图在构图、画幅、裁切、镜头景别、留白、画风、媒介、材质、光影及其他未开放呈现维度上具有最高权限，在开放槽位对应维度上不具权限。不要用文字复述参考图中的具体画面内容。只输出最终成图；不得显示模板标题、槽位框、组件标签、组件 ID、虚线连线、图例、操作说明、界面元素或任何编辑标注。",
             "lockedConstraints": [
                 "沿用参考图的画幅、裁切、留白、镜头景别与元素位置比例",
-                "沿用参考图的媒介质感、材质表现与色彩关系",
+                "沿用参考图的媒介质感与材质表现",
                 "沿用参考图的前景背景层级、遮挡关系与阅读顺序",
             ],
             "preserve": ["人物与陪伴动物必须共同参与散步关系"],
@@ -135,13 +135,44 @@ def main() -> None:
     visual_preserve["promptEnhancement"]["preserve"] = ["保持模板参考图的头像裁切和视觉风格"]
     assert any("visual restatements" in error for error in validate(visual_preserve))
 
-    presentation_slot = sample()
-    presentation_slot["promptTemplate"] += '{{ background | "蓝色背景" }}'
-    presentation_slot["inputSchema"].append(
+    background_slot = sample()
+    background_slot["promptTemplate"] = background_slot["promptTemplate"].replace("在蓝天下散步", "一同散步")
+    background_slot["promptTemplate"] += '背景为{{ background | "乡间花园" }}。'
+    background_slot["inputSchema"].append(
+        {"type": "prompt", "id": "background", "label": "背景场景", "required": False,
+         "suggestions": ["乡间花园", "海边日落", "城市夜景", "森林薄雾"]}
+    )
+    background_slot["metadata"]["inputSemantics"]["background"] = {"semanticType": "background_content"}
+    assert validate(background_slot) == []
+
+    tone_slot = sample()
+    tone_slot["promptTemplate"] += '整体色调为{{ tone | "清亮蓝绿" }}。'
+    tone_slot["inputSchema"].append(
+        {"type": "prompt", "id": "tone", "label": "整体色调", "required": False,
+         "suggestions": ["清亮蓝绿", "暖橙棕色", "柔和粉紫", "低饱和灰蓝"]}
+    )
+    tone_slot["metadata"]["inputSemantics"]["tone"] = {"semanticType": "color_tone"}
+    assert validate(tone_slot) == []
+
+    invalid_visual_slot = sample()
+    invalid_visual_slot["promptTemplate"] += '{{ background | "蓝色背景" }}'
+    invalid_visual_slot["inputSchema"].append(
         {"type": "prompt", "id": "background", "label": "背景场景", "required": False}
     )
-    presentation_slot["metadata"]["inputSemantics"]["background"] = {"semanticType": "background_design"}
-    assert any("exposes presentation dimension" in error for error in validate(presentation_slot))
+    invalid_visual_slot["metadata"]["inputSemantics"]["background"] = {"semanticType": "object_content"}
+    assert any("without a specific visual semanticType" in error for error in validate(invalid_visual_slot))
+
+    locked_tone_slot = tone_slot
+    locked_tone_slot["promptEnhancement"]["lockedConstraints"].append("沿用参考图的整体色调与配色")
+    assert any("lock the same dimension" in error for error in validate(locked_tone_slot))
+
+    hard_presentation_slot = sample()
+    hard_presentation_slot["promptTemplate"] += '{{ camera | "俯拍" }}'
+    hard_presentation_slot["inputSchema"].append(
+        {"type": "prompt", "id": "camera", "label": "镜头机位", "required": False}
+    )
+    hard_presentation_slot["metadata"]["inputSemantics"]["camera"] = {"semanticType": "camera_design"}
+    assert any("exposes presentation dimension" in error for error in validate(hard_presentation_slot))
 
     unused = sample()
     unused["inputSchema"].append(

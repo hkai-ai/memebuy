@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.36.0",
+  "version": "0.36.1",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
   "updated_at": "2026-07-22",
-  "notes": "Scope reference authority to presentation dimensions, preserve user-owned content replacements, use dimension-only constraints, separate semantic anchors, and align validation with the current rewrite runtime.",
+  "notes": "Allow background and tone slots when component-specific edit intent is strong, keep unopened presentation dimensions reference-controlled, and reject open-slot/locked-constraint conflicts.",
   "tracked_files": [
     "SKILL.md",
     "README.md",

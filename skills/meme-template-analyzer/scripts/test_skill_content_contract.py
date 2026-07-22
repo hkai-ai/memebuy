@@ -153,7 +153,7 @@ def main() -> None:
         require(prompt_validation, needle, "prompt-and-validation.md")
 
     for needle in [
-        "开放内容由用户决定",
+        "开放槽位由用户决定",
         "呈现维度",
         "不要用文字复述",
         "lockedConstraints",
@@ -288,7 +288,7 @@ def main() -> None:
     ]:
         require(readme, needle, "README.md")
 
-    assert manifest["version"] == "0.36.0"
+    assert manifest["version"] == "0.36.1"
     assert "references/tagging-and-taxonomy.md" in manifest["tracked_files"]
     assert "scripts/validate_slot_intelligence.py" in manifest["tracked_files"]
     assert "scripts/test_slot_intelligence.py" in manifest["tracked_files"]

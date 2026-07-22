@@ -164,7 +164,7 @@ def main() -> None:
     assert "激光向左下方发射" not in record["promptTemplate"]
     assert record["promptEnhancement"]["lockedConstraints"] == [
         "沿用参考图的画幅、裁切、留白、镜头景别与元素位置比例",
-        "沿用参考图的媒介质感、材质表现与色彩关系",
+        "沿用参考图的媒介质感与材质表现",
         "沿用参考图的前景背景层级、遮挡关系与阅读顺序",
     ]
     assert record["promptEnhancement"]["preserve"] == []
@@ -188,7 +188,7 @@ def main() -> None:
     assert record["metadata"]["inputSemantics"]["subject"]["semanticType"] == "subject_identity"
     assert record["metadata"]["inputSemantics"]["subject"]["uploadLabel"] == "上传主体图"
     assert "上传图决定对应主体的身份、物种与人物类型" in record["promptEnhancement"]["instruction"]
-    assert "画面内容与主体身份维度上不具权限" in record["promptEnhancement"]["instruction"]
+    assert "在开放槽位对应维度上不具权限" in record["promptEnhancement"]["instruction"]
     assert "finalPrompt 必须" not in record["promptEnhancement"]["instruction"]
     assert "path" not in record["metadata"]["templateSource"]
     assert record["metadata"]["templateSource"]["referenceField"] == "referenceImage"

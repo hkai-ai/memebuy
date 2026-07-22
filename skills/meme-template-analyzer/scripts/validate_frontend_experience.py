@@ -41,7 +41,7 @@ SCENE_CAPABLE_SEMANTICS = {
 }
 REFERENCE_INSTRUCTION_MARKERS = (
     "参考图在构图",
-    "画面内容与主体身份维度上不具权限",
+    "在开放槽位对应维度上不具权限",
     "用户在开放槽位",
     "不要用文字复述参考图",
 )
@@ -65,10 +65,14 @@ INTERNAL_INSTRUCTION_RE = re.compile(
     r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+_\d+\b",
     re.IGNORECASE,
 )
-PRESENTATION_SLOT_RE = re.compile(
-    r"画面风格|艺术风格|整体风格|背景场景|背景环境|背景颜色|背景配色|整体配色|"
-    r"色调|光影|姿态|机位|景别|画幅|构图|镜头|媒介|材质"
+HARD_LOCKED_PRESENTATION_SLOT_RE = re.compile(
+    r"画面风格|艺术风格|整体风格|光影|姿态|机位|景别|画幅|构图|镜头|媒介|材质"
 )
+CONDITIONAL_VISUAL_SLOT_RE = re.compile(r"背景场景|背景环境|背景内容|背景图片|背景图|背景颜色|背景配色|整体配色|色调")
+CONDITIONAL_VISUAL_SEMANTICS = {
+    "background_content", "background_design", "background_image", "background_color",
+    "palette", "color_palette", "palette_design", "color_tone", "overall_tone",
+}
 CONSTRAINT_RESTATEMENT_RE = re.compile(r"图像依据[:：]|具体为|具体是|也就是|即[:：，]")
 META_PROMPT_RE = re.compile(r"finalPrompt.{0,30}(?:明确|写出|声明).{0,40}参考图|以模板参考图为.{0,30}基准")
 
@@ -169,11 +173,11 @@ def validate(data: Any, runtime_profile: str = "gallery-v2-subject") -> list[str
         if (
             data.get("referenceImage")
             and item.get("type") in {"prompt", "subject", "select"}
-            and PRESENTATION_SLOT_RE.search(label)
+            and HARD_LOCKED_PRESENTATION_SLOT_RE.search(label)
         ):
             errors.append(
                 f"inputSchema[{index}] {input_id!r} exposes presentation dimension {label!r}; "
-                "same-style templates only open content identity, props, accessories or text"
+                "same-style templates keep composition, pose, lighting, style, medium and material locked"
             )
         if data.get("referenceImage") and item.get("type") == "select":
             errors.append(
@@ -261,6 +265,17 @@ def validate(data: Any, runtime_profile: str = "gallery-v2-subject") -> list[str
             )
         slot_semantics = semantics.get(input_id) if isinstance(semantics.get(input_id), dict) else {}
         semantic_type = str(slot_semantics.get("semanticType") or "")
+        if data.get("referenceImage") and CONDITIONAL_VISUAL_SLOT_RE.search(label):
+            if semantic_type not in CONDITIONAL_VISUAL_SEMANTICS:
+                errors.append(
+                    f"inputSchema[{index}] {input_id!r} opens background/tone without a specific visual semanticType: "
+                    f"{semantic_type or 'missing'}"
+                )
+            locked_text = " ".join(str(value) for value in enhancement.get("lockedConstraints") or [])
+            if re.search(r"色调|配色", label) and re.search(r"整体色调|整体配色|色彩关系", locked_text):
+                errors.append(f"inputSchema[{index}] {input_id!r} opens tone/palette but lockedConstraints lock the same dimension")
+            if re.search(r"背景", label) and re.search(r"背景环境|背景内容|背景场景|背景颜色|背景配色", locked_text):
+                errors.append(f"inputSchema[{index}] {input_id!r} opens background but lockedConstraints lock the same dimension")
         scene_values = [value for value in values if SCENE_SUGGESTION_RE.search(value)]
         label = str(item.get("label") or "")
         label_allows_scene = bool(re.search(r"背景|环境|场景|风景|画面|图像|图片|页内|屏幕|窗口|镜中", label))
