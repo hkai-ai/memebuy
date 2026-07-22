@@ -11,7 +11,7 @@
     {
       "type": "subject",
       "id": "person",
-      "label": "头像主体",
+      "label": "主体",
       "required": false,
       "text": {
         "defaultValue": "一位年轻人",
@@ -41,66 +41,52 @@
       "resolutionStrategy": "image_over_text"
     },
     {
-      "type": "select",
-      "id": "mbti",
-      "label": "MBTI 人格",
-      "required": true,
-      "options": [
-        {
-          "value": "理性冷冽的战略家气质，深蓝金属色调，锐利眼神",
-          "label": "INTJ 建筑师",
-          "payload": {
-            "subtitle": "运筹帷幄的孤独设计师",
-            "palette": "deep navy, gunmetal, cold silver"
-          }
-        },
-        {
-          "value": "热烈张扬的表演者气质，暖橙霓虹，动感光斑",
-          "label": "ESFP 表演者",
-          "payload": {
-            "subtitle": "点燃全场的天生主角",
-            "palette": "warm orange, magenta neon, gold sparkle"
-          }
-        }
+      "type": "prompt",
+      "id": "accessory",
+      "label": "颈前配饰",
+      "required": false,
+      "suggestions": [
+        "粉色领结",
+        "红白斜纹领带",
+        "珍珠项链"
       ]
     },
     {
       "type": "prompt",
-      "id": "extra",
-      "label": "额外风格描述（可选）",
-      "placeholder": "例如：赛博朋克、水彩、胶片颗粒",
+      "id": "headline",
+      "label": "标题文字",
+      "placeholder": "输入标题文字",
       "required": false,
       "maxLength": 120,
       "suggestions": [
-        "赛博朋克",
-        "水彩插画",
-        "胶片颗粒感"
+        "保持好奇",
+        "今天也很棒",
+        "快乐出发"
       ]
     },
     {
       "type": "image",
-      "id": "style_reference",
-      "label": "附加风格参考图",
-      "hint": "可选，不用于替换主体",
+      "id": "emblem_image",
+      "label": "徽章图案",
+      "hint": "可选，上传要放入徽章区域的图案",
       "required": false,
       "maxCount": 1,
       "private": false
     }
   ],
   "preprocessSteps": [],
-  "promptTemplate": "为 {{person | \"一位年轻人\"}} 设计一张 {{mbti}} 风格的头像肖像。整体配色 {{mbti.palette}}，副标题氛围为 {{mbti.subtitle}}。补充要求：{{extra | \"电影级布光，高细节\"}}。",
+  "promptTemplate": "一幅居中头像海报，{{person | \"一位年轻人\"}}佩戴{{accessory | \"粉色领结\"}}，画面标题写着“{{headline | \"保持好奇\"}}”。",
   "promptEnhancement": {
     "stageKey": "gallery.prompt_rewrite",
-    "instruction": "在不改变用户主体和人格选择的前提下，将基础提示词改写为完整、清晰、适合图片网关执行的提示词。上传主体图存在时只继承身份特征，不继承其构图。只输出最终成图；不得显示模板标题、槽位框、组件标签、组件 ID、虚线连线、图例、操作说明、界面元素或任何编辑标注。",
+    "instruction": "把基础提示词改写成一条完整、可直接执行的图像生成提示词。用户在开放槽位中填写或上传的内容是本次生成的主体意图，必须完整体现。参考图在构图、画幅、裁切、镜头景别、背景、留白、画风、媒介、材质、色调与光影维度上具有最高权限，在画面内容与主体身份维度上不具权限。不要用文字复述参考图中的具体画面内容。只输出最终成图；不得显示模板标题、槽位框、组件标签、组件 ID、虚线连线、图例、操作说明、界面元素或任何编辑标注。",
     "referenceField": "referenceImage",
     "lockedConstraints": [
-      "主体面部清晰且不被文字遮挡",
-      "保持模板参考图的头像构图和风格层级"
+      "沿用参考图的画幅、裁切、留白、镜头景别与元素位置比例",
+      "沿用参考图的媒介质感、材质表现与色彩关系",
+      "沿用参考图的前景背景层级、遮挡关系与阅读顺序"
     ],
     "preserve": [
-      "保持头像裁切",
-      "保持面部清晰可见",
-      "保持视觉风格层级"
+      "主体面部必须清晰可见且不被标题遮挡"
     ],
     "output": {
       "format": "json",
@@ -138,10 +124,27 @@
     "version": "2.0.0",
     "inputSemantics": {
       "person": {
-        "semanticType": "person_identity",
-        "defaultStateLabel": "保留默认人物",
-        "textInputLabel": "或用文字描述人物",
-        "uploadLabel": "上传人物图"
+        "semanticType": "subject_identity",
+        "defaultStateLabel": "保留原主体",
+        "textInputLabel": "或用文字描述主体",
+        "uploadLabel": "上传主体图"
+      },
+      "accessory": {
+        "semanticType": "accessory_content"
+      },
+      "headline": {
+        "semanticType": "text_content"
+      },
+      "emblem_image": {
+        "semanticType": "embedded_image_content"
+      }
+    },
+    "templateSource": {
+      "referenceField": "referenceImage",
+      "authority": {
+        "composition_authority": "high",
+        "style_authority": "high",
+        "identity_authority": "none"
       }
     },
     "presentation": {

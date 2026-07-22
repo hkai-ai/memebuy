@@ -162,7 +162,12 @@ def main() -> None:
     assert record["metadata"]["version"] == "2.0.0"
     assert "{{ subject | \"白猫\" }}" in record["promptTemplate"]
     assert "激光向左下方发射" not in record["promptTemplate"]
-    assert any("激光" in value and "左下方" in value for value in record["promptEnhancement"]["lockedConstraints"])
+    assert record["promptEnhancement"]["lockedConstraints"] == [
+        "沿用参考图的画幅、裁切、留白、镜头景别与元素位置比例",
+        "沿用参考图的媒介质感、材质表现与色彩关系",
+        "沿用参考图的前景背景层级、遮挡关系与阅读顺序",
+    ]
+    assert record["promptEnhancement"]["preserve"] == []
     assert record["promptEnhancement"]["referenceField"] == "referenceImage"
     assert record["promptEnhancement"]["output"] == {"format": "json", "promptField": "finalPrompt"}
     assert "只输出最终成图" in record["promptEnhancement"]["instruction"]
@@ -182,7 +187,9 @@ def main() -> None:
     assert record["inputSchema"][0]["image"]["promptValue"] == "用户上传图中的主体"
     assert record["metadata"]["inputSemantics"]["subject"]["semanticType"] == "subject_identity"
     assert record["metadata"]["inputSemantics"]["subject"]["uploadLabel"] == "上传主体图"
-    assert "上传图决定主体身份、物种与人物类型" in record["promptEnhancement"]["instruction"]
+    assert "上传图决定对应主体的身份、物种与人物类型" in record["promptEnhancement"]["instruction"]
+    assert "画面内容与主体身份维度上不具权限" in record["promptEnhancement"]["instruction"]
+    assert "finalPrompt 必须" not in record["promptEnhancement"]["instruction"]
     assert "path" not in record["metadata"]["templateSource"]
     assert record["metadata"]["templateSource"]["referenceField"] == "referenceImage"
 
@@ -344,6 +351,25 @@ def main() -> None:
         assert "required must be a boolean" in str(error)
     else:
         raise AssertionError("converter accepted a string boolean")
+
+    unused_slot = fixture()
+    unused_slot["slots"].append(
+        {
+            "id": "unused_prop",
+            "label": "随身物",
+            "inputKind": "prompt",
+            "slotRole": "semantic_replacement",
+            "required": False,
+            "defaultValue": "雨伞",
+            "suggestions": ["雨伞", "手提包", "书本"],
+        }
+    )
+    try:
+        build_gallery_template(unused_slot)
+    except ValueError as error:
+        assert "every textual slot must appear naturally" in str(error)
+    else:
+        raise AssertionError("converter silently appended an unused textual slot")
 
 
 if __name__ == "__main__":

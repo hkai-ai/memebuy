@@ -25,23 +25,28 @@ INTERNAL_GENERATION_MARKERS = (
     "组件图", "组件槽位", "槽位框", "槽位说明", "组件标签", "组件 ID",
     "可编辑组件区域", "按可见组件开放编辑能力",
 )
+REFERENCE_RESTATEMENT_RE = re.compile(r"图像依据[:：]|具体为|具体是|^保持模板参考图|^沿用参考图")
 DEFAULT_REWRITE_INSTRUCTION = (
-    "在不改变用户创作意图的前提下，把基础提示词改写为完整、清晰、可执行的图片生成提示词；"
-    "应用锁定的视觉约束，并解决文本主体与上传主体之间的冲突。"
+    "把基础提示词改写成一条完整、可直接执行的图像生成提示词。"
 )
 CLEAN_OUTPUT_INSTRUCTION = (
     "只输出最终成图；不得显示模板标题、槽位框、组件标签、组件 ID、虚线连线、图例、"
     "操作说明、界面元素或任何编辑标注。"
 )
 SUBJECT_OVERRIDE_INSTRUCTION = (
-    "若主体槽使用上传图，上传图决定主体身份、物种与人物类型，并覆盖模板标题、默认值、"
-    "候选词和模板参考图中的原主体身份；模板参考图只控制构图、姿态关系与视觉风格。"
+    "用户在开放槽位中填写或上传的内容是本次生成的主体意图，必须完整体现；"
+    "上传图决定对应主体的身份、物种与人物类型，并覆盖默认主体身份。"
 )
 REFERENCE_AUTHORITY_INSTRUCTION = (
-    "模板参考图是构图与视觉风格的最高权限；只允许替换 inputSchema 明确开放的槽位，"
-    "严格保持参考图的画幅裁切、镜头景别、元素位置与比例、遮挡和留白、媒介质感、"
-    "色彩关系与版式节奏，禁止重新设计构图、姿态、场景或画风。输出的 finalPrompt 必须"
-    "明确写出以模板参考图为构图和风格基准，不得把任务改写成从零生成新画面。"
+    "参考图与最终提示词会一同送入图像模型；参考图在构图、画幅、裁切、镜头景别、机位、"
+    "姿态、背景、留白、画风、媒介、材质、整体色调与光影维度上具有最高权限，"
+    "在开放槽位对应的画面内容与主体身份维度上不具权限。只需指名沿用参考图的视觉维度，"
+    "不要用文字复述参考图中的具体画面内容。"
+)
+DEFAULT_REFERENCE_CONSTRAINTS = (
+    "沿用参考图的画幅、裁切、留白、镜头景别与元素位置比例",
+    "沿用参考图的媒介质感、材质表现与色彩关系",
+    "沿用参考图的前景背景层级、遮挡关系与阅读顺序",
 )
 IDENTITY_SEMANTIC_TYPES = {
     "subject_identity", "person_identity", "pet_identity", "animal_identity",
@@ -107,7 +112,13 @@ def safe_preserve_values(value: Any) -> list[str]:
     result: list[str] = []
     for item in value:
         text = str(item).strip()[:120]
-        if not text or INTERNAL_PRESERVE_ID_RE.fullmatch(text) or contains_internal_generation_language(text):
+        if (
+            not text
+            or INTERNAL_PRESERVE_ID_RE.fullmatch(text)
+            or re.fullmatch(r"[a-z][a-z0-9_]+", text, re.IGNORECASE)
+            or contains_internal_generation_language(text)
+            or REFERENCE_RESTATEMENT_RE.search(text)
+        ):
             continue
         if text not in result:
             result.append(text)
@@ -115,16 +126,13 @@ def safe_preserve_values(value: Any) -> list[str]:
 
 
 def safe_rewrite_instruction(value: Any, has_reference: bool = False) -> str:
-    instruction = str(value or "").strip()
-    if not instruction or contains_internal_generation_language(instruction):
-        instruction = DEFAULT_REWRITE_INSTRUCTION
-    if CLEAN_OUTPUT_INSTRUCTION not in instruction:
-        instruction = f"{instruction.rstrip('。')}。{CLEAN_OUTPUT_INSTRUCTION}"
-    if SUBJECT_OVERRIDE_INSTRUCTION not in instruction:
-        instruction = f"{instruction.rstrip('。')}。{SUBJECT_OVERRIDE_INSTRUCTION}"
-    if has_reference and REFERENCE_AUTHORITY_INSTRUCTION not in instruction:
-        instruction = f"{instruction.rstrip('。')}。{REFERENCE_AUTHORITY_INSTRUCTION}"
-    return instruction
+    # Keep this layer deterministic and content-neutral.  Template-specific visual
+    # facts belong to the reference image; semantic invariants belong to preserve.
+    parts = [DEFAULT_REWRITE_INSTRUCTION, SUBJECT_OVERRIDE_INSTRUCTION]
+    if has_reference:
+        parts.append(REFERENCE_AUTHORITY_INSTRUCTION)
+    parts.append(CLEAN_OUTPUT_INSTRUCTION)
+    return "".join(part.rstrip("。") + "。" for part in parts)
 
 
 def is_identity_subject_slot(slot: dict[str, Any]) -> bool:
@@ -454,6 +462,20 @@ def template_constraints(template_source: Any) -> list[str]:
     return constraints
 
 
+def reference_dimension_constraints(has_reference: bool) -> list[str]:
+    """Return dimension pointers; downstream image models can inspect the reference image."""
+    return list(DEFAULT_REFERENCE_CONSTRAINTS) if has_reference else []
+
+
+def dedupe_preserve(values: list[str], locked_constraints: list[str]) -> list[str]:
+    locked = {re.sub(r"[\s，。；、]", "", value) for value in locked_constraints}
+    return [
+        value
+        for value in values
+        if re.sub(r"[\s，。；、]", "", value) not in locked
+    ]
+
+
 def compile_prompt_template(data: dict[str, Any], slots: list[dict[str, Any]]) -> str:
     template_text = str(data.get("templateText") or data.get("editablePrompt") or "").strip()
     if not template_text:
@@ -473,13 +495,16 @@ def compile_prompt_template(data: dict[str, Any], slots: list[dict[str, Any]]) -
 
     prompt = TOKEN_RE.sub(replace_token, template_text)
 
-    for slot in slots:
-        slot_id = str(slot.get("id", ""))
-        input_kind = slot.get("inputKind")
-        if is_textual_slot(slot) and slot_id not in used_ids:
-            label = str(slot.get("label") or slot_id)
-            default = slot.get("defaultValue", "")
-            prompt += f" {label}：{{{{ {slot_id} | {json_literal(default)} }}}}。"
+    unused = [
+        str(slot.get("id", ""))
+        for slot in slots
+        if is_textual_slot(slot) and str(slot.get("id", "")) not in used_ids
+    ]
+    if unused:
+        raise ValueError(
+            "every textual slot must appear naturally in templateText; unused slot ids: "
+            + ", ".join(unused)
+        )
     if len(prompt) > 4000:
         raise ValueError(f"compiled promptTemplate exceeds 4000 characters: {len(prompt)}")
     return re.sub(r"\s+", " ", prompt).strip()
@@ -489,30 +514,31 @@ def compile_prompt_enhancement(data: dict[str, Any]) -> OrderedDict[str, Any]:
     explicit = data.get("promptEnhancement")
     template_source = data.get("templateSource")
     source = template_source if isinstance(template_source, dict) else {}
-    locked_constraints = template_constraints({"lockedConstraints": source.get("lockedConstraints") or source.get("locked_composition_constraints")})
+    has_reference = bool(source_path(data))
+    locked_constraints = reference_dimension_constraints(has_reference)
     preserve = safe_preserve_values(source.get("preserve"))
 
     if explicit is not None and not isinstance(explicit, dict):
         raise ValueError("promptEnhancement must be an object")
     config = explicit or {}
     stage_key = str(config.get("stageKey") or "gallery.prompt_rewrite").strip()
-    instruction = safe_rewrite_instruction(config.get("instruction"), has_reference=bool(source.get("path")))
+    instruction = safe_rewrite_instruction(config.get("instruction"), has_reference=has_reference)
     result = OrderedDict(
         [
             ("stageKey", stage_key[:60]),
             ("instruction", instruction[:8000]),
         ]
     )
-    if source.get("path"):
+    if has_reference:
         result["referenceField"] = "referenceImage"
     explicit_locked = config.get("lockedConstraints")
-    if isinstance(explicit_locked, list):
+    if isinstance(explicit_locked, list) and not has_reference:
         locked_constraints = template_constraints({"lockedConstraints": explicit_locked})
     explicit_preserve = config.get("preserve")
     if isinstance(explicit_preserve, list):
         preserve = safe_preserve_values(explicit_preserve)
     result["lockedConstraints"] = locked_constraints[:30]
-    result["preserve"] = preserve[:30]
+    result["preserve"] = dedupe_preserve(preserve, locked_constraints)[:30]
     result["output"] = OrderedDict([("format", "json"), ("promptField", "finalPrompt")])
     return result
 

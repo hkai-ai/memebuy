@@ -23,6 +23,7 @@ def main() -> None:
     cultural_reference = read("references/cultural-reference-discovery.md")
     reference_authority = read("references/reference-authority.md")
     prompt_validation = read("references/prompt-and-validation.md")
+    prompt_enhancement = read("references/prompt-enhancement-v2.md")
     generation_testing = read("references/generation-testing.md")
     batch_review = read("references/batch-and-review.md")
     tagging_taxonomy = read("references/tagging-and-taxonomy.md")
@@ -89,6 +90,7 @@ def main() -> None:
         "cultural-reference-discovery.md",
         "reference-authority.md",
         "prompt-and-validation.md",
+        "prompt-enhancement-v2.md",
         "generation-testing.md",
         "batch-and-review.md",
     ]:
@@ -149,6 +151,19 @@ def main() -> None:
         "validate_gallery_template.py",
     ]:
         require(prompt_validation, needle, "prompt-and-validation.md")
+
+    for needle in [
+        "开放内容由用户决定",
+        "呈现维度",
+        "不要用文字复述",
+        "lockedConstraints",
+        "preserve",
+        "openSlotLabels",
+        "gallery.template_rewrite",
+        "parsed.prompt",
+        "全文编辑",
+    ]:
+        require(prompt_enhancement, needle, "prompt-enhancement-v2.md")
 
     for needle in [
         "3 张真实",
@@ -260,7 +275,7 @@ def main() -> None:
     }
     assert sample["preprocessSteps"] == []
     assert any(item["type"] == "image" for item in sample["inputSchema"])
-    assert any(item["type"] == "select" for item in sample["inputSchema"])
+    assert not any(item["type"] == "select" for item in sample["inputSchema"])
     assert any(item["type"] == "prompt" for item in sample["inputSchema"])
     assert any(item["type"] == "subject" for item in sample["inputSchema"])
     assert len(sample["description"]) <= 20
@@ -273,13 +288,14 @@ def main() -> None:
     ]:
         require(readme, needle, "README.md")
 
-    assert manifest["version"] == "0.35.0"
+    assert manifest["version"] == "0.36.0"
     assert "references/tagging-and-taxonomy.md" in manifest["tracked_files"]
     assert "scripts/validate_slot_intelligence.py" in manifest["tracked_files"]
     assert "scripts/test_slot_intelligence.py" in manifest["tracked_files"]
     assert "scripts/validate_frontend_experience.py" in manifest["tracked_files"]
     assert "scripts/test_frontend_experience.py" in manifest["tracked_files"]
-    assert manifest["updated_at"] == "2026-07-20"
+    assert "references/prompt-enhancement-v2.md" in manifest["tracked_files"]
+    assert manifest["updated_at"] == "2026-07-22"
     for tracked in manifest["tracked_files"]:
         if not (ROOT / tracked).exists():
             raise AssertionError(f"skill-manifest.json tracks missing file: {tracked}")

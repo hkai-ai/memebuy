@@ -1,10 +1,10 @@
 {
   "name": "meme-template-analyzer",
-  "version": "0.35.0",
+  "version": "0.36.0",
   "source": "repo",
   "runtime_copy_hint": "$env:USERPROFILE\\.codex\\skills\\meme-template-analyzer",
-  "updated_at": "2026-07-20",
-  "notes": "Require complete user-facing prompt prose and meaningful multi-option suggestions; keep reference and edit constraints in backend prompt enhancement.",
+  "updated_at": "2026-07-22",
+  "notes": "Scope reference authority to presentation dimensions, preserve user-owned content replacements, use dimension-only constraints, separate semantic anchors, and align validation with the current rewrite runtime.",
   "tracked_files": [
     "SKILL.md",
     "README.md",
@@ -17,6 +17,7 @@
     "references/cultural-reference-discovery.md",
     "references/reference-authority.md",
     "references/prompt-and-validation.md",
+    "references/prompt-enhancement-v2.md",
     "references/generation-testing.md",
     "references/batch-and-review.md",
     "references/tagging-and-taxonomy.md",

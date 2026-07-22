@@ -328,7 +328,7 @@ python skills/meme-template-analyzer/scripts/validate_gallery_template.py artifa
 - `style_reference`: 提取风格、色彩、材质或媒介。
 - `composition_reference`: 提取构图、镜头、布局或文字位置。
 
-显性视觉变量槽位可使用 `slotRole: "visual_variable"` 标记，尤其是颜色、背景、主体色、文字色、画幅、主体数量、文字位置等前端用户一眼会感知的属性。此类槽位可以同时保留具体语义，例如在 `ui.helperText` 或 `validation` 中说明它是背景色、主色调还是文字色。
+显性视觉变量仍需进入槽位候选审计，但同款模式只开放内容属性。对象自身的颜色或文字内容可使用 `slotRole: "visual_variable"`；背景环境、背景颜色、整体配色、画幅、构图、姿态、镜头、风格、媒介和材质由参考图锁定，不进入最终 `inputSchema`。
 
 `suggestions` 默认使用 `string[]`。不要在普通前端运行模板里写重复的 `{ "value": "小猪", "label": "小猪" }`，也不要默认写 `reason`。只有候选值和展示名不同、需要后台解释或 debug 时，才使用对象：
 
@@ -434,9 +434,11 @@ python skills/meme-template-analyzer/scripts/validate_gallery_template.py artifa
 - `promptEnhancement`：仅后端可见，保存 LLM 二次编辑 instruction、参考图字段、锁定约束、preserve 项和 `{format: json, promptField: finalPrompt}` 输出协议。
 - `resolvedPrompt`：运行时结果，不归档、不回显，只交给图片网关。
 
-`backendHint` 不绑定 OpenAI、Cloudflare、ComfyUI 或其他图像 API。后端可以自由把 `editablePrompt + slots + imageRefs` 转成实际请求。
+`backendHint` 不绑定 OpenAI、Cloudflare、ComfyUI 或其他图像 API。后端把 `editablePrompt + slots + imageRefs` 转成实际请求时，全文编辑结果必须先覆盖基础提示词中的旧内容值，再进入 `promptEnhancement`。开放内容由用户决定，呈现维度由参考图决定。
 
 `generationModes.reference_aware_prompt` 是有模板资产图时的默认编译路径。它把同一份用户输入转换成带参考图约束的提示词：模板资产图负责构图和保留项，用户输入负责主体语义或身份。`generationModes.prompt_mode` / `text_only_prompt` 是无参考图或自由变体的降级路径，必须把模板结构完整文字化。
+
+`promptEnhancement` 的详细边界见 `prompt-enhancement-v2.md`：`lockedConstraints` 只指名参考图视觉维度，`preserve` 只保存语义锚点；同款模式只开放主体、道具、配饰、文字和嵌套内容，不开放背景环境、姿态、镜头、风格、整体色调、媒介或材质。
 
 ## 分析对象
 
@@ -503,11 +505,11 @@ python skills/meme-template-analyzer/scripts/validate_gallery_template.py artifa
 }
 ```
 
-`slot_reflection_review` 是槽位反思逻辑，用来防止漏掉用户自然会编辑的候选，也防止把所有画面元素都暴露成表单。`candidate_scan` 必须覆盖语义、文案、显性视觉变量、构图、图片引用和约束六类；`missing_obvious_slots` 理想情况下为空；`coverage_requirements` 可驱动真实生成测试，例如要求至少改变一个颜色或背景槽。
+`slot_reflection_review` 是槽位反思逻辑，用来防止漏掉用户自然会编辑的候选，也防止把所有画面元素都暴露成表单。`candidate_scan` 必须覆盖语义、文案、显性视觉变量、构图、图片引用和约束六类；`missing_obvious_slots` 理想情况下为空；`coverage_requirements` 驱动真实生成测试时只改变开放内容属性，不把背景环境或整体风格当作同款变量。
 
 反思时增加语义合并：表达同一用户意图、通常需要同步修改或可由其他槽推导的维度不应全部成为必填槽。默认保留 2-4 个核心业务槽位，辅助颜色和图片参考可选。
 
-颜色候选必须按视觉层识别：`canvas_background` 是画布底层，`frame_border` 是沿画布或容器边缘的外框，`subject_outline` 是贴合主体轮廓的描边，`content_panel` 是局部前景容器。背景与边框可独立变化时分槽；需要统一配色时合并为 `palette` 或 `surface_style` 并记录同步规则。
+颜色候选必须按视觉层识别：`canvas_background` 是画布底层，`frame_border` 是沿画布或容器边缘的外框，`subject_outline` 是贴合主体轮廓的描边，`content_panel` 是局部前景容器。同款模式记录这些层的联动和锁定关系；只有颜色属于开放对象自身的内容属性时才建立槽位。
 
 ### Fusion Model Object
 

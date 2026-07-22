@@ -40,10 +40,10 @@ SCENE_CAPABLE_SEMANTICS = {
     "embedded_image_content", "embedded_content_image_content", "image_content",
 }
 REFERENCE_INSTRUCTION_MARKERS = (
-    "模板参考图是构图与视觉风格的最高权限",
-    "只允许替换",
-    "禁止重新设计",
-    "finalPrompt",
+    "参考图在构图",
+    "画面内容与主体身份维度上不具权限",
+    "用户在开放槽位",
+    "不要用文字复述参考图",
 )
 REFERENCE_CONSTRAINT_CATEGORIES = {
     "composition": re.compile(r"构图|位置|区域|版式|排布|画幅|镜头|景别|裁切|留白|比例"),
@@ -57,6 +57,7 @@ TOKEN_STOPWORDS = {
 }
 FALLBACK_RE = re.compile(r"\{\{\s*([a-zA-Z][a-zA-Z0-9_-]*)[^}]*\|\s*\"([^\"]*)\"\s*\}\}")
 PLACEHOLDER_RE = re.compile(r"\{\{.*?\}\}")
+PLACEHOLDER_HEAD_RE = re.compile(r"\{\{\s*([a-zA-Z][a-zA-Z0-9_-]*)")
 SIZE_RE = re.compile(r"^(\d{2,4})x(\d{2,4})$")
 INTERNAL_PRESERVE_ID_RE = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)+_\d+$", re.IGNORECASE)
 INTERNAL_INSTRUCTION_RE = re.compile(
@@ -64,6 +65,12 @@ INTERNAL_INSTRUCTION_RE = re.compile(
     r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+_\d+\b",
     re.IGNORECASE,
 )
+PRESENTATION_SLOT_RE = re.compile(
+    r"画面风格|艺术风格|整体风格|背景场景|背景环境|背景颜色|背景配色|整体配色|"
+    r"色调|光影|姿态|机位|景别|画幅|构图|镜头|媒介|材质"
+)
+CONSTRAINT_RESTATEMENT_RE = re.compile(r"图像依据[:：]|具体为|具体是|也就是|即[:：，]")
+META_PROMPT_RE = re.compile(r"finalPrompt.{0,30}(?:明确|写出|声明).{0,40}参考图|以模板参考图为.{0,30}基准")
 
 
 def ratio_for_size(image_size: str) -> str | None:
@@ -134,6 +141,8 @@ def validate(data: Any, runtime_profile: str = "gallery-v2-subject") -> list[str
             errors.append("promptEnhancement.instruction exposes internal component-diagram language")
         if "只输出最终成图" not in instruction:
             errors.append("promptEnhancement.instruction must forbid rendering editor annotations")
+        if META_PROMPT_RE.search(instruction):
+            errors.append("promptEnhancement.instruction must not ask the final prompt to repeat reference-image meta instructions")
     for field, values in (
         ("promptEnhancement.preserve", enhancement.get("preserve")),
         (
@@ -148,6 +157,7 @@ def validate(data: Any, runtime_profile: str = "gallery-v2-subject") -> list[str
                 errors.append(f"{field} contains internal enumerated ids: {', '.join(leaked)}")
     semantics = metadata.get("inputSemantics") if isinstance(metadata.get("inputSemantics"), dict) else {}
     fallbacks = {match.group(1): match.group(2) for match in FALLBACK_RE.finditer(prompt)}
+    referenced_inputs = {match.group(1) for match in PLACEHOLDER_HEAD_RE.finditer(prompt)}
     prompt_static = visible_prompt_text(prompt)
     subjects = []
     editable_tokens: dict[str, set[str]] = {}
@@ -155,6 +165,26 @@ def validate(data: Any, runtime_profile: str = "gallery-v2-subject") -> list[str
         if not isinstance(item, dict):
             continue
         input_id = str(item.get("id") or "")
+        label = str(item.get("label") or "")
+        if (
+            data.get("referenceImage")
+            and item.get("type") in {"prompt", "subject", "select"}
+            and PRESENTATION_SLOT_RE.search(label)
+        ):
+            errors.append(
+                f"inputSchema[{index}] {input_id!r} exposes presentation dimension {label!r}; "
+                "same-style templates only open content identity, props, accessories or text"
+            )
+        if data.get("referenceImage") and item.get("type") == "select":
+            errors.append(
+                f"inputSchema[{index}] {input_id!r} uses select, but runtime openSlotLabels only consumes prompt/subject labels; "
+                "use prompt suggestions or subject presets"
+            )
+        if item.get("type") in {"prompt", "subject", "select"} and input_id not in referenced_inputs:
+            errors.append(
+                f"inputSchema[{index}] {input_id!r} is not used by promptTemplate; "
+                "every open content slot must appear naturally in the base prompt"
+            )
         required = item.get("required") is True
         has_fallback = bool(fallbacks.get(input_id))
         if item.get("type") == "subject":
@@ -206,6 +236,16 @@ def validate(data: Any, runtime_profile: str = "gallery-v2-subject") -> list[str
             )
         tokens = salient_tokens(default_value)
         editable_tokens[input_id] = tokens
+        locked_text = " ".join(str(value) for value in enhancement.get("lockedConstraints") or [])
+        locked_defaults = sorted(
+            (token for token in tokens if token in locked_text),
+            key=lambda token: (-len(token), token),
+        )
+        if locked_defaults:
+            errors.append(
+                f"inputSchema[{index}] {input_id!r} is open but its default content is locked by promptEnhancement: "
+                + ", ".join(locked_defaults[:5])
+            )
         leaked_tokens = sorted((token for token in tokens if token in prompt_static), key=lambda token: (-len(token), token))
         if leaked_tokens:
             errors.append(
@@ -266,26 +306,45 @@ def validate(data: Any, runtime_profile: str = "gallery-v2-subject") -> list[str
             )
         constraints = [
             str(value).strip()
-            for value in (enhancement.get("lockedConstraints") or []) + (enhancement.get("preserve") or [])
+            for value in enhancement.get("lockedConstraints") or []
             if str(value).strip()
         ]
         categories = {
             name for name, pattern in REFERENCE_CONSTRAINT_CATEGORIES.items()
             if any(pattern.search(value) for value in constraints)
         }
-        descriptive = [value for value in constraints if len(value) >= 12]
-        if len(constraints) < 3 or len(descriptive) < 2 or len(categories) < 3:
+        locked_constraints = [str(value).strip() for value in enhancement.get("lockedConstraints") or []]
+        too_long = [value for value in locked_constraints if len(value) > 40]
+        restatements = [value for value in locked_constraints if CONSTRAINT_RESTATEMENT_RE.search(value)]
+        if too_long:
+            errors.append("promptEnhancement.lockedConstraints must name dimensions in at most 40 characters per item")
+        if restatements:
+            errors.append("promptEnhancement.lockedConstraints restates reference-image content: " + "; ".join(restatements))
+        normalized_locked = {re.sub(r"[\s，。；、]", "", value) for value in locked_constraints}
+        duplicate_preserve = [
+            str(value)
+            for value in enhancement.get("preserve") or []
+            if re.sub(r"[\s，。；、]", "", str(value)) in normalized_locked
+        ]
+        if duplicate_preserve:
+            errors.append("promptEnhancement.preserve duplicates lockedConstraints instead of semantic anchors")
+        visual_preserve = [
+            str(value)
+            for value in enhancement.get("preserve") or []
+            if re.search(r"图像依据[:：]|具体为|具体是|^保持模板参考图|^沿用参考图", str(value))
+        ]
+        if visual_preserve:
+            errors.append("promptEnhancement.preserve contains visual restatements instead of semantic anchors")
+        if len(locked_constraints) < 3 or len(categories) < 3:
             errors.append(
-                "template reference constraints must contain image-specific composition, style and spatial-relationship evidence"
+                "template reference constraints must point to composition, style and spatial-relationship dimensions"
             )
         template_source = metadata.get("templateSource") if isinstance(metadata.get("templateSource"), dict) else {}
         authority = template_source.get("authority") if isinstance(template_source.get("authority"), dict) else {}
-        if (
-            authority.get("composition_authority") != "high"
-            or authority.get("style_authority") != "high"
-            or authority.get("identity_authority") != "none"
-        ):
-            errors.append("metadata.templateSource.authority must reserve high composition/style authority and no identity authority")
+        if authority.get("composition_authority") != "high" or authority.get("style_authority") != "high":
+            errors.append("metadata.templateSource.authority must reserve high composition/style authority")
+        if subjects and authority.get("identity_authority") != "none":
+            errors.append("templates with open subject inputs must use identity_authority=none")
     return errors
 
 
