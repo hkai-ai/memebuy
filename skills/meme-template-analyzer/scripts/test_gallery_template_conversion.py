@@ -35,7 +35,7 @@ def fixture() -> dict:
                 "slotRole": "semantic_replacement",
                 "required": True,
                 "defaultValue": "白猫",
-                "suggestions": ["黑狗", "熊猫"],
+                "suggestions": ["白猫", "黑狗", "熊猫", "垂耳兔"],
                 "allowCustom": True,
                 "imagePromptValue": "用户上传图中的主体",
                 "extract": "保留主体身份、轮廓与颜色，不继承构图。",
@@ -71,7 +71,9 @@ def fixture() -> dict:
             "role": "template_reference",
             "preserve": ["subject_on_right"],
             "locked_composition_constraints": [
-                {"id": "laser_direction", "value": "激光向左下方发射。"}
+                {"id": "laser_direction", "value": "保持主体位于右侧并向左下方发射激光的纵向构图与画幅裁切。"},
+                {"id": "paper_style", "value": "保持粗糙纸张颗粒、复古印刷网点和手绘线稿结合的媒介质感。"},
+                {"id": "spatial_relation", "value": "保持主体、眼睛与激光之间的前后层级、遮挡关系和方向联系。"}
             ],
         },
         "taxonomy": {
@@ -160,9 +162,15 @@ def main() -> None:
     assert record["metadata"]["version"] == "2.0.0"
     assert "{{ subject | \"白猫\" }}" in record["promptTemplate"]
     assert "激光向左下方发射" not in record["promptTemplate"]
-    assert "激光向左下方发射" in record["promptEnhancement"]["lockedConstraints"]
+    assert record["promptEnhancement"]["lockedConstraints"] == [
+        "沿用参考图的画幅、裁切、留白、镜头景别与元素位置比例",
+        "沿用参考图的媒介质感与材质表现",
+        "沿用参考图的前景背景层级、遮挡关系与阅读顺序",
+    ]
+    assert record["promptEnhancement"]["preserve"] == []
     assert record["promptEnhancement"]["referenceField"] == "referenceImage"
     assert record["promptEnhancement"]["output"] == {"format": "json", "promptField": "finalPrompt"}
+    assert "只输出最终成图" in record["promptEnhancement"]["instruction"]
     assert record["inputSchema"][0]["type"] == "subject"
     assert record["inputSchema"][0]["resolutionStrategy"] == "image_over_text"
     assert record["inputSchema"][0]["image"]["promptValue"] == "用户上传图中的主体"
@@ -175,8 +183,34 @@ def main() -> None:
     assert "疑似惊讶" not in record["metadata"]["tags"]
     assert record["metadata"]["referenceContext"]["status"] == "probable"
     assert record["metadata"]["referenceContext"]["primaryReference"] == "《戴珍珠耳环的少女》"
+    assert record["inputSchema"][0]["label"] == "主体"
+    assert record["inputSchema"][0]["image"]["promptValue"] == "用户上传图中的主体"
+    assert record["metadata"]["inputSemantics"]["subject"]["semanticType"] == "subject_identity"
+    assert record["metadata"]["inputSemantics"]["subject"]["uploadLabel"] == "上传主体图"
+    assert "上传图决定对应主体的身份、物种与人物类型" in record["promptEnhancement"]["instruction"]
+    assert "在开放槽位对应维度上不具权限" in record["promptEnhancement"]["instruction"]
+    assert "finalPrompt 必须" not in record["promptEnhancement"]["instruction"]
     assert "path" not in record["metadata"]["templateSource"]
     assert record["metadata"]["templateSource"]["referenceField"] == "referenceImage"
+
+    leaking_fixture = fixture()
+    leaking_fixture["promptEnhancement"] = {
+        "stageKey": "gallery.prompt_rewrite",
+        "instruction": "按 reaction_portrait 组件图执行编辑。每个输入只修改其绑定组件。",
+        "preserve": ["reaction_portrait_1", "reaction_portrait_2"],
+    }
+    leaking_fixture["templateSource"]["preserve"] = [
+        "reaction_portrait_1", "reaction_portrait_2"
+    ]
+    leaking_fixture["templateSource"]["locked_composition_constraints"][0]["description"] = (
+        "保持激光方向，具体可编辑内容由组件槽位控制。"
+    )
+    sanitized = build_gallery_template(leaking_fixture)
+    assert "组件图" not in sanitized["promptEnhancement"]["instruction"]
+    assert "只输出最终成图" in sanitized["promptEnhancement"]["instruction"]
+    assert sanitized["promptEnhancement"]["preserve"] == []
+    assert sanitized["metadata"]["templateSource"]["preserve"] == []
+    assert "组件槽位" not in sanitized["metadata"]["templateSource"]["locked_composition_constraints"][0]["description"]
 
     visibility_fixture = fixture()
     visibility_fixture["promptEnhancement"] = {
@@ -317,6 +351,25 @@ def main() -> None:
         assert "required must be a boolean" in str(error)
     else:
         raise AssertionError("converter accepted a string boolean")
+
+    unused_slot = fixture()
+    unused_slot["slots"].append(
+        {
+            "id": "unused_prop",
+            "label": "随身物",
+            "inputKind": "prompt",
+            "slotRole": "semantic_replacement",
+            "required": False,
+            "defaultValue": "雨伞",
+            "suggestions": ["雨伞", "手提包", "书本"],
+        }
+    )
+    try:
+        build_gallery_template(unused_slot)
+    except ValueError as error:
+        assert "every textual slot must appear naturally" in str(error)
+    else:
+        raise AssertionError("converter silently appended an unused textual slot")
 
 
 if __name__ == "__main__":

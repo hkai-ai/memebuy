@@ -94,12 +94,13 @@ OSS 收尾脚本只上传一次并复用 URL。最终交付 JSON 中二者为指
 
 ### promptEnhancement
 
-`promptEnhancement` 仅后端可见。后端先用输入值渲染 `promptTemplate`，再把基础提示词、复合主体模式、用户参考图和模板参考图上下文交给指定 LLM stage。它包含：
+`promptEnhancement` 仅后端可见。后端先用输入值渲染 `promptTemplate`；全文编辑时先把用户改写合并进基础提示词，再将结果、复合主体模式、用户参考图和模板参考图上下文交给增强层。用户决定全部开放槽位；参考图决定构图、镜头、姿态、风格、材质、光影和其他未开放呈现维度。背景或色调未开放时由参考图决定，开放时由用户输入决定。它包含：
 
 - `stageKey`：二次编辑能力，例如 `gallery.prompt_rewrite`。
-- `instruction`：内部改写目标，不改变用户创作意图。
+- `instruction`：内部改写目标；参考图最高权限必须限定在呈现维度，显式排除开放内容和主体身份。
 - `referenceField`：存在模板参考图时固定为 `referenceImage`。
-- `lockedConstraints` / `preserve`：必须由最终提示词执行的结构和风格约束。
+- `lockedConstraints`：只指名沿用参考图的视觉维度，不复述具体画面内容。
+- `preserve`：只保存换主体后仍须成立的模板语义锚点，不复制视觉约束。
 - `output`：固定为 `{ "format": "json", "promptField": "finalPrompt" }`。
 
 ### resolvedPrompt
@@ -127,7 +128,7 @@ GalleryTemplateImport v2 支持 `prompt | select | image | subject`：
 变为“读图转文字且不把原图传给生成模型”。槽位的 `extract` 暂存于
 `metadata.inputSemantics`。
 
-`subject` 是 Gallery v2 新增的复合输入。它包含 `text`、`image` 和固定的 `resolutionStrategy: image_over_text`。图片模式下 `{{subjectId}}` 解析为 `image.promptValue`，例如“用户上传图中的主体”，同时把原图作为 identity reference 传给网关；禁止继续注入默认“猫”“狗”或人物身份。
+`subject` 是 Gallery v2 新增的复合输入。它包含 `text`、`image` 和固定的 `resolutionStrategy: image_over_text`。身份类槽统一使用 `semanticType: subject_identity`；普通身份槽的图片模式解析为“用户上传图中的主体”，盒内内容、右页画作等嵌套槽可保留空间或功能角色，同时把原图作为 identity reference 传给网关。label、`image.promptValue`、`defaultStateLabel`、`textInputLabel` 和 `uploadLabel` 均不得继续注入默认“猫”“狗”、人物类型、性别或商品身份。
 
 建议后端接收以下运行时值：
 
@@ -145,9 +146,14 @@ GalleryTemplateImport v2 支持 `prompt | select | image | subject`：
 
 1. 解析 `inputSchema`；`subject.mode=image` 时使用 `image.promptValue` 渲染占位，同时收集 `assetIds`。
 2. 渲染前端基础 `promptTemplate`，得到 `basePrompt`。
-3. 调用 `promptEnhancement.stageKey`，输入 `basePrompt`、`instruction`、`lockedConstraints`、`preserve`、模板参考图上下文和主体模式。
-4. 只接受 JSON 对象中的 `finalPrompt`，作为本次任务的 `resolvedPrompt`。
-5. 图片网关接收 `resolvedPrompt`、`referenceImage` 和 subject image assets；前端 API 不返回后端 instruction、约束或 `resolvedPrompt`。
+3. 全文编辑时把用户改写合并进 `basePrompt`；合并结果必须完整体现用户对开放内容的替换，不能从旧槽位值重建。
+4. 调用增强层，输入合并后的基础提示词、`instruction`、`lockedConstraints`、`preserve`、开放槽位 label、模板参考图上下文和主体模式。
+5. 读取运行时返回的最终提示词，作为本次任务的 `resolvedPrompt`。
+6. 图片网关接收 `resolvedPrompt`、`referenceImage` 和 subject image assets；前端 API 不返回后端 instruction、约束或 `resolvedPrompt`。
+
+当前实现固定路由到 `gallery.template_rewrite` 并读取 `parsed.prompt`；Schema 中的 `stageKey`、`referenceField` 和 `output.promptField` 仍按契约填写，但当前不被运行时代码消费。`metadata.templateSource.authority` 也是声明信息，真实裁决依赖 instruction、开放槽位 label 和合并逻辑。
+
+运行时目前只使用 `type: prompt | subject` 的中文 label 构造开放槽位清单。同款模板不要用纯 `select` 承载可替换内容；使用 `prompt.suggestions` 或 `subject.text.suggestions`。
 
 ## preprocessSteps 与 stageKey
 
@@ -169,6 +175,9 @@ GalleryTemplateImport v2 支持 `prompt | select | image | subject`：
 - `templateSource`: 保留 authority、preserve、locked constraints；图片路径改为
   `referenceField: "referenceImage"`，避免留下本地路径。
 - `inputSemantics`: 保留 `slotRole`、默认值、`extract`、`sourceOptions` 等不可执行语义。
+- `inputSemantics`: `subject` 另保留 `semanticType`、`defaultStateLabel`、`textInputLabel`和 `uploadLabel`，前端不再硬编码“自动”或“或描述主体”。
+- `presentation`: 保留 `recommendedOutputRatio` 和 `referenceImageRemovable`；模板参考图默认固定。
+- `runtimeRequirements`: 声明 `subjectInputVersion`、`supportsMultipleSubjectImages` 和 `imageSlotAddressing: input_id`。导入目标不支持时必须阻断发布。
 - `needsReview`: 非空字符串会让导入脚本强制写入 `DRAFT`；为空时默认 `PUBLISHED`。
 
 `topicId`、`status`、`sortOrder` 不由 Agent 产出。`topicId` 由导入运维指定；status 默认
@@ -190,10 +199,22 @@ python skills/meme-template-analyzer/scripts/validate_gallery_template.py <templ
 
 - `key` 满足 `^[a-z][a-z0-9-]{1,59}$`，批次内唯一。
 - 每个 input id 唯一，且与 preprocess step id 共享命名空间。
+- 有 fallback/defaultValue 的 input 默认非必填，用户打开模板后可直接生成。
+- title、description、promptTemplate 不包含“组件槽位版”或“制作…模板”等编排文案。
+- suggestions 回答同一个槽位问题并只改变目标属性；主体/容器内容不得混入外部风景，且不使用批量通用版本名或“简洁款/彩色手绘/用户自定义”填充项。
 - 所有 promptTemplate 引用的 head id 已定义。
 - `description` 是 20 字以内的独立纯描述。
 - `promptTemplate` 只包含前端可编辑创作意图，不含后端约束。
+- `promptTemplate` 必须用一段完整自然语言描述成图，placeholder 自然嵌入句子；不得使用“沿用原画面/以下开放项/同构画面/以模板参考图为基准/仅修改开放项”等后处理文案，也不得退化为槽位清单。
+- `prompt.suggestions` 存在时必须有 3-10 个去重候选；`subject.text.suggestions` 必须有 3-10 个去重预设；纯 `select` 至少提供 2 个选项。候选不足时，普通 prompt 省略 suggestions 并使用自由输入，或标记 `needsReview`。
 - 所有模板硬约束写入 `promptEnhancement`，并在 `metadata.templateSource` 保留结构副本。
+- `promptEnhancement.instruction` 必须要求只输出最终干净成图；禁止出现“按某某组件图执行”、内部组件 ID、槽位展示、标注框、连线或图例。
+- 有 `referenceImage` 时，`promptEnhancement.instruction` 必须声明模板图对呈现维度的最高权限，同时排除开放内容和主体身份；不得要求最终提示词复述参考图元指令。
+- `lockedConstraints` 每条只指名视觉维度，建议不超过 40 字，不含“图像依据/具体为”等画面复述；`preserve` 不得复制约束。
+- 背景内容、背景颜色、整体配色或色调只有通过组件独立性、用户编辑概率和模板完整性审计后才可开放；禁止整批机械复用。风格、姿态、镜头、画幅、构图、光影、媒介和材质保持锁定。
+- 每个 `prompt`、`subject` 内容槽都必须自然出现在 `promptTemplate`，不得依赖转换器追加槽位清单。
+- 槽位默认属性不得在 placeholder 之外静态写死，也不得被多个重叠槽位同时拥有；例如用户选择水蜜桃后，旧的“草莓”不能从模板主题、甜品内容 fallback 或另一个装饰槽回流。
+- `promptEnhancement.preserve` 与 `metadata.templateSource.preserve` 只写可直接理解的语义锚点；禁止复制 `lockedConstraints`，也禁止使用 `character_styling_1`、`reaction_portrait_2` 等机制名加序号的内部 ID。
 - 复合主体图片模式不重复默认文本主体，固定按 `image_over_text` 解析。
 - 用户图片槽默认原图直通，`preprocessSteps` 为 `[]`。
 - taxonomy 未完成人审时，`metadata.needsReview` 非空。
